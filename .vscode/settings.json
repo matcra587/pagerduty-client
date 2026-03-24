@@ -1,0 +1,18 @@
+{
+  "go.useLanguageServer": true,
+  "go.lintOnSave": "package",
+  "go.vetOnSave": "package",
+  "gopls": {
+    "formatting.gofumpt": true,
+    "ui.codelenses.test": true,
+    "ui.codelenses.generate": true,
+    "ui.completion.completeFunctionCalls": true
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.Go",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "anthropic.claude-code",
+    "golang.Go",
+    "rvben.rumdl",
+    "zizmor.zizmor-vscode"
+  ]
+}

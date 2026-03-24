@@ -24,9 +24,21 @@ profile.cov
 go.work
 go.work.sum
 
+# Build output
+dist/
+
 # env file
 .env
 
+# Task runner
+.task/
+
+# Claude Code
+.claude/settings.local.json
+
+# Linter cache
+.rumdl_cache/
+
 # Editor/IDE
-# .idea/
-# .vscode/
+!.vscode/settings.json
+!.vscode/extensions.json

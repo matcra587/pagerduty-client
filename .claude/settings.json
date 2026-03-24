@@ -1,0 +1,58 @@
+{
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Project: pagerduty-client (Go 1.26). Format: gofumpt. Lint: golangci-lint. Log: gechr/clog. Test: testify + httptest. British English, no Oxford comma. Run task lint && task test before committing.'"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Context was compacted. Key reminders:\n- Module: github.com/matcra587/pagerduty-client\n- Go 1.26 with toolchain directive. Green Tea GC on by default.\n- mise for platform tools (go, task, actionlint, rumdl, zizmor). go.mod tool directives for Go tools (golangci-lint, gofumpt, govulncheck).\n- gechr/clog for logging, gechr/clib for Cobra extensions.\n- go-pagerduty for types only. Custom HTTP transport in internal/api/.\n- Agent mode: auto-detect LLM env vars, JSON envelope output.\n- TUI: Bubble Tea + Lipgloss in internal/tui/.\n- Rules: .claude/rules/ (go.md, project.md, tests.md, docs.md).\n- Build: task build -> ./dist/. task install -> GOPATH/bin.'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-files.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // empty' | grep '\\.md$' | xargs -r mise exec -- rumdl fix"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "notify-send 'Claude Code' 'Claude Code needs your attention' 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

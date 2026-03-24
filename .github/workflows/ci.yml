@@ -1,0 +1,123 @@
+---
+name: ci
+
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: ActionLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run actionlint
+        run: actionlint -color
+
+  zizmor:
+    name: Zizmor workflow security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # Required to upload SARIF results to the Security tab.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8
+        with:
+          inputs: ./.github/
+          persona: pedantic
+          advanced-security: false
+          annotations: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  go:
+    name: Go build & test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Download deps
+        run: go mod download
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -v -cover ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Security check
+        run: go tool govulncheck ./...
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    needs: go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Download deps
+        run: go mod download
+
+      - name: Run golangci-lint
+        run: go tool golangci-lint run --timeout=5m
+
+  rumdl:
+    name: rumdl checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run rumdl
+        uses: rvben/rumdl@8eeed34c6f8f3bacc43f59a6a34f3c15dd594b20
+        with:
+          report-type: annotations

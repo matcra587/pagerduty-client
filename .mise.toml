@@ -1,0 +1,8 @@
+[tools]
+go = "1.26"
+actionlint = "latest"
+goreleaser = "latest"
+syft = "latest"
+task = "latest"
+zizmor = "latest"
+"ubi:rvben/rumdl" = "latest"

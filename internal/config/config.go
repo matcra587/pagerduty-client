@@ -32,13 +32,14 @@ type CustomField struct {
 type Config struct {
 	Token            string            `koanf:"-"`
 	BaseURL          string            `koanf:"base_url"`
+	Email            string            `koanf:"-"`
 	Team             string            `koanf:"-"`
 	Service          string            `koanf:"-"`
 	Format           string            `koanf:"-"`
 	RefreshInterval  int               `koanf:"-"`
 	Debug            bool              `koanf:"-"`
 	AgentMode        bool              `koanf:"-"`
-	NoTUI            bool              `koanf:"-"`
+	Interactive      bool              `koanf:"-"`
 	TestMode         bool              `koanf:"test_mode"`
 	TUI              TUI               `koanf:"tui"`
 	CredentialSource credential.Source `koanf:"credential_source"`
@@ -148,6 +149,9 @@ func Load(opts ...Option) (*Config, error) {
 
 	// Promote [defaults] values to top-level fields. koanf tags can't
 	// map dotted keys to flat struct fields, so we read them manually.
+	if v := k.String("defaults.email"); v != "" {
+		cfg.Email = v
+	}
 	if v := k.String("defaults.team"); v != "" {
 		cfg.Team = v
 	}
@@ -159,6 +163,9 @@ func Load(opts ...Option) (*Config, error) {
 	}
 	if v := k.Int("defaults.refresh_interval"); v != 0 {
 		cfg.RefreshInterval = v
+	}
+	if k.Bool("defaults.interactive") {
+		cfg.Interactive = true
 	}
 
 	applyEnv(cfg)
@@ -174,6 +181,9 @@ func Load(opts ...Option) (*Config, error) {
 }
 
 func applyEnv(cfg *Config) {
+	if v := os.Getenv("PDC_EMAIL"); v != "" {
+		cfg.Email = v
+	}
 	if v := os.Getenv("PDC_TEAM"); v != "" {
 		cfg.Team = v
 	}
@@ -188,5 +198,8 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("PDC_DEBUG"); v != "" {
 		cfg.Debug = v == "1" || v == "true"
+	}
+	if v := os.Getenv("PDC_INTERACTIVE"); v != "" {
+		cfg.Interactive = v == "1" || v == "true"
 	}
 }

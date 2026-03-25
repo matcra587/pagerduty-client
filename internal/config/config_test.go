@@ -197,3 +197,25 @@ func TestLoad_MissingFileFallsBackToDefaults(t *testing.T) {
 	assert.Equal(t, "table", cfg.Format)
 	assert.Equal(t, 30, cfg.RefreshInterval)
 }
+
+func TestLoad_InteractiveFromTOML(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	toml := `
+[defaults]
+interactive = true
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(toml), 0o600))
+
+	cfg, err := config.Load(config.WithPath(cfgPath))
+	require.NoError(t, err)
+	assert.True(t, cfg.Interactive)
+}
+
+func TestLoad_InteractiveFromEnv(t *testing.T) {
+	t.Setenv("PDC_INTERACTIVE", "1")
+
+	cfg, err := config.Load(config.WithPath(""))
+	require.NoError(t, err)
+	assert.True(t, cfg.Interactive)
+}

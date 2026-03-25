@@ -109,10 +109,6 @@ var alertShowCmd = &cobra.Command{
 	},
 }
 
-// TODO: Port alertBodyCmd once internal/integration package is available (TUI worktree).
-// The "alert body" subcommand uses integration.Detect to identify the alert source
-// and extract structured fields from the raw alert body payload.
-
 func alertRows(alerts []pagerduty.IncidentAlert) ([]string, [][]string) {
 	headers := []string{"ID", "Status", "Severity", "Summary", "Created"}
 	rows := make([][]string, len(alerts))

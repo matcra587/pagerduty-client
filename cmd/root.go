@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/complete"
 	"github.com/gechr/clib/help"
@@ -19,6 +20,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/credential"
+	"github.com/matcra587/pagerduty-client/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -64,8 +66,10 @@ var rootCmd = &cobra.Command{
 		if pf.Changed("format") {
 			cfg.Format, _ = pf.GetString("format")
 		}
-		if noTUI, _ := pf.GetBool("no-tui"); noTUI {
-			cfg.NoTUI = true
+		if pf.Changed("interactive") {
+			if v, _ := pf.GetBool("interactive"); v {
+				cfg.Interactive = true
+			}
 		}
 		if debug, _ := pf.GetBool("debug"); debug {
 			cfg.Debug = true
@@ -158,13 +162,16 @@ var rootCmd = &cobra.Command{
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		det := AgentFromContext(cmd)
-		noTUI, _ := cmd.Root().PersistentFlags().GetBool("no-tui")
-
+		cfg := ConfigFromContext(cmd)
 		isTTY := terminal.Is(os.Stdout)
 
-		// TUI not yet wired - show help instead.
-		if !det.Active && isTTY && !noTUI {
-			return cmd.Help()
+		if !det.Active && isTTY && cfg.Interactive {
+			client := ClientFromContext(cmd)
+			email := UserEmailFromContext(cmd)
+			app := tui.New(cmd.Context(), client, cfg, email)
+			p := tea.NewProgram(app, tea.WithContext(cmd.Context()))
+			_, err := p.Run()
+			return err
 		}
 
 		return cmd.Help()
@@ -192,7 +199,7 @@ func init() {
 	pf.StringP("token", "t", "", "PagerDuty API token (overrides PDC_TOKEN)")
 	pf.StringP("team", "T", "", "Team name or ID filter (overrides PDC_TEAM)")
 	pf.StringP("format", "f", "table", `Output format: "table" or "json"`)
-	pf.Bool("no-tui", false, "Disable TUI even on a TTY")
+	pf.BoolP("interactive", "i", false, "Launch interactive TUI dashboard")
 	pf.Bool("agent", false, "Force agent mode (structured JSON output)")
 	pf.StringP("config", "c", "", "Config file path (default: $XDG_CONFIG_HOME/pagerduty-client/config.toml)")
 	pf.BoolP("debug", "d", false, "Enable debug output")
@@ -222,9 +229,9 @@ func init() {
 		Hint:        "file",
 		Terse:       "config file path",
 	})
-	clib.Extend(pf.Lookup("no-tui"), clib.FlagExtra{
+	clib.Extend(pf.Lookup("interactive"), clib.FlagExtra{
 		Group: "Output",
-		Terse: "disable TUI",
+		Terse: "launch interactive TUI",
 	})
 	clib.Extend(pf.Lookup("agent"), clib.FlagExtra{
 		Group: "Output",
@@ -264,7 +271,7 @@ func buildExamplesSection() help.Section {
 		Title: "Examples",
 		Content: []help.Content{
 			help.Examples{
-				{Comment: "Launch the TUI dashboard", Command: "pdc"},
+				{Comment: "Launch the TUI dashboard", Command: "pdc -i"},
 				{Comment: "List triggered incidents as JSON", Command: "pdc incident list --format json"},
 				{Comment: "Acknowledge an incident", Command: "pdc incident ack P000001"},
 				{Comment: "Show who is on call", Command: "pdc oncall"},

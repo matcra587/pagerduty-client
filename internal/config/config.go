@@ -11,6 +11,7 @@ import (
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
+	"github.com/matcra587/pagerduty-client/internal/credential"
 )
 
 // TUI holds dashboard display preferences.
@@ -29,20 +30,18 @@ type CustomField struct {
 
 // Config holds all configuration for pagerduty-client.
 type Config struct {
-	Token            string `koanf:"-"`
-	BaseURL          string `koanf:"base_url"`
-	Team             string `koanf:"-"`
-	Service          string `koanf:"-"`
-	Format           string `koanf:"-"`
-	RefreshInterval  int    `koanf:"-"`
-	Debug            bool   `koanf:"-"`
-	AgentMode        bool   `koanf:"-"`
-	NoTUI            bool   `koanf:"-"`
-	TestMode         bool   `koanf:"test_mode"`
-	TUI              TUI    `koanf:"tui"`
-	CredentialSource string `koanf:"credential_source"`
-	OpAccount        string `koanf:"op_account"`
-	OpSecretRef      string `koanf:"op_secret_ref"`
+	Token            string            `koanf:"-"`
+	BaseURL          string            `koanf:"base_url"`
+	Team             string            `koanf:"-"`
+	Service          string            `koanf:"-"`
+	Format           string            `koanf:"-"`
+	RefreshInterval  int               `koanf:"-"`
+	Debug            bool              `koanf:"-"`
+	AgentMode        bool              `koanf:"-"`
+	NoTUI            bool              `koanf:"-"`
+	TestMode         bool              `koanf:"test_mode"`
+	TUI              TUI               `koanf:"tui"`
+	CredentialSource credential.Source `koanf:"credential_source"`
 
 	CustomFields []CustomField `koanf:"custom_fields"`
 }
@@ -58,7 +57,7 @@ func (c *Config) Validate() error {
 		return nil
 	}
 	if c.Token == "" {
-		return errors.New("token is required: set PDC_TOKEN or configure a credential source (run \"pagerduty-client init\")")
+		return errors.New("token is required: set PDC_TOKEN or configure a credential source (run \"pdc init\")")
 	}
 	if !validFormats[c.Format] {
 		return fmt.Errorf("invalid format %q: must be \"table\" or \"json\"", c.Format)
@@ -175,9 +174,6 @@ func Load(opts ...Option) (*Config, error) {
 }
 
 func applyEnv(cfg *Config) {
-	if v := os.Getenv("PDC_TOKEN"); v != "" {
-		cfg.Token = v
-	}
 	if v := os.Getenv("PDC_TEAM"); v != "" {
 		cfg.Team = v
 	}

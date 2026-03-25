@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"github.com/matcra587/pagerduty-client/cmd"
+)
 
 func main() {
-	fmt.Println("pagerduty-client")
+	if err := cmd.Execute(); err != nil {
+		os.Exit(1)
+	}
 }

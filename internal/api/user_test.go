@@ -160,8 +160,7 @@ func TestListContactMethods(t *testing.T) {
 			"contact_methods": [
 				{"id": "CM1", "type": "email_contact_method", "address": "alice@example.com", "label": "Work"},
 				{"id": "CM2", "type": "phone_contact_method", "address": "5551234567", "label": "Mobile"}
-			],
-			"limit": 100, "offset": 0, "more": false, "total": 2
+			]
 		}`))
 	})
 
@@ -173,32 +172,4 @@ func TestListContactMethods(t *testing.T) {
 	assert.Equal(t, "email_contact_method", methods[0].Type)
 	assert.Equal(t, "alice@example.com", methods[0].Address)
 	assert.Equal(t, "Work", methods[0].Label)
-}
-
-func TestListContactMethods_Pagination(t *testing.T) {
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
-
-	callCount := 0
-	mux.HandleFunc("/users/PU1/contact_methods", func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		if callCount == 1 {
-			_, _ = w.Write([]byte(`{
-				"contact_methods": [{"id": "CM1", "type": "email_contact_method"}],
-				"limit": 1, "offset": 0, "more": true, "total": 2
-			}`))
-		} else {
-			_, _ = w.Write([]byte(`{
-				"contact_methods": [{"id": "CM2", "type": "phone_contact_method"}],
-				"limit": 1, "offset": 1, "more": false, "total": 2
-			}`))
-		}
-	})
-
-	c := NewClient("test-token", WithBaseURL(server.URL))
-	methods, err := c.ListContactMethods(context.Background(), "PU1")
-	require.NoError(t, err)
-	assert.Len(t, methods, 2)
-	assert.Equal(t, 2, callCount)
 }

@@ -1,89 +1,76 @@
-# Incident Triage Guide
+# Incident Triage
 
-## Overview
+Step-by-step workflow for handling PagerDuty incidents. Designed for
+AI agents performing on-call response.
 
-This guide covers the end-to-end incident triage workflow using `pagerduty-client`.
-It is designed for AI agents handling on-call response.
+## 1. Assess
 
-## Step 1 - Assess the situation
-
-List all open (triggered + acknowledged) incidents for your team:
+List open incidents and check who is on call:
 
 ```text
-pagerduty-client incident list --status triggered,acknowledged --team <team>
+pdc incident list --status triggered,acknowledged --team <team>
+pdc oncall --team <team>
 ```
 
-Check who is currently on call:
+## 2. Inspect
+
+Get full detail on a specific incident:
 
 ```text
-pagerduty-client oncall list --team <team>
+pdc incident show <id>
 ```
 
-## Step 2 - Inspect a specific incident
+## 3. Acknowledge
+
+Stop escalation while you investigate:
 
 ```text
-pagerduty-client incident show <id>
+pdc incident ack <id>
 ```
 
-This returns full detail: title, status, urgency, service, alerts, notes.
+## 4. Check alerts
 
-## Step 3 - Acknowledge to stop escalation
+List the alerts attached to the incident:
 
 ```text
-pagerduty-client incident ack <id>
+pdc alert list --incident <incident-id>
 ```
 
-## Step 4 - Investigate
+## 5. Escalate or reassign
 
-List alerts attached to the incident:
+Find team members, then reassign:
 
 ```text
-pagerduty-client alert list <incident-id>
+pdc user list --team <team>
+pdc incident reassign <id> --user <user-id>
 ```
 
-## Step 5 - Escalate or reassign if needed
+## 6. Document
 
-Find relevant users:
+Add a note with your findings:
 
 ```text
-pagerduty-client user list --team <team>
+pdc incident note <id> --content "Root cause: connection pool exhaustion"
 ```
 
-Reassign the incident:
+## 7. Resolve
+
+Once the problem is mitigated:
 
 ```text
-pagerduty-client incident reassign <id> --users <user-id>
+pdc incident resolve <id>
 ```
 
-## Step 6 - Add a note
+## 8. Merge duplicates
 
-Document your findings:
-
-```text
-pagerduty-client incident note <id> \
-  --content "Root cause: database connection exhaustion."
-```
-
-## Step 7 - Resolve
-
-Once mitigated:
+If several incidents describe the same problem:
 
 ```text
-pagerduty-client incident resolve <id>
-```
-
-## Step 8 - Handle duplicates
-
-If multiple incidents are duplicates, merge them:
-
-```text
-pagerduty-client incident merge <canonical-id> --sources <dup1>,<dup2>
+pdc incident merge <target-id> --source <dup1> --source <dup2>
 ```
 
 ## Tips
 
-- All commands support `--agent` for structured JSON output.
-- `pagerduty-client incident list` returns all results automatically (auto-paginated).
-- High-urgency incidents should always be addressed before low-urgency ones.
-- Snoozed incidents reappear as triggered after the snooze
-  expires.
+- Address high-urgency incidents before low-urgency ones.
+- Snoozed incidents re-trigger when the snooze expires.
+- All list commands auto-paginate and return every result.

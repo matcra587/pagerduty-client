@@ -1,41 +1,39 @@
-# Services Guide
+# Services
 
-## Overview
+Services represent components or systems that generate incidents.
+Each service has an escalation policy that controls who gets notified.
 
-Services represent a component or system that generates incidents.
-Use `pagerduty-client service` to list and inspect services.
-
-## Common Workflows
-
-### List all services
+## List services
 
 ```text
-pagerduty-client service list
+pdc service list
+pdc service list --team <name-or-id>
+pdc service list --query "api"
+pdc service list --sort name:asc
 ```
 
-### Filter services by team
+## Show a service
 
 ```text
-pagerduty-client service list --team <name-or-id>
+pdc service show <id>
 ```
 
-### View a service
+## Reference
 
-```text
-pagerduty-client service show <id>
-```
+| Flag | Purpose |
+|------|---------|
+| `--team` | Filter by team name or ID |
+| `--query` | Filter by service name |
+| `--sort` | Sort order: name, name:asc, name:desc |
 
-## Output Fields
+## Output fields
 
-| Field | Description |
-|-------|-------------|
-| ID | PagerDuty service ID |
+| Field | Notes |
+|-------|-------|
+| ID | Service ID (starts with `P`) |
 | Name | Service name |
 | Status | active, warning, critical, maintenance, disabled |
-| Escalation Policy | Associated escalation policy |
+| Escalation Policy | Associated policy name |
 
-## Tips
-
-- Service IDs start with `P`.
-- Use `--format json` for full service detail including integrations.
-- Status `maintenance` means the service has an active maintenance window.
+A status of `maintenance` means an active maintenance window is open.
+Use `--format json` for full detail including integrations.

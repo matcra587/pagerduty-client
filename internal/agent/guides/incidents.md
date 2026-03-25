@@ -1,99 +1,96 @@
-# Incident Management Guide
+# Incidents
 
-## Overview
+Incidents represent problems that need attention. Each incident belongs
+to a service and follows an escalation policy.
 
-Incidents are the primary unit of work in PagerDuty. Use `pagerduty-client incident` commands
-to list, view and act on incidents.
-
-## Common Workflows
-
-### List open incidents
+## List incidents
 
 ```text
-pagerduty-client incident list
-pagerduty-client incident list --status triggered,acknowledged
-pagerduty-client incident list --urgency high
-pagerduty-client incident list --team <name-or-id>
+pdc incident list
+pdc incident list --status triggered,acknowledged
+pdc incident list --urgency high
+pdc incident list --team <name-or-id>
+pdc incident list --service <id>
+pdc incident list --schedule <id>
 ```
 
-### Inspect an incident
+All results are returned (auto-paginated). Passing `--schedule` resolves
+the current on-call users and filters by those user IDs.
+
+## Show an incident
 
 ```text
-pagerduty-client incident show <id>
+pdc incident show <id>
 ```
 
-### Acknowledge an incident
+## Acknowledge
+
+Stops escalation. Does not resolve.
 
 ```text
-pagerduty-client incident ack <id>
+pdc incident ack <id>
 ```
 
-### Resolve an incident
+## Resolve
 
 ```text
-pagerduty-client incident resolve <id>
+pdc incident resolve <id>
 ```
 
-### Snooze an incident
+## Snooze
+
+Pauses notifications. The incident re-triggers when the duration expires.
 
 ```text
-pagerduty-client incident snooze <id> --duration 4h
+pdc incident snooze <id> --duration 4h
 ```
 
-### Reassign to another user
+## Reassign
 
 ```text
-pagerduty-client incident reassign <id> --users <user-id>[,<user-id>]
+pdc incident reassign <id> --user <user-id>
 ```
 
-### Add a note
+Pass `--user` multiple times to assign to several users.
+
+## Add a note
 
 ```text
-pagerduty-client incident note <id> --content "Investigating now"
+pdc incident note <id> --content "Root cause identified"
 ```
 
-### Merge duplicates
+## Merge duplicates
+
+Merges source incidents into a single target.
 
 ```text
-pagerduty-client incident merge <target-id> --sources <id1>[,<id2>]
+pdc incident merge <target-id> --source <id1> --source <id2>
 ```
 
-## Tips
+## Reference
 
-- Use `--format json` or `--agent` for structured output. When running inside
-  Claude Code, Cursor or other AI agents, agent mode is detected automatically
-  via environment variables - the `--agent` flag is not required.
-- `pagerduty-client incident list` auto-paginates - all results are returned.
-- Urgency values: `high`, `low`.
-- Status values: `triggered`, `acknowledged`, `resolved`.
+| Flag | Commands | Values |
+|------|----------|--------|
+| `--status` | list | triggered, acknowledged, resolved |
+| `--urgency` | list | high, low |
+| `--team` | list | team ID |
+| `--service` | list | service ID |
+| `--user` | list, reassign | user ID |
+| `--schedule` | list | schedule ID |
+| `--from` | ack, resolve, snooze, reassign, merge, note | acting user email (auto-detected from token) |
+| `--duration` | snooze | Go duration string (e.g. 4h, 30m) |
+| `--content` | note | note text |
+| `--source` | merge | source incident ID |
 
-## Agent Output Notes
+## Agent output
 
-When agent mode is active, `pagerduty-client incident list` and `pagerduty-client incident show` return
-a projected JSON format with duplicates removed. Key fields in the projected
-output:
+In agent mode, `incident list` and `incident show` return a projected
+JSON format. Duplicate fields (`summary`, `description`), reference
+noise (`self`, `type`, `html_url` on nested objects) and low-value
+metadata are stripped.
 
-| Field | Notes |
-|---|---|
-| `id` | Incident ID for follow-up commands |
-| `incident_number` | Human-readable incident number |
-| `title` | Incident summary |
-| `status` | `triggered`, `acknowledged`, `resolved` |
-| `urgency` | `high` or `low` |
-| `priority` | P1-P5 label when set, null otherwise |
-| `created_at` | ISO 8601 timestamp |
-| `service.id` | Owning service ID |
-| `service.summary` | Owning service name |
-| `escalation_policy.id` | Escalation policy ID |
-| `escalation_policy.summary` | Active escalation policy name |
-| `assignees[].id` | Assigned user IDs (for reassign commands) |
-| `assignees[].summary` | Assigned user names |
-| `alert_counts` | `{triggered, resolved, all}` |
-| `metadata.total` | Total result count (pagination) |
-
-The projected format excludes duplicate fields (`summary`, `description`),
-reference-object noise (`self`, `type`, `html_url` on nested refs) and
-low-value metadata (`first_trigger_log_entry`, `last_status_change_by`,
-`resolve_reason`, `body`).
+Key fields: `id`, `incident_number`, `title`, `status`, `urgency`,
+`priority`, `created_at`, `service`, `escalation_policy`, `assignees`,
+`alert_counts`.
 
 Use `--format json` to get the full unmodified PagerDuty API response.

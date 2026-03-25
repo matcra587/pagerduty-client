@@ -1,39 +1,39 @@
-# Schedules Guide
+# Schedules
 
-## Overview
+Schedules define on-call rotations. Each schedule contains layers of
+users who take turns being on call.
 
-Schedules define on-call rotations. Each schedule contains layers of users
-who rotate being on call. Use `pagerduty-client schedule` to list, view and manage overrides.
-
-## Common Workflows
-
-### List all schedules
+## List schedules
 
 ```text
-pagerduty-client schedule list
+pdc schedule list
+pdc schedule list --query "primary"
 ```
 
-### View a schedule
+## Show a schedule
 
 ```text
-pagerduty-client schedule show <id>
+pdc schedule show <id>
 ```
 
-### List overrides for a schedule
+## Create an override
+
+Overrides replace the scheduled on-call user for a specific time window.
 
 ```text
-pagerduty-client schedule overrides <id>
-pagerduty-client schedule overrides <id> --since 2026-01-01T00:00:00Z --until 2026-01-31T23:59:59Z
+pdc schedule override <schedule-id> --user <user-id> --start 2026-01-15T09:00:00Z --end 2026-01-15T17:00:00Z
 ```
 
-### Create an override
+## Reference
 
-```text
-pagerduty-client schedule override <id> --user <user-id> --start 2026-01-15T09:00:00Z --end 2026-01-15T17:00:00Z
-```
+| Flag | Commands | Purpose |
+|------|----------|---------|
+| `--query` | list | Filter by schedule name |
+| `--user` | override | User ID to put on call |
+| `--start` | override | Override start time (ISO 8601, required) |
+| `--end` | override | Override end time (ISO 8601, required) |
 
 ## Tips
 
 - Schedule IDs start with `P` followed by alphanumeric characters.
-- Overrides replace the scheduled on-call user for a specific time window.
-- Times must be in RFC3339 / ISO 8601 format with timezone offset.
+- All times must include a timezone offset (RFC 3339).

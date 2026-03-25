@@ -62,11 +62,12 @@ const (
 
 // Client is an HTTP client for the PagerDuty REST API v2.
 type Client struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
-	limiter    *rate.Limiter
-	userAgent  string
+	baseURL      string
+	token        string
+	httpClient   *http.Client
+	limiter      *rate.Limiter
+	userAgent    string
+	extraHeaders map[string]string
 }
 
 // Option configures a Client.
@@ -83,6 +84,14 @@ func WithBaseURL(u string) Option {
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) {
 		c.httpClient = hc
+	}
+}
+
+// WithExtraHeaders adds headers to every request. Headers set here
+// override the client defaults (Accept, Content-Type, etc.).
+func WithExtraHeaders(headers map[string]string) Option {
+	return func(c *Client) {
+		c.extraHeaders = headers
 	}
 }
 
@@ -115,6 +124,9 @@ func (c *Client) do(ctx context.Context, req *http.Request) ([]byte, error) {
 	req.Header.Set("Accept", acceptHeader)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", c.userAgent)
+	for k, v := range c.extraHeaders {
+		req.Header.Set(k, v)
+	}
 
 	var bodyBytes []byte
 	if req.Body != nil {

@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   PROJECT_NAME: pagerduty-client
+  BINARY_NAME: pdc
   MODULE: github.com/matcra587/pagerduty-client
   DIST_DIR: ./dist
   VERSION:
@@ -39,13 +40,13 @@ tasks:
     aliases: [b]
     cmds:
       - mkdir -p {{.DIST_DIR}}
-      - go build -ldflags '{{.LD_FLAGS}}' -o {{.DIST_DIR}}/{{.PROJECT_NAME}}-{{.GOOS}}-{{.GOARCH}} .
+      - go build -ldflags '{{.LD_FLAGS}}' -o {{.DIST_DIR}}/{{.BINARY_NAME}}-{{.GOOS}}-{{.GOARCH}} .
     sources:
       - "**/*.go"
       - go.mod
       - go.sum
     generates:
-      - "{{.DIST_DIR}}/{{.PROJECT_NAME}}-{{.GOOS}}-{{.GOARCH}}"
+      - "{{.DIST_DIR}}/{{.BINARY_NAME}}-{{.GOOS}}-{{.GOARCH}}"
 
   install:
     desc: Install binary to GOPATH/bin
@@ -55,7 +56,7 @@ tasks:
     desc: Build and run
     aliases: [r]
     deps: [build]
-    cmd: "{{.DIST_DIR}}/{{.PROJECT_NAME}}-{{.GOOS}}-{{.GOARCH}}"
+    cmd: "{{.DIST_DIR}}/{{.BINARY_NAME}}-{{.GOOS}}-{{.GOARCH}}"
 
   # ── Release ────────────────────────────────────────────
 
@@ -83,6 +84,10 @@ tasks:
     env:
       CGO_ENABLED: "1"
     cmd: go test -v -race -cover ./...
+
+  test:integration:
+    desc: Run integration tests against PagerDuty Stoplight mock
+    cmd: go test -v -tags integration ./internal/api/ -count=1 -timeout 60s
 
   # ── Code Quality ───────────────────────────────────────
 

@@ -105,7 +105,7 @@ clib.Extend(pf.Lookup("token"), clib.FlagExtra{
 
 - **Connection** - token, config
 - **Filters** - team, status, urgency, service, user, schedule, query, since, until
-- **Output** - format, no-tui, agent, debug, colour, sort, compact
+- **Output** - format, interactive, agent, debug, colour, sort, compact
 - **Action** - from, duration, user (reassignment), source, content
 
 ### Command Structure
@@ -172,8 +172,8 @@ rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.Sections,
         Title: "Examples",
         Content: []help.Content{
             help.Examples{
-                {Comment: "Launch the TUI", Command: "pagerduty-client"},
-                {Comment: "List incidents as JSON", Command: "pagerduty-client incident list -f json"},
+                {Comment: "Launch the TUI", Command: "pdc --interactive"},
+                {Comment: "List incidents as JSON", Command: "pdc incident list -f json"},
             },
         },
     }),
@@ -190,7 +190,7 @@ func setup() {
 }
 
 // In PersistentPreRunE:
-gen := complete.NewGenerator("pagerduty-client").FromFlags(clib.FlagMeta(cmd.Root()))
+gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 gen.Subs = clib.Subcommands(cmd.Root())
 handled, err := comp.Handle(gen, completionHandler(token, opts...))
 if handled {
@@ -210,48 +210,94 @@ Use to choose output format. Require interactive terminal for prompts.
 
 ## CLI Logging (gechr/clog)
 
-`gechr/clog` is the only logger. Never import the standard `log` package.
+`gechr/clog` is the only logger. `depguard` bans `log` and `log/slog`.
 
 ```go
 "github.com/gechr/clog"
 ```
 
-### Levels and Fields
+### Two Output Paths
 
-Start with a level, chain fields, end with `.Msg()`:
+- **clog** - operational feedback (token verified, incident acknowledged,
+  debug timing). Human-readable, coloured, goes to terminal.
+- **internal/output/** - command data output (incident list, service
+  detail). Structured, parseable, goes to stdout. Never route data
+  through clog.
+
+### Levels
+
+| Level | Use |
+|-------|-----|
+| `Trace` | Finest-grained, hidden by default |
+| `Debug` | Verbose (API timing, token source, agent detection) |
+| `Info` | Default - user feedback for write commands |
+| `Warn` | Non-fatal warnings |
+| `Error` | Errors via `Execute()` with `SilenceErrors: true` |
+| `Fatal` | Calls `os.Exit` after logging |
+
+### Field Methods
+
+Use typed fields, not string interpolation:
 
 ```go
 clog.Info().Msg("token verified")
-clog.Warn().Err(err).Msg("retry failed")
-clog.Info().Str("team", name).Msg("filtered")
+clog.Error().Err(err).Send()                    // error IS the message
 clog.Info().Link("incident", url, id).Msg("acknowledged")
 clog.Info().Path("config", path).Msg("written")
+clog.Info().Duration("duration", dur).Msg("snoozed")
+clog.Info().Strs("users", userIDs).Msg("reassigned")
+clog.Debug().Elapsed("duration").Int("count", n).Msg("listed incidents")
+clog.Debug().Str("source", src).Bool("active", det.Active).Msg("agent detection")
 ```
 
 | Method | Purpose |
 |--------|---------|
-| `.Err(err)` | Attach an error |
-| `.Str(key, val)` | String field |
-| `.Link(key, url, text)` | Clickable link |
-| `.Path(key, val)` | File path |
+| `.Err(err)` | Attach error. `.Send()` = error as message. `.Msg()` = error as field |
+| `.Str(k, v)` / `.Strs(k, vs)` | String / string slice |
+| `.Int(k, v)` / `.Bool(k, v)` | Typed numeric/boolean |
+| `.Duration(k, v)` | time.Duration (styled) |
+| `.Elapsed(k)` | Wall time from call to finalisation |
+| `.Link(k, url, text)` | OSC8 clickable hyperlink |
+| `.Path(k, v)` | File path hyperlink |
+| `.JSON(k, v)` / `.RawJSON(k, b)` | Syntax-highlighted JSON field |
 
 ### Configuration
 
 Set in `PersistentPreRunE`:
 
 ```go
+clog.SetEnvPrefix("PDC")          // PDC_LOG_LEVEL=debug
 clog.SetVerbose(cfg.Debug)
-clog.SetColorMode(clog.ColorAlways | clog.ColorNever | clog.ColorAuto)
+clog.SetColorMode(clog.ColorAuto) // or ColorAlways, ColorNever
+```
+
+### Error Handling Pattern
+
+Cobra errors go through clog, not Cobra's default output:
+
+```go
+var rootCmd = &cobra.Command{
+    SilenceErrors: true,
+    SilenceUsage:  true,
+}
+
+func Execute() error {
+    err := rootCmd.Execute()
+    if err != nil {
+        clog.Error().Err(err).Send()
+    }
+    return err
+}
 ```
 
 ### Usage Rules
 
-- Use clog for human-readable CLI feedback only. Agent-mode output
-  goes through `internal/output/` as structured JSON.
-- Prefer `.Str()` over string interpolation - structured fields render
-  better in coloured output.
-- End every chain with `.Msg()`. A chain without `.Msg()` is a no-op.
+- Use clog for feedback, `internal/output/` for data.
+- Use typed fields (`.Int()`, `.Duration()`, `.Strs()`) not `.Str()`
+  with `fmt.Sprintf`.
+- End every chain with `.Msg()` or `.Send()`. Unchained = no-op.
 - Keep messages lowercase, brief and specific.
+- `.Elapsed("duration")` on every API-calling read command for debug timing.
 
 ---
 
@@ -262,10 +308,11 @@ Every command MUST produce structured JSON output. JSON is the output contract.
 ### Output Priority
 
 1. Agent mode detected → JSON with envelope (metadata, hints, errors)
-2. `--format json` → plain JSON (no envelope)
-3. TTY + no subcommand → TUI
-4. TTY + subcommand → table (styled)
-5. No TTY / piped → table (plain, no colour)
+2. `--format json` on TTY → syntax-highlighted JSON (chroma, monokai)
+3. `--format json` piped → plain JSON
+4. `--interactive` / `-i` → TUI (opt-in, configurable via config.toml)
+5. TTY → table (styled)
+6. No TTY / piped → table (plain, no colour)
 
 ### Agent Envelope
 
@@ -300,9 +347,10 @@ The `--agent` flag also activates it.
 
 ### Agent Subcommands
 
-- `<binary> agent schema` - walk Cobra tree, emit JSON schema of all commands
-- `<binary> agent schema --compact` - schema without descriptions
-- `<binary> agent guide <name>` - emit embedded markdown guide
+- `pdc agent schema` - walk Cobra tree, emit JSON schema of all commands
+  (hidden flags are filtered out)
+- `pdc agent schema --compact` - schema without descriptions
+- `pdc agent guide <name>` - emit embedded markdown guide
 - Embed guides via go:embed from internal/agent/guides/
 
 ---

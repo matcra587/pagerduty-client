@@ -1,54 +1,38 @@
-# On-Call Guide
+# On-Call
 
-## Overview
+Shows who is on call right now for each schedule and escalation policy.
 
-On-call entries show who is currently on call for each schedule and escalation
-policy. Use `pagerduty-client oncall` to query the current on-call roster.
-
-## Common Workflows
-
-### List all current on-call entries
+## List on-call entries
 
 ```text
-pagerduty-client oncall list
+pdc oncall
+pdc oncall --team <name-or-id>
+pdc oncall --schedule <schedule-id>
+pdc oncall --escalation-policy <policy-id>
 ```
 
-### Filter by team
+## Filter by time window
 
 ```text
-pagerduty-client oncall list --team <name-or-id>
+pdc oncall --since 2026-01-01T00:00:00Z --until 2026-01-02T00:00:00Z
 ```
 
-### Filter by user
+## Reference
 
-```text
-pagerduty-client oncall list --user <user-id>
-```
+| Flag | Purpose |
+|------|---------|
+| `--team` | Filter by team name or ID |
+| `--schedule` | Filter by schedule ID |
+| `--escalation-policy` | Filter by escalation policy ID |
+| `--since` | Start of time window (ISO 8601) |
+| `--until` | End of time window (ISO 8601) |
 
-### Filter by escalation policy
+## Output fields
 
-```text
-pagerduty-client oncall list --escalation-policy <policy-id>
-```
-
-### Filter by schedule
-
-```text
-pagerduty-client oncall list --schedule <schedule-id>
-```
-
-## Output Fields
-
-| Field | Description |
-|-------|-------------|
-| User | Name and ID of the on-call user |
+| Field | Notes |
+|-------|-------|
+| User | Name and ID of the on-call person |
 | Schedule | Schedule name |
 | Escalation Policy | Policy name |
 | Level | Escalation level (1 = primary) |
-| Start | When the on-call shift starts |
-| End | When the on-call shift ends |
-
-## Tips
-
-- Use `--format json` for structured output suitable for scripting.
-- Results include all active on-call entries across all escalation levels.
+| Start / End | On-call shift window |

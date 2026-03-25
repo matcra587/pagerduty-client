@@ -1,41 +1,35 @@
-# Teams Guide
+# Teams
 
-## Overview
+Teams group users, services and escalation policies. Most commands
+accept `--team` to filter results to a single team.
 
-Teams group users, services and escalation policies in PagerDuty.
-Use `pagerduty-client team` to list and inspect teams. Use `--team` on other commands
-to filter results to a specific team.
-
-## Common Workflows
-
-### List all teams
+## List teams
 
 ```text
-pagerduty-client team list
+pdc team list
+pdc team list --query "platform"
 ```
 
-### Search for a team by name
+## Show a team
 
 ```text
-pagerduty-client team list --query "platform"
+pdc team show <id>
 ```
 
-### View a team
+## Filter other commands by team
 
 ```text
-pagerduty-client team show <id>
+pdc incident list --team "Platform Engineering"
+pdc oncall --team PABCDEF
+pdc service list --team "Platform Engineering"
 ```
 
-### Use a team as a filter on other commands
+`--team` accepts a name or an ID. Names are resolved via the PagerDuty
+API. If a name matches more than one team, pdc returns an error - use
+the ID instead.
 
-```text
-pagerduty-client incident list --team "Platform Engineering"
-pagerduty-client oncall list --team PABCDEF
-pagerduty-client service list --team "Platform Engineering"
-```
+## Reference
 
-## Tips
-
-- `--team` accepts either a team name or a team ID (starting with `P`).
-- Team names are resolved via the API and cached in memory during the session.
-- Ambiguous team names (multiple matches) return an error - use the ID instead.
+| Flag | Commands | Purpose |
+|------|----------|---------|
+| `--query` | list | Filter by team name |

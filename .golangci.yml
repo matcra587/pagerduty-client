@@ -5,6 +5,7 @@ linters:
     - errchkjson
   enable:
     - bodyclose
+    - depguard
     - containedctx
     - dogsled
     - dupword
@@ -86,6 +87,14 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: "log"
+              desc: "use github.com/gechr/clog instead of the standard log package"
+            - pkg: "log/slog"
+              desc: "use github.com/gechr/clog instead of log/slog"
     staticcheck:
       checks:
         - "all"

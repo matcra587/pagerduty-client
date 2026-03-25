@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,8 +24,10 @@ import (
 // initConfig collects values entered during the init wizard.
 type initConfig struct {
 	credentialSource credential.Source
+	defaultEmail     string
 	defaultTeamID    string
 	defaultServiceID string
+	interactive      bool
 }
 
 var initCmd = &cobra.Command{
@@ -73,94 +76,87 @@ func runInit(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 		if !overwrite {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Aborted - existing config unchanged.")
+			clog.Info().Msg("Aborted - existing config unchanged")
 			return nil
 		}
 	}
 
 	ic := initConfig{}
 
+	// Optional email for write operations (ack, resolve, etc.).
+	var email string
+	if err := huh.NewInput().
+		Title("PagerDuty email address (optional, used for write operations)").
+		Description("Leave blank to look up automatically from the API token.").
+		Value(&email).
+		Run(); err != nil {
+		return err
+	}
+	if email != "" {
+		if _, err := mail.ParseAddress(email); err != nil {
+			clog.Warn().Str("email", email).Msg("invalid email - skipping")
+		} else {
+			ic.defaultEmail = email
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	var resolvedToken string
 
-	// If PDC_TOKEN is set, validate it and skip keyring setup.
+	// If PDC_TOKEN is set, validate it and offer keyring as a fallback.
 	if envToken := os.Getenv("PDC_TOKEN"); envToken != "" {
 		suffix := envToken
 		if len(envToken) > 3 {
 			suffix = envToken[len(envToken)-3:]
 		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "PDC_TOKEN detected in environment (...%s)\n", suffix)
+		clog.Info().Str("token", "..."+suffix).Msg("PDC_TOKEN detected in environment")
 
 		if err := validateTokenViaAPI(ctx, envToken, apiOpts); err != nil {
-			return fmt.Errorf("%w\nRun \"pdc init\" to try again", err)
+			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
+		} else {
+			clog.Info().Msg("Token verified")
+			resolvedToken = envToken
 		}
-		clog.Info().Msg("Token verified")
-		resolvedToken = envToken
 
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Using environment variable for authentication - no keyring needed.")
+		var setupKeyring bool
+		if err := huh.NewConfirm().
+			Title("Also store a token in the OS keyring? (fallback when PDC_TOKEN is not set)").
+			Value(&setupKeyring).
+			Run(); err != nil {
+			return err
+		}
+		if setupKeyring {
+			if err := setupKeyringToken(ctx, &ic, &resolvedToken, apiOpts); err != nil {
+				return err
+			}
+		}
 	} else {
 		// No env token - prompt for keyring storage.
-		if existing, err := keyring.Get(credential.ServiceName, credential.AccountName); err == nil && existing != "" {
-			var overwriteKey bool
-			if err := huh.NewConfirm().
-				Title("A token is already stored in the OS keyring. Overwrite it?").
-				Value(&overwriteKey).
-				Run(); err != nil {
-				return err
-			}
-			if !overwriteKey {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Keeping existing keyring token.")
-				resolvedToken = existing
-			}
+		if err := setupKeyringToken(ctx, &ic, &resolvedToken, apiOpts); err != nil {
+			return err
 		}
-
-		if resolvedToken == "" {
-			var rawToken string
-			if err := huh.NewInput().
-				Title("PagerDuty API token").
-				EchoMode(huh.EchoModePassword).
-				Value(&rawToken).
-				Validate(func(s string) error {
-					if s == "" {
-						return errors.New("token is required")
-					}
-					return nil
-				}).
-				Run(); err != nil {
-				return err
-			}
-
-			if err := validateTokenViaAPI(ctx, rawToken, apiOpts); err != nil {
-				return fmt.Errorf("%w\nRun \"pdc init\" to try again", err)
-			}
-			clog.Info().Msg("Token verified")
-
-			if err := keyring.Set(credential.ServiceName, credential.AccountName, rawToken); err != nil {
-				return fmt.Errorf("failed to store token in OS keyring: %w", err)
-			}
-			resolvedToken = rawToken
-		} else {
-			// Validate existing keyring token.
-			if err := validateTokenViaAPI(ctx, resolvedToken, apiOpts); err != nil {
-				return fmt.Errorf("%w\nRun \"pdc init\" to try again", err)
-			}
-			clog.Info().Msg("Token verified")
-		}
-
-		ic.credentialSource = credential.SourceKeyring
 	}
 
 	// Default team/service selection (only when we have a validated token).
 	if resolvedToken != "" {
-		if err := runTeamSelection(ctx, cmd, resolvedToken, &ic, apiOpts); err != nil {
-			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Warning: team selection failed (%v). Skipping.\n", err)
+		if err := runTeamSelection(ctx, resolvedToken, &ic, apiOpts); err != nil {
+			clog.Warn().Err(err).Msg("team selection failed - skipping")
 		}
-		if err := runServiceSelection(ctx, cmd, resolvedToken, &ic, apiOpts); err != nil {
-			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Warning: service selection failed (%v). Skipping.\n", err)
+		if err := runServiceSelection(ctx, resolvedToken, &ic, apiOpts); err != nil {
+			clog.Warn().Err(err).Msg("service selection failed - skipping")
 		}
 	}
+
+	var enableInteractive bool
+	if err := huh.NewConfirm().
+		Title("Enable interactive mode by default? (launches TUI dashboard on pdc)").
+		Value(&enableInteractive).
+		Run(); err != nil {
+		return err
+	}
+	ic.interactive = enableInteractive
 
 	configDir := filepath.Dir(cfgPath)
 	if err := writeInitConfig(configDir, ic); err != nil {
@@ -176,10 +172,17 @@ func validateTokenViaAPI(ctx context.Context, token string, opts []api.Option) e
 	client := api.NewClient(token, opts...)
 	_, err := client.GetCurrentUser(ctx)
 	if err != nil {
-		if apiErr, ok := errors.AsType[*api.APIError](err); ok && (apiErr.StatusCode == 401 || apiErr.StatusCode == 403) {
-			return fmt.Errorf("invalid token: authentication failed (HTTP %d)", apiErr.StatusCode)
+		if apiErr, ok := errors.AsType[*api.APIError](err); ok {
+			switch apiErr.StatusCode {
+			case 400:
+				return errors.New("bad request (HTTP 400) - this usually means the token is malformed or is the wrong type (use a REST API user token, not an Events API key)")
+			case 401, 403:
+				return fmt.Errorf("authentication failed (HTTP %d) - check your token is a valid API user token, not a service integration key", apiErr.StatusCode)
+			default:
+				return fmt.Errorf("PagerDuty API returned HTTP %d - check your token and try again", apiErr.StatusCode)
+			}
 		}
-		return fmt.Errorf("token validation failed: %w", err)
+		return fmt.Errorf("could not reach PagerDuty API: %w", err)
 	}
 	return nil
 }
@@ -195,29 +198,88 @@ func writeInitConfig(configDir string, ic initConfig) error {
 
 	if ic.credentialSource != "" {
 		_, _ = fmt.Fprintf(&sb, "credential_source = %q\n", ic.credentialSource)
+		sb.WriteString("# Note: PDC_TOKEN env var takes precedence over keyring when set\n")
 	}
 
 	sb.WriteString("\n[defaults]\n")
 	sb.WriteString("format           = \"table\"\n")
 	sb.WriteString("refresh_interval = 30\n")
+	if ic.defaultEmail != "" {
+		_, _ = fmt.Fprintf(&sb, "email            = %q\n", ic.defaultEmail)
+	}
 	if ic.defaultTeamID != "" {
 		_, _ = fmt.Fprintf(&sb, "team             = %q\n", ic.defaultTeamID)
 	}
 	if ic.defaultServiceID != "" {
 		_, _ = fmt.Fprintf(&sb, "service          = %q\n", ic.defaultServiceID)
 	}
+	_, _ = fmt.Fprintf(&sb, "interactive      = %t\n", ic.interactive)
 
 	path := filepath.Join(configDir, "config.toml")
 	return os.WriteFile(path, []byte(sb.String()), 0o600)
 }
 
+// setupKeyringToken handles the keyring token flow: check existing, prompt for new, validate, store.
+func setupKeyringToken(ctx context.Context, ic *initConfig, resolvedToken *string, apiOpts []api.Option) error {
+	if existing, err := keyring.Get(credential.ServiceName, credential.AccountName); err == nil && existing != "" {
+		var overwriteKey bool
+		if err := huh.NewConfirm().
+			Title("A token is already stored in the OS keyring. Overwrite it?").
+			Value(&overwriteKey).
+			Run(); err != nil {
+			return err
+		}
+		if !overwriteKey {
+			clog.Info().Msg("Keeping existing keyring token")
+			*resolvedToken = existing
+		}
+	}
+
+	if *resolvedToken == "" {
+		var rawToken string
+		if err := huh.NewInput().
+			Title("PagerDuty API token").
+			EchoMode(huh.EchoModePassword).
+			Value(&rawToken).
+			Validate(func(s string) error {
+				if s == "" {
+					return errors.New("token is required")
+				}
+				return nil
+			}).
+			Run(); err != nil {
+			return err
+		}
+
+		if err := validateTokenViaAPI(ctx, rawToken, apiOpts); err != nil {
+			clog.Info().Err(err).Msg("token validation failed - storing anyway")
+		} else {
+			clog.Info().Msg("Token verified")
+		}
+
+		if err := keyring.Set(credential.ServiceName, credential.AccountName, rawToken); err != nil {
+			clog.Warn().Err(err).Msg("could not store token in OS keyring - use PDC_TOKEN or --token instead")
+		}
+		*resolvedToken = rawToken
+	} else if *resolvedToken != "" {
+		if err := validateTokenViaAPI(ctx, *resolvedToken, apiOpts); err != nil {
+			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
+		} else {
+			clog.Info().Msg("Token verified")
+		}
+	}
+
+	ic.credentialSource = credential.SourceKeyring
+	return nil
+}
+
 // runTeamSelection runs the optional team picker step.
-func runTeamSelection(ctx context.Context, cmd *cobra.Command, token string, ic *initConfig, opts []api.Option) error {
+func runTeamSelection(ctx context.Context, token string, ic *initConfig, opts []api.Option) error {
 	c := api.NewClient(token, opts...)
 	teams, err := c.ListTeams(ctx, api.ListTeamsOpts{})
 	if err != nil || len(teams) == 0 {
 		if len(teams) == 0 {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No teams found - skipping default team.")
+			clog.Info().Msg("No teams found - skipping default team")
 		}
 		return err
 	}
@@ -235,12 +297,12 @@ func runTeamSelection(ctx context.Context, cmd *cobra.Command, token string, ic 
 }
 
 // runServiceSelection runs the optional service picker step.
-func runServiceSelection(ctx context.Context, cmd *cobra.Command, token string, ic *initConfig, opts []api.Option) error {
+func runServiceSelection(ctx context.Context, token string, ic *initConfig, opts []api.Option) error {
 	c := api.NewClient(token, opts...)
 	services, err := c.ListServices(ctx, api.ListServicesOpts{})
 	if err != nil || len(services) == 0 {
 		if len(services) == 0 {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No services found - skipping default service.")
+			clog.Info().Msg("No services found - skipping default service")
 		}
 		return err
 	}

@@ -40,7 +40,7 @@ func TestValidateTokenViaAPI_Unauthorized(t *testing.T) {
 
 	err := validateTokenViaAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid token")
+	assert.Contains(t, err.Error(), "authentication failed")
 }
 
 func TestWriteInitConfig_KeyringSource(t *testing.T) {

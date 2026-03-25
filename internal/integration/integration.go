@@ -1,0 +1,151 @@
+// Package integration detects and normalises alert payloads from
+// monitoring tools (GCP, CloudWatch, Datadog, Prometheus, etc.) into
+// a uniform Summary of fields and links for display.
+package integration
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+// AlertEnvelope is the unwrapped alert body, normalised from both
+// raw Events API payloads and PD REST API responses (cef_details).
+// UnwrapAlert handles the envelope extraction once; normalisers
+// receive this instead of raw maps.
+type AlertEnvelope struct {
+	Client        string         // e.g. "Datadog", "Alertmanager"
+	ClientURL     string         // link back to source tool
+	CustomDetails map[string]any // the integration-specific payload
+	Raw           map[string]any // original body for edge cases
+}
+
+// UnwrapAlert extracts the common fields from a PD alert body,
+// handling the cef_details wrapping transparently. Tries:
+//   - Top-level client/client_url + details.custom_details
+//   - cef_details.client/client_url + cef_details.details.custom_details
+//   - cef_details.details (Datadog V1 fallback)
+//   - payload.custom_details (Events API v2)
+//   - cef_details.payload.custom_details
+func UnwrapAlert(body map[string]any) AlertEnvelope {
+	if body == nil {
+		return AlertEnvelope{}
+	}
+
+	env := AlertEnvelope{Raw: body}
+
+	// Client and client_url: prefer cef_details, fall back to top-level.
+	if cef, ok := body["cef_details"].(map[string]any); ok {
+		if v, ok := cef["client"].(string); ok {
+			env.Client = v
+		}
+		if v, ok := cef["client_url"].(string); ok {
+			env.ClientURL = v
+		}
+	}
+	if env.Client == "" {
+		if v, ok := body["client"].(string); ok {
+			env.Client = v
+		}
+	}
+	if env.ClientURL == "" {
+		if v, ok := body["client_url"].(string); ok {
+			env.ClientURL = v
+		}
+	}
+
+	env.CustomDetails = extractCustomDetails(body)
+
+	return env
+}
+
+// Field is a single key-value pair extracted from an alert payload.
+type Field struct {
+	Label string
+	Value string
+}
+
+// Link is a URL back to the source monitoring tool.
+type Link struct {
+	Label string
+	URL   string
+}
+
+// Summary holds the structured data extracted from an alert payload.
+type Summary struct {
+	Source string  // "Google Cloud Monitoring", "Datadog", etc.
+	Fields []Field // key-value pairs to display
+	Links  []Link  // URLs back to source tool
+}
+
+// Normaliser detects and extracts structured data from an unwrapped
+// alert envelope in a single pass. Returns the summary and true if
+// the payload matches, or a zero summary and false if it does not.
+type Normaliser interface {
+	Normalise(env AlertEnvelope) (Summary, bool)
+}
+
+// normalisers is the ordered list of registered normalisers.
+// More specific detectors first.
+var normalisers = []Normaliser{
+	GCP{},
+	CloudWatch{},
+	Prometheus{},
+	Datadog{},
+}
+
+// Detect unwraps the alert body once, then returns the Summary from the
+// first normaliser that matches, or the generic fallback if none match.
+func Detect(body map[string]any) Summary {
+	env := UnwrapAlert(body)
+	for _, n := range normalisers {
+		if s, ok := n.Normalise(env); ok {
+			return s
+		}
+	}
+	s, _ := Generic{}.Normalise(env)
+	return s
+}
+
+// FormatValue renders a value as a string. Maps and slices become
+// indented JSON wrapped in a markdown code fence; scalars use fmt.Sprintf.
+func FormatValue(v any) string {
+	switch v.(type) {
+	case map[string]any, []any:
+		b, err := json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return "```json\n" + string(b) + "\n```"
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// extractCustomDetails walks common PagerDuty alert body structures to
+// find the custom_details map.
+func extractCustomDetails(body map[string]any) map[string]any {
+	if details, ok := body["details"].(map[string]any); ok {
+		if cd, ok := details["custom_details"].(map[string]any); ok {
+			return cd
+		}
+	}
+	if payload, ok := body["payload"].(map[string]any); ok {
+		if cd, ok := payload["custom_details"].(map[string]any); ok {
+			return cd
+		}
+	}
+	if cef, ok := body["cef_details"].(map[string]any); ok {
+		if details, ok := cef["details"].(map[string]any); ok {
+			if cd, ok := details["custom_details"].(map[string]any); ok {
+				return cd
+			}
+			return details
+		}
+		if payload, ok := cef["payload"].(map[string]any); ok {
+			if cd, ok := payload["custom_details"].(map[string]any); ok {
+				return cd
+			}
+		}
+	}
+	return nil
+}

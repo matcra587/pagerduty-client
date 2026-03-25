@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -13,6 +14,8 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/config"
+	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -42,9 +45,18 @@ var incidentListCmd = &cobra.Command{
 		if len(schedules) == 0 && len(users) == 0 && len(teams) == 0 && len(services) == 0 && cfg.Service != "" {
 			services = []string{cfg.Service}
 		}
+		all, _ := cmd.Flags().GetBool("all")
 		since, _ := cmd.Flags().GetString("since")
 		until, _ := cmd.Flags().GetString("until")
 		sortBy, _ := cmd.Flags().GetString("sort")
+
+		// --all overrides --since/--until to fetch all incidents.
+		if all {
+			since = ""
+			until = ""
+		} else {
+			since = expandSinceShorthand(since)
+		}
 
 		if len(schedules) > 0 {
 			oncalls, err := client.ListOnCalls(ctx, api.ListOnCallsOpts{
@@ -66,7 +78,7 @@ var incidentListCmd = &cobra.Command{
 			}
 		}
 
-		incidents, err := client.ListIncidents(ctx, api.ListIncidentsOpts{
+		opts := api.ListIncidentsOpts{
 			Statuses:   statuses,
 			Urgencies:  urgencies,
 			TeamIDs:    teams,
@@ -75,7 +87,12 @@ var incidentListCmd = &cobra.Command{
 			Since:      since,
 			Until:      until,
 			SortBy:     sortBy,
-		})
+		}
+		if all {
+			opts.DateRange = "all"
+		}
+
+		incidents, err := client.ListIncidents(ctx, opts)
 		if err != nil {
 			return fmt.Errorf("listing incidents: %w", err)
 		}
@@ -117,6 +134,11 @@ var incidentShowCmd = &cobra.Command{
 			return fmt.Errorf("getting incident: %w", err)
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched incident")
+
+		payload, _ := cmd.Flags().GetBool("payload")
+		if payload {
+			return showIncidentPayload(cmd, client, det, cfg, incident)
+		}
 
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -323,11 +345,16 @@ var incidentNoteCmd = &cobra.Command{
 }
 
 // resolveFromEmail determines the acting user's email for PagerDuty write operations.
-// Precedence: --from flag > cached context email > API lookup.
+// Precedence: --from flag > cached context email > config email > API lookup.
 func resolveFromEmail(cmd *cobra.Command) (string, error) {
 	from, _ := cmd.Flags().GetString("from")
 	if from == "" {
 		from = UserEmailFromContext(cmd)
+	}
+	if from == "" {
+		if cfg := ConfigFromContext(cmd); cfg != nil && cfg.Email != "" {
+			from = cfg.Email
+		}
 	}
 	if from == "" {
 		client := ClientFromContext(cmd)
@@ -355,6 +382,128 @@ func parseFromEmail(email string) (string, error) {
 		return "", fmt.Errorf("invalid email %q: %w", email, err)
 	}
 	return a.Address, nil
+}
+
+// showIncidentPayload fetches the first alert's raw body payload, runs
+// integration detection and displays the source, extracted fields and raw JSON.
+func showIncidentPayload(cmd *cobra.Command, client *api.Client, det agent.DetectionResult, cfg *config.Config, incident *pagerduty.Incident) error {
+	ctx := cmd.Context()
+	alerts, err := client.ListIncidentAlerts(ctx, incident.ID)
+	if err != nil {
+		return fmt.Errorf("fetching alerts: %w", err)
+	}
+	if len(alerts) == 0 {
+		clog.Warn().Str("incident", incident.ID).Msg("no alerts found")
+		return nil
+	}
+
+	body := alerts[0].Body
+	summary := integration.Detect(body)
+
+	isTTY := terminal.Is(os.Stdout)
+	format := output.DetectFormat(output.FormatOpts{
+		AgentMode: det.Active,
+		Format:    cfg.Format,
+		IsTTY:     isTTY,
+	})
+
+	switch format {
+	case output.FormatAgentJSON:
+		data := payloadResult(summary, body)
+		return output.RenderAgentJSON(os.Stdout, "incident show --payload", data, nil, nil)
+	case output.FormatJSON:
+		data := payloadResult(summary, body)
+		return output.RenderJSON(os.Stdout, data, isTTY)
+	default:
+		return renderPayloadText(summary, body)
+	}
+}
+
+// payloadField is a JSON-serialisable field extracted from an alert body.
+type payloadField struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+
+// payloadLink is a JSON-serialisable link extracted from an alert body.
+type payloadLink struct {
+	Label string `json:"label"`
+	URL   string `json:"url"`
+}
+
+// payloadResult builds a structured result for JSON/agent output.
+func payloadResult(summary integration.Summary, body map[string]any) map[string]any {
+	fields := make([]payloadField, len(summary.Fields))
+	for i, f := range summary.Fields {
+		fields[i] = payloadField{Label: f.Label, Value: f.Value}
+	}
+	links := make([]payloadLink, len(summary.Links))
+	for i, l := range summary.Links {
+		links[i] = payloadLink{Label: l.Label, URL: l.URL}
+	}
+	return map[string]any{
+		"source": summary.Source,
+		"fields": fields,
+		"links":  links,
+		"body":   body,
+	}
+}
+
+// renderPayloadText writes human-readable alert payload output.
+func renderPayloadText(summary integration.Summary, body map[string]any) error {
+	w := os.Stdout
+
+	_, _ = fmt.Fprintf(w, "Detected source: %s\n\n", summary.Source)
+
+	if len(summary.Fields) > 0 {
+		_, _ = fmt.Fprintln(w, "Extracted fields:")
+		for _, f := range summary.Fields {
+			val := f.Value
+			if len(val) > 80 {
+				val = val[:77] + "..."
+			}
+			_, _ = fmt.Fprintf(w, "  %-16s %s\n", f.Label+":", val)
+		}
+		_, _ = fmt.Fprintln(w)
+	}
+
+	for _, l := range summary.Links {
+		_, _ = fmt.Fprintf(w, "  %s: %s\n", l.Label, l.URL)
+	}
+	if len(summary.Links) > 0 {
+		_, _ = fmt.Fprintln(w)
+	}
+
+	raw, err := json.MarshalIndent(body, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshalling body: %w", err)
+	}
+	_, _ = fmt.Fprintln(w, "Raw alert body:")
+	_, _ = fmt.Fprintln(w, string(raw))
+
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintln(w, "Tip: if fields are missing, configure custom_fields in your config file.")
+
+	return nil
+}
+
+// expandSinceShorthand converts shorthand duration values (7d, 30d, 60d, 90d)
+// to RFC3339 timestamps. Other values (including ISO 8601) pass through unchanged.
+func expandSinceShorthand(s string) string {
+	var dur time.Duration
+	switch s {
+	case "7d":
+		dur = 7 * 24 * time.Hour
+	case "30d":
+		dur = 30 * 24 * time.Hour
+	case "60d":
+		dur = 60 * 24 * time.Hour
+	case "90d":
+		dur = 90 * 24 * time.Hour
+	default:
+		return s
+	}
+	return time.Now().UTC().Add(-dur).Format(time.RFC3339)
 }
 
 func incidentRows(incidents []pagerduty.Incident) ([]string, [][]string) {
@@ -396,7 +545,8 @@ func init() {
 	lf.StringSlice("service", nil, "Filter by service IDs")
 	lf.StringSlice("user", nil, "Filter by user IDs")
 	lf.StringSlice("schedule", nil, "Filter by schedule IDs (resolves current on-call users)")
-	lf.String("since", "", "Return incidents since this time (ISO 8601)")
+	lf.Bool("all", false, "Fetch all incidents (overrides --since/--until)")
+	lf.String("since", "", "Return incidents since this time (e.g. 7d, 30d or ISO 8601)")
 	lf.String("until", "", "Return incidents until this time (ISO 8601)")
 	lf.String("sort", "", "Sort order (e.g. created_at:asc)")
 
@@ -430,10 +580,15 @@ func init() {
 		Placeholder: "ID",
 		Terse:       "schedule filter",
 	})
+	clib.Extend(lf.Lookup("all"), clib.FlagExtra{
+		Group: "Filters",
+		Terse: "fetch all incidents",
+	})
 	clib.Extend(lf.Lookup("since"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "TIME",
-		Terse:       "start time",
+		Enum:        []string{"7d", "30d", "60d", "90d"},
+		Terse:       "start time (shorthand or ISO 8601)",
 	})
 	clib.Extend(lf.Lookup("until"), clib.FlagExtra{
 		Group:       "Filters",
@@ -444,6 +599,14 @@ func init() {
 		Group:       "Output",
 		Placeholder: "FIELD:DIR",
 		Terse:       "sort order",
+	})
+
+	// incident show flags
+	sf := incidentShowCmd.Flags()
+	sf.Bool("payload", false, "Include raw alert event payload with integration detection")
+	clib.Extend(sf.Lookup("payload"), clib.FlagExtra{
+		Group: "Output",
+		Terse: "show alert event payload",
 	})
 
 	// shared --from flag

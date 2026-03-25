@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/matcra587/pagerduty-client/internal/config"
+	"github.com/matcra587/pagerduty-client/internal/credential"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -106,7 +107,7 @@ func TestValidate_MissingToken(t *testing.T) {
 	err := cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "token is required")
-	assert.Contains(t, err.Error(), "pagerduty-client init")
+	assert.Contains(t, err.Error(), "pdc init")
 }
 
 func TestValidate_BadFormat(t *testing.T) {
@@ -180,17 +181,13 @@ func TestLoad_CredentialSource(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "config.toml")
 	toml := `
-credential_source = "op"
-op_account = "my.1password.com"
-op_secret_ref = "op://vault/item/field"
+credential_source = "keyring"
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(toml), 0o600))
 
 	cfg, err := config.Load(config.WithPath(cfgPath))
 	require.NoError(t, err)
-	assert.Equal(t, "op", cfg.CredentialSource)
-	assert.Equal(t, "my.1password.com", cfg.OpAccount)
-	assert.Equal(t, "op://vault/item/field", cfg.OpSecretRef)
+	assert.Equal(t, credential.SourceKeyring, cfg.CredentialSource)
 }
 
 func TestLoad_MissingFileFallsBackToDefaults(t *testing.T) {

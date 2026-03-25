@@ -14,7 +14,7 @@ func TestSuccess_Structure(t *testing.T) {
 	meta := agent.Metadata{Total: 2, More: false, Offset: 0, Limit: 25}
 	hints := []string{"use --format json for full output"}
 
-	env := agent.Success("incident list", data, meta, hints)
+	env := agent.Success("incident list", data, &meta, hints)
 
 	assert.True(t, env.OK)
 	assert.Equal(t, "incident list", env.Command)
@@ -26,7 +26,7 @@ func TestSuccess_Structure(t *testing.T) {
 }
 
 func TestSuccess_JSONMarshal(t *testing.T) {
-	env := agent.Success("incident list", map[string]string{"id": "P123"}, agent.Metadata{Total: 1}, nil)
+	env := agent.Success("incident list", map[string]string{"id": "P123"}, &agent.Metadata{Total: 1}, nil)
 
 	b, err := json.Marshal(env)
 	require.NoError(t, err)
@@ -75,8 +75,19 @@ func TestError_JSONMarshal(t *testing.T) {
 	assert.Equal(t, "check the incident ID", errObj["suggestion"])
 }
 
+func TestMetadata_NilOmitted(t *testing.T) {
+	env := agent.Success("test", nil, nil, nil)
+
+	b, err := json.Marshal(env)
+	require.NoError(t, err)
+
+	var out map[string]any
+	require.NoError(t, json.Unmarshal(b, &out))
+	assert.Nil(t, out["metadata"])
+}
+
 func TestMetadata_OmitEmpty(t *testing.T) {
-	env := agent.Success("test", nil, agent.Metadata{Total: 5}, nil)
+	env := agent.Success("test", nil, &agent.Metadata{Total: 5}, nil)
 
 	b, err := json.Marshal(env)
 	require.NoError(t, err)

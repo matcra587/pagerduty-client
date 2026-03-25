@@ -21,7 +21,7 @@ authority when behaviour is unclear.
 - Format with `gofumpt` (stricter than gofmt)
 - Lint with golangci-lint and `.golangci.yml` (strict revive rules)
 - Never use naked returns
-- Log with `gechr/clog`; never import `log`
+- Log with `gechr/clog`; never import `log` or `log/slog` (enforced by depguard)
 - Place all packages under `internal/` - this is a binary, not a library
 - Keep `cmd/` to Cobra command wiring only; put logic in `internal/`
 - Return errors; never log and swallow them

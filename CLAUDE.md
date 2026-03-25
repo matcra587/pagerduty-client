@@ -1,15 +1,17 @@
 # pagerduty-client
 
-PagerDuty API client and CLI in Go. Every command produces structured
-JSON for agents. TUI dashboard for humans.
+PagerDuty API client and CLI in Go. Binary name: `pdc`.
+Every command produces structured JSON for agents. TUI dashboard
+for humans (opt-in via `--interactive`).
 
 ## Quick Start
 
 ```bash
 mise install                     # Install Go, task, actionlint, rumdl, zizmor
 task deps                        # Download dependencies
-task build                       # Build binary to ./dist/
-task test                        # Run tests
+task build                       # Build binary to ./dist/pdc-<os>-<arch>
+task test                        # Run unit tests
+task test:integration            # Run integration tests (Stoplight mock, needs network)
 task lint                        # Run golangci-lint
 ```
 
@@ -50,8 +52,9 @@ Tools split across two managers:
 ```text
 cmd/                 Cobra command definitions (wiring only, no business logic)
 internal/api/        PagerDuty REST v2 client (own HTTP layer, go-pagerduty types)
-internal/config/     Configuration management
-internal/output/     Output formatting (table, JSON, agent envelope)
+internal/config/     Configuration management (koanf, TOML, env)
+internal/credential/ Credential providers (keyring, future: 1password, vault)
+internal/output/     Output formatting (table, JSON with chroma highlighting, agent envelope)
 internal/agent/      Agent mode detection, envelope format, embedded guides
 internal/tui/        Bubble Tea TUI (dashboard, incidents, components)
 ```
@@ -62,14 +65,30 @@ internal/tui/        Bubble Tea TUI (dashboard, incidents, components)
 - `PagerDuty/go-pagerduty` - types only (Incident, Service, User, etc.)
 - `gechr/clog` - structured CLI logging (chain: `.Info().Str(k,v).Msg(m)`)
 - `gechr/clib` - CLI infrastructure (help rendering, completions, theme)
+- `zalando/go-keyring` - OS keyring credential storage
+- `charm.land/huh` - interactive prompts (init wizard)
+- `alecthomas/chroma` - JSON syntax highlighting on TTY
 - `stretchr/testify` - testing (require + assert)
+
+## Credentials
+
+Tokens never go in config.toml. Resolution chain (highest wins):
+`--token` flag > `PDC_TOKEN` env var > OS keyring.
+
+Config stores `credential_source = "keyring"` to indicate the backend.
+The `pdc init` wizard validates the token and stores it in the keyring.
 
 ## Gotchas
 
+- Binary name is `pdc`, module is `github.com/matcra587/pagerduty-client`.
 - PD API rate limit: 960 req/min. The client throttles below this ceiling
   and respects Retry-After headers.
 - Import go-pagerduty for types only. Never use its HTTP client.
 - PD API caps offset-based pagination at 10,000 results on some endpoints.
+- Some endpoints are NOT paginated (contact_methods, schedule overrides).
+  Use simple GET + decode, not `paginate()`.
+- `depguard` bans `log` and `log/slog` imports. Use `gechr/clog`.
+- Validate emails with `net/mail.ParseAddress`, not hand-rolled checks.
 
 ## Rules Files (.claude/rules/)
 

@@ -53,6 +53,30 @@ func TestClient_ListIncidents(t *testing.T) {
 - Output: JSON envelope structure, table formatting
 - Do NOT test Cobra command wiring or TUI rendering in unit tests
 
+## Integration Tests
+
+Gate behind `//go:build integration`. Run with `task test:integration`.
+
+- Hit the PagerDuty Stoplight mock (needs network)
+- Use `WithBaseURL` + `WithExtraHeaders` for mock headers
+- Assert structure (non-empty ID, non-empty lists), not specific values
+  (mock returns random data)
+- Skip gracefully if mock is unreachable
+
+### Non-Paginated Endpoints
+
+These endpoints return a plain JSON object without pagination fields.
+Use simple GET + decode, NOT `paginate()`:
+
+- `GET /users/{id}/contact_methods`
+- `GET /schedules/{id}/overrides`
+
+### Mock Response Accuracy
+
+httptest mock responses must match the PagerDuty OpenAPI spec. Verify
+envelope keys, pagination structure and field names against
+`docs/superpowers/reference/pagerduty_api_optimized_bundle.json`.
+
 ## Go 1.25+ Testing Features
 
 - **`testing/synctest`**: Virtualised time for testing concurrent code

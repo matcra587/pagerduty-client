@@ -71,17 +71,19 @@ func (c *Client) GetCurrentUser(ctx context.Context) (*pagerduty.User, error) {
 	return &resp.User, nil
 }
 
-// ListContactMethods returns all contact methods for the given user, auto-paginating.
+// ListContactMethods returns all contact methods for the given user.
+// This endpoint is not paginated.
 func (c *Client) ListContactMethods(ctx context.Context, userID string) ([]pagerduty.ContactMethod, error) {
-	var methods []pagerduty.ContactMethod
-	err := paginate(ctx, c, paginateRequest{
-		path: "/users/" + userID + "/contact_methods",
-		key:  "contact_methods",
-	}, func(page []pagerduty.ContactMethod) {
-		methods = append(methods, page...)
-	})
+	body, err := c.get(ctx, "/users/"+userID+"/contact_methods", nil)
 	if err != nil {
 		return nil, err
 	}
-	return methods, nil
+
+	var resp struct {
+		ContactMethods []pagerduty.ContactMethod `json:"contact_methods"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("decoding contact methods: %w", err)
+	}
+	return resp.ContactMethods, nil
 }

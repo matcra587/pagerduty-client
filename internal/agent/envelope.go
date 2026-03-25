@@ -26,12 +26,13 @@ type Envelope struct {
 }
 
 // Success builds an Envelope for a successful operation.
-func Success(command string, data any, meta Metadata, hints []string) Envelope {
+// Pass nil for meta when the response has no pagination (e.g. single-resource show commands).
+func Success(command string, data any, meta *Metadata, hints []string) Envelope {
 	return Envelope{
 		OK:      true,
 		Command: command,
 		Data:    data,
-		Meta:    &meta,
+		Meta:    meta,
 		Hints:   hints,
 	}
 }

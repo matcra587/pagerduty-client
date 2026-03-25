@@ -1,0 +1,434 @@
+{
+  "P000001": [
+    {
+      "id": "PA00001",
+      "type": "alert",
+      "summary": "High CPU on node-1",
+      "self": "https://api.pagerduty.com/alerts/PA00001",
+      "html_url": "https://example.pagerduty.com/alerts/PA00001",
+      "created_at": "2026-03-19T13:52:00Z",
+      "status": "triggered",
+      "alert_key": "cpu-payment-api-node-1",
+      "severity": "critical",
+      "service": {
+        "id": "PSVC001",
+        "type": "service_reference",
+        "summary": "payment-api",
+        "self": "https://api.pagerduty.com/services/PSVC001",
+        "html_url": "https://example.pagerduty.com/service-directory/PSVC001"
+      },
+      "body": {
+        "type": "alert_body",
+        "cef_details": {
+          "client": "Datadog",
+          "client_url": "https://app.datadoghq.com/monitors/12345001",
+          "contexts": [
+            {
+              "type": "image",
+              "src": "https://p.datadoghq.com/snapshot/abc/123.png",
+              "href": "https://app.datadoghq.com/monitors/12345001",
+              "alt": "CPU usage graph"
+            },
+            {
+              "type": "link",
+              "href": "https://app.datadoghq.com/monitors/12345001",
+              "text": "Monitor status"
+            }
+          ],
+          "creation_time": "2026-03-19T13:52:00.000000Z",
+          "dedup_key": "cpu-payment-api-node-1",
+          "description": "High CPU on node-1",
+          "details": {
+            "body": "CPU utilisation on node-1 at 98.2%\nThreshold: 90%\nDuration: 5 minutes",
+            "event_id": "1234567890100",
+            "event_type": "query_alert_monitor",
+            "monitor_state": "Triggered",
+            "org": "Acme Corp",
+            "priority": "critical",
+            "query": "avg(last_5m):avg:system.cpu.user{service:payment-api,node:node-1} > 90",
+            "tags": "service:payment-api, env:prod, region:us-east-1",
+            "title": "High CPU on node-1",
+            "user": null
+          },
+          "event_class": "query_alert_monitor",
+          "message": "High CPU on node-1",
+          "message_id": "1234567890100",
+          "priority": "critical",
+          "severity": "critical",
+          "service_group": "service:payment-api, env:prod",
+          "source_component": "avg(last_5m):avg:system.cpu.user{service:payment-api,node:node-1} > 90",
+          "source_location": null,
+          "source_origin": null
+        },
+        "contexts": [
+          {
+            "type": "image",
+            "src": "https://p.datadoghq.com/snapshot/abc/123.png",
+            "href": "https://app.datadoghq.com/monitors/12345001",
+            "alt": "CPU usage graph"
+          },
+          {
+            "type": "link",
+            "href": "https://app.datadoghq.com/monitors/12345001",
+            "text": "Monitor status"
+          }
+        ],
+        "details": {
+          "body": "CPU utilisation on node-1 at 98.2%\nThreshold: 90%\nDuration: 5 minutes",
+          "event_id": "1234567890100",
+          "event_type": "query_alert_monitor",
+          "monitor_state": "Triggered",
+          "org": "Acme Corp",
+          "priority": "critical",
+          "query": "avg(last_5m):avg:system.cpu.user{service:payment-api,node:node-1} > 90",
+          "tags": "service:payment-api, env:prod, region:us-east-1",
+          "title": "High CPU on node-1",
+          "user": null
+        }
+      },
+      "incident": {
+        "id": "P000001",
+        "type": "incident_reference"
+      },
+      "integration": {}
+    },
+    {
+      "id": "PA00002",
+      "type": "alert",
+      "summary": "High CPU on node-2",
+      "self": "https://api.pagerduty.com/alerts/PA00002",
+      "html_url": "https://example.pagerduty.com/alerts/PA00002",
+      "created_at": "2026-03-19T13:53:00Z",
+      "status": "triggered",
+      "alert_key": "cpu-payment-api-node-2",
+      "severity": "critical",
+      "service": {
+        "id": "PSVC001",
+        "type": "service_reference",
+        "summary": "payment-api",
+        "self": "https://api.pagerduty.com/services/PSVC001",
+        "html_url": "https://example.pagerduty.com/service-directory/PSVC001"
+      },
+      "body": {
+        "type": "alert_body",
+        "cef_details": {
+          "client": "Datadog",
+          "client_url": "https://app.datadoghq.com/monitors/12345001",
+          "contexts": [
+            {
+              "type": "image",
+              "src": "https://p.datadoghq.com/snapshot/abc/124.png",
+              "href": "https://app.datadoghq.com/monitors/12345001",
+              "alt": "CPU usage graph"
+            },
+            {
+              "type": "link",
+              "href": "https://app.datadoghq.com/monitors/12345001",
+              "text": "Monitor status"
+            }
+          ],
+          "creation_time": "2026-03-19T13:53:00.000000Z",
+          "dedup_key": "cpu-payment-api-node-2",
+          "description": "High CPU on node-2",
+          "details": {
+            "body": "CPU utilisation on node-2 at 96.7%\nThreshold: 90%\nDuration: 4 minutes",
+            "event_id": "1234567890101",
+            "event_type": "query_alert_monitor",
+            "monitor_state": "Triggered",
+            "org": "Acme Corp",
+            "priority": "critical",
+            "query": "avg(last_5m):avg:system.cpu.user{service:payment-api,node:node-2} > 90",
+            "tags": "service:payment-api, env:prod, region:us-east-1",
+            "title": "High CPU on node-2",
+            "user": null
+          },
+          "event_class": "query_alert_monitor",
+          "message": "High CPU on node-2",
+          "message_id": "1234567890101",
+          "priority": "critical",
+          "severity": "critical",
+          "service_group": "service:payment-api, env:prod",
+          "source_component": "avg(last_5m):avg:system.cpu.user{service:payment-api,node:node-2} > 90",
+          "source_location": null,
+          "source_origin": null
+        },
+        "contexts": [
+          {
+            "type": "image",
+            "src": "https://p.datadoghq.com/snapshot/abc/124.png",
+            "href": "https://app.datadoghq.com/monitors/12345001",
+            "alt": "CPU usage graph"
+          },
+          {
+            "type": "link",
+            "href": "https://app.datadoghq.com/monitors/12345001",
+            "text": "Monitor status"
+          }
+        ],
+        "details": {
+          "body": "CPU utilisation on node-2 at 96.7%\nThreshold: 90%\nDuration: 4 minutes",
+          "event_id": "1234567890101",
+          "event_type": "query_alert_monitor",
+          "monitor_state": "Triggered",
+          "org": "Acme Corp",
+          "priority": "critical",
+          "query": "avg(last_5m):avg:system.cpu.user{service:payment-api,node:node-2} > 90",
+          "tags": "service:payment-api, env:prod, region:us-east-1",
+          "title": "High CPU on node-2",
+          "user": null
+        }
+      },
+      "incident": {
+        "id": "P000001",
+        "type": "incident_reference"
+      },
+      "integration": {}
+    }
+  ],
+  "P000002": [
+    {
+      "id": "PA00003",
+      "type": "alert",
+      "summary": "Disk space critical on worker-3",
+      "self": "https://api.pagerduty.com/alerts/PA00003",
+      "html_url": "https://example.pagerduty.com/alerts/PA00003",
+      "created_at": "2026-03-19T13:25:00Z",
+      "status": "triggered",
+      "alert_key": "disk-space-pipeline-worker-3",
+      "severity": "error",
+      "service": {
+        "id": "PSVC005",
+        "type": "service_reference",
+        "summary": "data-pipeline",
+        "self": "https://api.pagerduty.com/services/PSVC005",
+        "html_url": "https://example.pagerduty.com/service-directory/PSVC005"
+      },
+      "body": {
+        "type": "alert_body",
+        "cef_details": {
+          "client": "Datadog",
+          "client_url": "https://app.datadoghq.com/monitors/12345002",
+          "contexts": [
+            {
+              "type": "link",
+              "href": "https://app.datadoghq.com/monitors/12345002",
+              "text": "Monitor status"
+            }
+          ],
+          "creation_time": "2026-03-19T13:25:00.000000Z",
+          "dedup_key": "disk-space-pipeline-worker-3",
+          "description": "Disk space critical on worker-3",
+          "details": {
+            "body": "Disk usage at 94% on worker-3\n/data: 470 GB / 500 GB\nGrowth: ~2 GB/hour",
+            "event_id": "1234567890102",
+            "event_type": "query_alert_monitor",
+            "monitor_state": "Triggered",
+            "org": "Acme Corp",
+            "priority": "normal",
+            "query": "avg(last_5m):avg:system.disk.in_use{host:pipeline-worker-3} > 0.9",
+            "tags": "service:data-pipeline, env:prod, host:pipeline-worker-3",
+            "title": "Disk space critical on worker-3",
+            "user": null
+          },
+          "event_class": "query_alert_monitor",
+          "message": "Disk space critical on worker-3",
+          "message_id": "1234567890102",
+          "priority": "normal",
+          "severity": "error",
+          "service_group": "service:data-pipeline, env:prod",
+          "source_component": "avg(last_5m):avg:system.disk.in_use{host:pipeline-worker-3} > 0.9",
+          "source_location": null,
+          "source_origin": null
+        },
+        "contexts": [
+          {
+            "type": "link",
+            "href": "https://app.datadoghq.com/monitors/12345002",
+            "text": "Monitor status"
+          }
+        ],
+        "details": {
+          "body": "Disk usage at 94% on worker-3\n/data: 470 GB / 500 GB\nGrowth: ~2 GB/hour",
+          "event_id": "1234567890102",
+          "event_type": "query_alert_monitor",
+          "monitor_state": "Triggered",
+          "org": "Acme Corp",
+          "priority": "normal",
+          "query": "avg(last_5m):avg:system.disk.in_use{host:pipeline-worker-3} > 0.9",
+          "tags": "service:data-pipeline, env:prod, host:pipeline-worker-3",
+          "title": "Disk space critical on worker-3",
+          "user": null
+        }
+      },
+      "incident": {
+        "id": "P000002",
+        "type": "incident_reference"
+      },
+      "integration": {}
+    }
+  ],
+  "P000003": [
+    {
+      "id": "PA00004",
+      "type": "alert",
+      "summary": "Error rate spike on /v2/checkout",
+      "self": "https://api.pagerduty.com/alerts/PA00004",
+      "html_url": "https://example.pagerduty.com/alerts/PA00004",
+      "created_at": "2026-03-19T12:00:00Z",
+      "status": "triggered",
+      "alert_key": "error-rate-checkout-us-east-1",
+      "severity": "error",
+      "service": {
+        "id": "PSVC004",
+        "type": "service_reference",
+        "summary": "api-gateway",
+        "self": "https://api.pagerduty.com/services/PSVC004",
+        "html_url": "https://example.pagerduty.com/service-directory/PSVC004"
+      },
+      "body": {
+        "type": "alert_body",
+        "cef_details": {
+          "client": "Datadog",
+          "client_url": "https://app.datadoghq.com/monitors/12345003",
+          "contexts": [
+            {
+              "type": "link",
+              "href": "https://app.datadoghq.com/monitors/12345003",
+              "text": "Monitor status"
+            }
+          ],
+          "creation_time": "2026-03-19T12:00:00.000000Z",
+          "dedup_key": "error-rate-checkout-us-east-1",
+          "description": "Error rate spike on /v2/checkout",
+          "details": {
+            "body": "5xx error rate on /v2/checkout: 8.3%\nBaseline: 0.2%\nThreshold: 5%",
+            "event_id": "1234567890103",
+            "event_type": "query_alert_monitor",
+            "monitor_state": "Triggered",
+            "org": "Acme Corp",
+            "priority": "normal",
+            "query": "sum(last_10m):sum:trace.http.request.errors{service:api-gateway,resource_name:/v2/checkout}.as_rate() / sum:trace.http.request.hits{...}.as_rate() > 0.05",
+            "tags": "service:api-gateway, env:prod, endpoint:/v2/checkout",
+            "title": "Error rate spike on /v2/checkout",
+            "user": null
+          },
+          "event_class": "query_alert_monitor",
+          "message": "Error rate spike on /v2/checkout",
+          "message_id": "1234567890103",
+          "priority": "normal",
+          "severity": "error",
+          "service_group": "service:api-gateway, env:prod",
+          "source_component": "sum(last_10m):sum:trace.http.request.errors{service:api-gateway,resource_name:/v2/checkout}.as_rate() > 0.05",
+          "source_location": null,
+          "source_origin": null
+        },
+        "contexts": [
+          {
+            "type": "link",
+            "href": "https://app.datadoghq.com/monitors/12345003",
+            "text": "Monitor status"
+          }
+        ],
+        "details": {
+          "body": "5xx error rate on /v2/checkout: 8.3%\nBaseline: 0.2%\nThreshold: 5%",
+          "event_id": "1234567890103",
+          "event_type": "query_alert_monitor",
+          "monitor_state": "Triggered",
+          "org": "Acme Corp",
+          "priority": "normal",
+          "query": "sum(last_10m):sum:trace.http.request.errors{service:api-gateway,resource_name:/v2/checkout}.as_rate() / sum:trace.http.request.hits{...}.as_rate() > 0.05",
+          "tags": "service:api-gateway, env:prod, endpoint:/v2/checkout",
+          "title": "Error rate spike on /v2/checkout",
+          "user": null
+        }
+      },
+      "incident": {
+        "id": "P000003",
+        "type": "incident_reference"
+      },
+      "integration": {}
+    }
+  ],
+  "P000007": [
+    {
+      "id": "PA00005",
+      "type": "alert",
+      "summary": "Memory leak in user-service v3.2.1",
+      "self": "https://api.pagerduty.com/alerts/PA00005",
+      "html_url": "https://example.pagerduty.com/alerts/PA00005",
+      "created_at": "2026-03-19T13:48:00Z",
+      "status": "triggered",
+      "alert_key": "mem-leak-user-svc-pod-1",
+      "severity": "critical",
+      "service": {
+        "id": "PSVC002",
+        "type": "service_reference",
+        "summary": "user-service",
+        "self": "https://api.pagerduty.com/services/PSVC002",
+        "html_url": "https://example.pagerduty.com/service-directory/PSVC002"
+      },
+      "body": {
+        "type": "alert_body",
+        "cef_details": {
+          "client": "Datadog",
+          "client_url": "https://app.datadoghq.com/monitors/12345004",
+          "contexts": [
+            {
+              "type": "link",
+              "href": "https://app.datadoghq.com/monitors/12345004",
+              "text": "Monitor status"
+            }
+          ],
+          "creation_time": "2026-03-19T13:48:00.000000Z",
+          "dedup_key": "mem-leak-user-svc-pod-1",
+          "description": "Memory leak in user-service v3.2.1",
+          "details": {
+            "body": "Heap usage: 3.8 GB / 4 GB\nGrowth rate: ~200 MB/hour\nPod: user-service-7f8b9c-xk2p1",
+            "event_id": "1234567890104",
+            "event_type": "query_alert_monitor",
+            "monitor_state": "Triggered",
+            "org": "Acme Corp",
+            "priority": "critical",
+            "query": "avg(last_5m):avg:jvm.heap.used{service:user-service} > 3500000000",
+            "tags": "service:user-service, env:prod, version:v3.2.1",
+            "title": "Memory leak in user-service v3.2.1",
+            "user": null
+          },
+          "event_class": "query_alert_monitor",
+          "message": "Memory leak in user-service v3.2.1",
+          "message_id": "1234567890104",
+          "priority": "critical",
+          "severity": "critical",
+          "service_group": "service:user-service, env:prod",
+          "source_component": "avg(last_5m):avg:jvm.heap.used{service:user-service} > 3500000000",
+          "source_location": null,
+          "source_origin": null
+        },
+        "contexts": [
+          {
+            "type": "link",
+            "href": "https://app.datadoghq.com/monitors/12345004",
+            "text": "Monitor status"
+          }
+        ],
+        "details": {
+          "body": "Heap usage: 3.8 GB / 4 GB\nGrowth rate: ~200 MB/hour\nPod: user-service-7f8b9c-xk2p1",
+          "event_id": "1234567890104",
+          "event_type": "query_alert_monitor",
+          "monitor_state": "Triggered",
+          "org": "Acme Corp",
+          "priority": "critical",
+          "query": "avg(last_5m):avg:jvm.heap.used{service:user-service} > 3500000000",
+          "tags": "service:user-service, env:prod, version:v3.2.1",
+          "title": "Memory leak in user-service v3.2.1",
+          "user": null
+        }
+      },
+      "incident": {
+        "id": "P000007",
+        "type": "incident_reference"
+      },
+      "integration": {}
+    }
+  ]
+}

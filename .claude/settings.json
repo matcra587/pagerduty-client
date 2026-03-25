@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.file_path // empty' | grep '\\.md$' | xargs -r mise exec -- rumdl fix"
+            "command": "jq -r '.tool_input.file_path // empty' | grep \"^$CLAUDE_PROJECT_DIR/.*\\.md$\" | xargs -r mise exec -- rumdl fix"
           }
         ]
       }

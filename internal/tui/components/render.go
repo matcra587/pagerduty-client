@@ -6,6 +6,9 @@ import (
 	"strings"
 )
 
+// resetBg is the SGR 49 escape that restores the terminal's default background.
+const resetBg = "\x1b[49m"
+
 // PersistBg re-applies an ANSI background escape after every SGR sequence
 // in line, preventing lipgloss Render resets from clearing the container's
 // background. Inspired by prl's injectLineBackground.
@@ -35,6 +38,7 @@ func PersistBg(line, bg string) string {
 		}
 		b.WriteByte(line[i])
 	}
+	b.WriteString(resetBg)
 	return b.String()
 }
 

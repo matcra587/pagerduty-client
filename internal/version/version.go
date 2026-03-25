@@ -1,0 +1,38 @@
+// Package version exposes build-time version information injected via ldflags.
+package version
+
+import "fmt"
+
+//nolint:gochecknoglobals
+var (
+	Version   = "dev"
+	Commit    = "unknown"
+	Branch    = "unknown"
+	BuildTime = "unknown"
+	BuildBy   = "unknown"
+)
+
+// BuildInfo holds version metadata populated at build time.
+type BuildInfo struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	Branch    string `json:"branch"`
+	BuildTime string `json:"build_time"`
+	BuildBy   string `json:"build_by"`
+}
+
+// Info returns the current build information.
+func Info() BuildInfo {
+	return BuildInfo{
+		Version:   Version,
+		Commit:    Commit,
+		Branch:    Branch,
+		BuildTime: BuildTime,
+		BuildBy:   BuildBy,
+	}
+}
+
+// String returns a human-readable summary of the build information.
+func (b BuildInfo) String() string {
+	return fmt.Sprintf("pagerduty-client %s (%s/%s) built %s by %s", b.Version, b.Commit, b.Branch, b.BuildTime, b.BuildBy)
+}

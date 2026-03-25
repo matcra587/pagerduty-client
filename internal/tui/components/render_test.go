@@ -20,15 +20,15 @@ func TestPersistBg_EmptyBg_ReturnsLineUnchanged(t *testing.T) {
 	assert.Equal(t, line, PersistBg(line, ""))
 }
 
-func TestPersistBg_EmptyLine_ReturnsBg(t *testing.T) {
+func TestPersistBg_EmptyLine_ReturnsBgAndReset(t *testing.T) {
 	bg := "\x1b[48;2;10;20;30m"
-	assert.Equal(t, bg, PersistBg("", bg))
+	assert.Equal(t, bg+"\x1b[49m", PersistBg("", bg))
 }
 
 func TestPersistBg_NoANSI_PrependsBg(t *testing.T) {
 	bg := "\x1b[48;2;1;2;3m"
 	got := PersistBg("plain text", bg)
-	assert.Equal(t, bg+"plain text", got)
+	assert.Equal(t, bg+"plain text\x1b[49m", got)
 }
 
 func TestPersistBg_SingleSGR_ReappliesBgAfterIt(t *testing.T) {
@@ -36,7 +36,7 @@ func TestPersistBg_SingleSGR_ReappliesBgAfterIt(t *testing.T) {
 	sgr := "\x1b[1m" // bold
 	line := sgr + "bold"
 	got := PersistBg(line, bg)
-	assert.Equal(t, bg+sgr+bg+"bold", got)
+	assert.Equal(t, bg+sgr+bg+"bold\x1b[49m", got)
 }
 
 func TestPersistBg_MultipleSGR_ReappliesBgAfterEach(t *testing.T) {
@@ -45,7 +45,7 @@ func TestPersistBg_MultipleSGR_ReappliesBgAfterEach(t *testing.T) {
 	sgr2 := "\x1b[31m" // red fg
 	line := sgr1 + "a" + sgr2 + "b"
 	got := PersistBg(line, bg)
-	assert.Equal(t, bg+sgr1+bg+"a"+sgr2+bg+"b", got)
+	assert.Equal(t, bg+sgr1+bg+"a"+sgr2+bg+"b\x1b[49m", got)
 }
 
 func TestPersistBg_NonSGREscape_NotMatched(t *testing.T) {
@@ -66,6 +66,14 @@ func TestPersistBg_MalformedCSI_NotMatched(t *testing.T) {
 	got := PersistBg(line, bg)
 	assert.Equal(t, 1, strings.Count(got, bg), "bg should appear only once (the prepend)")
 	assert.Contains(t, got, "rest")
+}
+
+func TestPersistBg_EndsWithBgReset(t *testing.T) {
+	bg := "\x1b[48;2;45;45;68m"
+	line := "\x1b[1mhello\x1b[0m"
+	got := PersistBg(line, bg)
+	assert.True(t, strings.HasSuffix(got, "\x1b[49m"),
+		"PersistBg must end with background reset to prevent bleed into subsequent lines")
 }
 
 func TestPersistBg_MultiByte(t *testing.T) {

@@ -14,8 +14,8 @@ require (
 	charm.land/huh/v2 v2.0.3
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alecthomas/chroma/v2 v2.23.1
-	github.com/gechr/clib v0.1.2
-	github.com/gechr/clog v0.7.14
+	github.com/gechr/clib v0.1.7
+	github.com/gechr/clog v0.7.22
 	github.com/knadh/koanf/parsers/toml v0.1.0
 	github.com/knadh/koanf/providers/confmap v1.0.0
 	github.com/knadh/koanf/providers/file v1.2.1

@@ -181,7 +181,7 @@ func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // viewportRows returns the number of incident rows that fit in the
 // current terminal height, accounting for title, header and filter bar.
 func (m incidentList) viewportRows() int {
-	rows := m.height - 3
+	rows := m.height - 1
 	if m.filterActive || m.filterInput.Value() != "" {
 		rows--
 	}

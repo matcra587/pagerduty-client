@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,32 +15,95 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateTokenViaAPI_Success(t *testing.T) {
-	mux := http.NewServeMux()
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	mux.HandleFunc("/users/me", func(w http.ResponseWriter, r *http.Request) {
+// ---------------------------------------------------------------------------
+// validateToken
+// ---------------------------------------------------------------------------
+
+func TestValidateToken_UserToken_ReturnsEmail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/users/me", r.URL.Path)
 		assert.Equal(t, "Token token="+testToken, r.Header.Get("Authorization"))
 		_, _ = w.Write([]byte(`{"user":{"id":"U1","name":"Test User","email":"test@example.com"}}`))
-	})
+	}))
+	t.Cleanup(srv.Close)
 
-	err := validateTokenViaAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	email, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.NoError(t, err)
+	assert.Equal(t, "test@example.com", email)
 }
 
-func TestValidateTokenViaAPI_Unauthorized(t *testing.T) {
+func TestValidateToken_AccountKey_FallsBackToAbilities(t *testing.T) {
 	mux := http.NewServeMux()
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
+
+	// /users/me returns 400 for account-level API keys.
 	mux.HandleFunc("/users/me", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"Invalid Input Provided","code":2001}}`))
+	})
+
+	// /abilities succeeds, proving the token is valid.
+	mux.HandleFunc("/abilities", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"abilities":["sso","teams"]}`))
+	})
+
+	email, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	require.NoError(t, err)
+	assert.Empty(t, email, "account-level keys have no associated email")
+}
+
+func TestValidateToken_AccountKey_AbilitiesAlsoFails(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	mux.HandleFunc("/users/me", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"Invalid Input Provided","code":2001}}`))
+	})
+
+	mux.HandleFunc("/abilities", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":{"message":"Unauthorized","code":2006}}`))
 	})
 
-	err := validateTokenViaAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	_, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "token validation failed")
+}
+
+func TestValidateToken_Unauthorized(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":{"message":"Unauthorized","code":2006}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
 }
+
+// ---------------------------------------------------------------------------
+// isPlanLimitation
+// ---------------------------------------------------------------------------
+
+func TestIsPlanLimitation_HTTP402(t *testing.T) {
+	assert.True(t, isPlanLimitation(&api.APIError{StatusCode: 402}))
+}
+
+func TestIsPlanLimitation_OtherError(t *testing.T) {
+	assert.False(t, isPlanLimitation(&api.APIError{StatusCode: 500}))
+}
+
+func TestIsPlanLimitation_NonAPIError(t *testing.T) {
+	assert.False(t, isPlanLimitation(assert.AnError))
+}
+
+// ---------------------------------------------------------------------------
+// writeInitConfig
+// ---------------------------------------------------------------------------
 
 func TestWriteInitConfig_KeyringSource(t *testing.T) {
 	dir := t.TempDir()

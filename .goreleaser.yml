@@ -16,7 +16,7 @@ before:
 
 builds:
   - id: pagerduty-client
-    main: .
+    main: ./cmd/pdc
     binary: pdc
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:

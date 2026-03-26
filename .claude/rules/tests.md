@@ -10,7 +10,11 @@ paths:
 # Testing
 
 - TDD: write failing test first, then minimal implementation to pass
-- Use `stretchr/testify` - `require` for fatal, `assert` for non-fatal
+- Use `stretchr/testify` - `require` for guards/preconditions, `assert` for verifications
+- Argument order is always `(expected, actual)` - swapping produces backwards diffs
+- Use `assert.ErrorIs`/`require.ErrorIs` to check errors, not `Equal` (fails on wrapped errors)
+- When using mocks, always call `AssertExpectations(t)` - without it expectations pass silently
+- `assert.Equal` on pointers compares addresses, not values - dereference first
 - Use `net/http/httptest` for API client tests
 - Never import or use go-pagerduty's HTTP client in tests
 

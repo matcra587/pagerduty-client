@@ -83,23 +83,6 @@ func runInit(cmd *cobra.Command, _ []string) error {
 
 	ic := initConfig{}
 
-	// Optional email for write operations (ack, resolve, etc.).
-	var email string
-	if err := huh.NewInput().
-		Title("PagerDuty email address (optional, used for write operations)").
-		Description("Leave blank to look up automatically from the API token.").
-		Value(&email).
-		Run(); err != nil {
-		return err
-	}
-	if email != "" {
-		if _, err := mail.ParseAddress(email); err != nil {
-			clog.Warn().Str("email", email).Msg("invalid email - skipping")
-		} else {
-			ic.defaultEmail = email
-		}
-	}
-
 	var resolvedToken string
 
 	// If PDC_TOKEN is set, validate it and offer keyring as a fallback.
@@ -110,13 +93,13 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		}
 		clog.Info().Str("token", "..."+suffix).Msg("PDC_TOKEN detected in environment")
 
-		if err := withInitTimeout(func(ctx context.Context) error {
-			return validateTokenViaAPI(ctx, envToken, apiOpts)
-		}); err != nil {
+		email, err := validateToken(envToken, apiOpts)
+		if err != nil {
 			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
 		} else {
 			clog.Info().Msg("Token verified")
 			resolvedToken = envToken
+			ic.defaultEmail = email
 		}
 
 		var setupKeyring bool
@@ -135,6 +118,25 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		// No env token - prompt for keyring storage.
 		if err := setupKeyringToken(&ic, &resolvedToken, apiOpts); err != nil {
 			return err
+		}
+	}
+
+	// Prompt for email if we couldn't auto-detect it (account-level key).
+	if ic.defaultEmail == "" && resolvedToken != "" {
+		var email string
+		if err := huh.NewInput().
+			Title("PagerDuty email address (used for write operations like ack/resolve)").
+			Description("Could not detect automatically. Enter your PagerDuty login email.").
+			Value(&email).
+			Run(); err != nil {
+			return err
+		}
+		if email != "" {
+			if _, err := mail.ParseAddress(email); err != nil {
+				clog.Warn().Str("email", email).Msg("invalid email - skipping")
+			} else {
+				ic.defaultEmail = email
+			}
 		}
 	}
 
@@ -170,24 +172,43 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-// validateTokenViaAPI calls GET /users/me to confirm the token is valid.
-func validateTokenViaAPI(ctx context.Context, token string, opts []api.Option) error {
-	client := api.NewClient(token, opts...)
-	_, err := client.GetCurrentUser(ctx)
-	if err != nil {
-		if apiErr, ok := errors.AsType[*api.APIError](err); ok {
+// validateToken checks a PagerDuty API token and returns the owner's email
+// if available. It tries /users/me first (works with user tokens). If that
+// returns 400 (account-level API key), it falls back to /abilities which
+// works with both token types.
+//
+// Returns ("", nil) when the token is valid but no email could be resolved
+// (account-level key). Returns ("", err) when the token is invalid.
+func validateToken(token string, opts []api.Option) (string, error) {
+	var email string
+	err := withInitTimeout(func(ctx context.Context) error {
+		client := api.NewClient(token, opts...)
+
+		user, userErr := client.GetCurrentUser(ctx)
+		if userErr == nil {
+			email = user.Email
+			return nil
+		}
+
+		if apiErr, ok := errors.AsType[*api.APIError](userErr); ok {
 			switch apiErr.StatusCode {
 			case 400:
-				return errors.New("bad request (HTTP 400) - this usually means the token is malformed or is the wrong type (use a REST API user token, not an Events API key)")
+				// Account-level API key - /users/me doesn't apply.
+				// Fall back to /abilities to confirm the key is valid.
+				clog.Debug().Msg("account-level API key detected, validating via /abilities")
+				if _, abErr := client.ListAbilities(ctx); abErr != nil {
+					return fmt.Errorf("token validation failed: %w", abErr)
+				}
+				return nil
 			case 401, 403:
-				return fmt.Errorf("authentication failed (HTTP %d) - check your token is a valid API user token, not a service integration key", apiErr.StatusCode)
+				return fmt.Errorf("authentication failed (HTTP %d) - check your token is a valid REST API key, not an Events/integration key", apiErr.StatusCode)
 			default:
 				return fmt.Errorf("PagerDuty API returned HTTP %d - check your token and try again", apiErr.StatusCode)
 			}
 		}
-		return fmt.Errorf("could not reach PagerDuty API: %w", err)
-	}
-	return nil
+		return fmt.Errorf("could not reach PagerDuty API: %w", userErr)
+	})
+	return email, err
 }
 
 // writeInitConfig writes config.toml to configDir with mode 0600.
@@ -220,6 +241,13 @@ func writeInitConfig(configDir string, ic initConfig) error {
 
 	path := filepath.Join(configDir, "config.toml")
 	return os.WriteFile(path, []byte(sb.String()), 0o600)
+}
+
+// isPlanLimitation returns true if the error is an HTTP 402 from PagerDuty,
+// which indicates the account's plan does not include the requested feature.
+func isPlanLimitation(err error) bool {
+	apiErr, ok := errors.AsType[*api.APIError](err)
+	return ok && apiErr.StatusCode == 402
 }
 
 // initCallTimeout is the per-call deadline for API requests made during
@@ -266,12 +294,13 @@ func setupKeyringToken(ic *initConfig, resolvedToken *string, apiOpts []api.Opti
 			return err
 		}
 
-		if err := withInitTimeout(func(ctx context.Context) error {
-			return validateTokenViaAPI(ctx, rawToken, apiOpts)
-		}); err != nil {
+		if email, err := validateToken(rawToken, apiOpts); err != nil {
 			clog.Info().Err(err).Msg("token validation failed - storing anyway")
 		} else {
 			clog.Info().Msg("Token verified")
+			if ic.defaultEmail == "" {
+				ic.defaultEmail = email
+			}
 		}
 
 		if err := keyring.Set(credential.ServiceName, credential.AccountName, rawToken); err != nil {
@@ -279,12 +308,13 @@ func setupKeyringToken(ic *initConfig, resolvedToken *string, apiOpts []api.Opti
 		}
 		*resolvedToken = rawToken
 	} else if *resolvedToken != "" {
-		if err := withInitTimeout(func(ctx context.Context) error {
-			return validateTokenViaAPI(ctx, *resolvedToken, apiOpts)
-		}); err != nil {
+		if email, err := validateToken(*resolvedToken, apiOpts); err != nil {
 			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
 		} else {
 			clog.Info().Msg("Token verified")
+			if ic.defaultEmail == "" {
+				ic.defaultEmail = email
+			}
 		}
 	}
 
@@ -296,11 +326,16 @@ func setupKeyringToken(ic *initConfig, resolvedToken *string, apiOpts []api.Opti
 func runTeamSelection(ctx context.Context, token string, ic *initConfig, opts []api.Option) error {
 	c := api.NewClient(token, opts...)
 	teams, err := c.ListTeams(ctx, api.ListTeamsOpts{})
-	if err != nil || len(teams) == 0 {
-		if len(teams) == 0 {
-			clog.Info().Msg("No teams found - skipping default team")
+	if err != nil {
+		if isPlanLimitation(err) {
+			clog.Info().Msg("Teams not available on this plan - skipping")
+			return nil
 		}
 		return err
+	}
+	if len(teams) == 0 {
+		clog.Info().Msg("No teams found - skipping default team")
+		return nil
 	}
 
 	options := []huh.Option[string]{huh.NewOption("No default", "")}
@@ -319,11 +354,16 @@ func runTeamSelection(ctx context.Context, token string, ic *initConfig, opts []
 func runServiceSelection(ctx context.Context, token string, ic *initConfig, opts []api.Option) error {
 	c := api.NewClient(token, opts...)
 	services, err := c.ListServices(ctx, api.ListServicesOpts{})
-	if err != nil || len(services) == 0 {
-		if len(services) == 0 {
-			clog.Info().Msg("No services found - skipping default service")
+	if err != nil {
+		if isPlanLimitation(err) {
+			clog.Info().Msg("Services not available on this plan - skipping")
+			return nil
 		}
 		return err
+	}
+	if len(services) == 0 {
+		clog.Info().Msg("No services found - skipping default service")
+		return nil
 	}
 
 	options := []huh.Option[string]{huh.NewOption("No default", "")}

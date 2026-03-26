@@ -61,6 +61,8 @@ homebrew_casks:
     homepage: https://github.com/matcra587/pagerduty-client
     description: PagerDuty CLI client and TUI dashboard
     license: MIT
+    binaries:
+      - pdc
 
 # ── Changelog ────────────────────────────────────────────
 

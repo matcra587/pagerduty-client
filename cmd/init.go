@@ -9,9 +9,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"charm.land/huh/v2"
+	"charm.land/huh/v2/spinner"
+	"github.com/PagerDuty/go-pagerduty"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
@@ -71,7 +74,10 @@ func runInit(cmd *cobra.Command, _ []string) error {
 	if _, err := os.Stat(cfgPath); err == nil {
 		var overwrite bool
 		if err := huh.NewConfirm().
-			Title("A config file already exists at " + cfgPath + ". Overwrite it?").
+			Title("Overwrite existing config?").
+			Description(cfgPath).
+			Affirmative("Overwrite").
+			Negative("Keep existing").
 			Value(&overwrite).
 			Run(); err != nil {
 			return err
@@ -82,33 +88,47 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	ic := initConfig{}
+	// Phase 1: resolve and validate token.
+	ic, resolvedToken, err := resolveInitToken(apiOpts)
+	if err != nil {
+		return err
+	}
 
-	var resolvedToken string
+	// Phase 2: preferences form (email, team, service, interactive).
+	if err := runInitPreferencesForm(resolvedToken, &ic, apiOpts); err != nil {
+		return err
+	}
+
+	// Phase 3: write config.
+	configDir := filepath.Dir(cfgPath)
+	if err := writeInitConfig(configDir, ic); err != nil {
+		return fmt.Errorf("writing config: %w", err)
+	}
+	clog.Info().Path("config", cfgPath).Msg("config written")
+	return nil
+}
+
+func resolveInitToken(apiOpts []api.Option) (initConfig, string, error) {
+	var ic initConfig
 	envToken := os.Getenv("PDC_TOKEN")
 	wsl := isWSL()
 
-	// On WSL the OS keyring is unavailable, so the token must come
-	// from PDC_TOKEN. Skip the keyring flow entirely.
 	if wsl {
 		if envToken == "" {
-			return errors.New("OS keyring is not supported under WSL - set PDC_TOKEN and re-run init")
+			return ic, "", errors.New(
+				"OS keyring is not supported under WSL - set PDC_TOKEN and re-run init")
 		}
 		clog.Warn().Str("reason", "unsupported on WSL").Msg("keyring skipped")
 	}
 
 	if envToken != "" {
-		suffix := envToken
-		if len(envToken) > 3 {
-			suffix = envToken[len(envToken)-3:]
-		}
-
-		email, err := validateToken(envToken, apiOpts)
-		if err != nil {
-			clog.Info().Str("token", "..."+suffix).Err(err).Msg("token validation failed - continuing with setup")
-		} else {
-			clog.Info().Str("token", "..."+suffix).Msg("token verified via PDC_TOKEN")
-			resolvedToken = envToken
+		email, err := validateWithSpinner(envToken, apiOpts)
+		switch {
+		case isAuthErr(err):
+			return ic, "", err
+		case err != nil:
+			clog.Warn().Err(err).Msg("token validation failed - continuing with setup")
+		default:
 			ic.defaultEmail = email
 		}
 
@@ -118,113 +138,300 @@ func runInit(cmd *cobra.Command, _ []string) error {
 				Title("Also store a token in the OS keyring? (fallback when PDC_TOKEN is not set)").
 				Value(&setupKeyring).
 				Run(); err != nil {
-				return err
+				return ic, "", err
 			}
 			if setupKeyring {
-				if err := setupKeyringToken(&ic, &resolvedToken, apiOpts); err != nil {
-					return err
+				if err := maybeStoreKeyringToken(envToken); err != nil {
+					clog.Warn().Err(err).
+						Msg("could not store token in OS keyring")
+				} else {
+					ic.credentialSource = credential.SourceKeyring
 				}
 			}
 		}
-	} else {
-		// No env token - prompt for keyring storage.
-		if err := setupKeyringToken(&ic, &resolvedToken, apiOpts); err != nil {
-			return err
+		return ic, envToken, nil
+	}
+
+	// No env token - prompt for keyring storage.
+	token, err := promptAndStoreToken(&ic, apiOpts)
+	if err != nil {
+		return ic, "", err
+	}
+	return ic, token, nil
+}
+
+func runInitPreferencesForm(token string, ic *initConfig, apiOpts []api.Option) error {
+	var teams []pagerduty.Team
+	var services []pagerduty.Service
+
+	if token != "" {
+		if err := withInitTimeout(func(ctx context.Context) error {
+			return spinner.New().
+				Title("Fetching account data...").
+				ActionWithErr(func(sCtx context.Context) error {
+					client := api.NewClient(token, apiOpts...)
+
+					var wg sync.WaitGroup
+					var teamErr, svcErr error
+
+					wg.Go(func() {
+						t, err := client.ListTeams(sCtx, api.ListTeamsOpts{})
+						if err != nil && !isPlanLimitation(err) {
+							teamErr = err
+							return
+						}
+						teams = t
+					})
+					wg.Go(func() {
+						s, err := client.ListServices(sCtx, api.ListServicesOpts{})
+						if err != nil && !isPlanLimitation(err) {
+							svcErr = err
+							return
+						}
+						services = s
+					})
+					wg.Wait()
+
+					return errors.Join(teamErr, svcErr)
+				}).
+				Context(ctx).
+				Run()
+		}); err != nil {
+			clog.Warn().Err(err).Msg("could not fetch account data - skipping defaults")
 		}
 	}
 
-	// Prompt for email if we couldn't auto-detect it (account-level key
-	// or token validation failed).
-	if ic.defaultEmail == "" {
-		var email string
-		if err := huh.NewInput().
+	// Build form with conditional groups.
+	var (
+		email       string
+		teamID      string
+		serviceID   string
+		interactive bool
+	)
+
+	teamOpts := []huh.Option[string]{huh.NewOption("No default", "")}
+	for _, t := range teams {
+		teamOpts = append(teamOpts, huh.NewOption(t.Name, t.ID))
+	}
+
+	serviceOpts := []huh.Option[string]{huh.NewOption("No default", "")}
+	for _, s := range services {
+		serviceOpts = append(serviceOpts, huh.NewOption(s.Name, s.ID))
+	}
+
+	emailGroup := huh.NewGroup(
+		huh.NewInput().
 			Title("PagerDuty login email").
 			Value(&email).
-			Run(); err != nil {
-			return err
-		}
-		if email != "" {
-			if _, err := mail.ParseAddress(email); err != nil {
-				clog.Warn().Str("email", email).Msg("invalid email - skipping")
-			} else {
-				ic.defaultEmail = email
-			}
-		}
-	}
-	if ic.defaultEmail != "" {
-		clog.Info().Str("email", ic.defaultEmail).Msg("email set")
-	}
+			Validate(func(s string) error {
+				if s == "" {
+					return nil // optional
+				}
+				if _, err := mail.ParseAddress(s); err != nil {
+					return errors.New("invalid email address")
+				}
+				return nil
+			}),
+	).WithHide(ic.defaultEmail != "")
 
-	// Default team/service selection (only when we have a validated token).
-	if resolvedToken != "" {
-		if err := withInitTimeout(func(ctx context.Context) error {
-			return runTeamSelection(ctx, resolvedToken, &ic, apiOpts)
-		}); err != nil {
-			clog.Warn().Err(err).Msg("team selection failed - skipping")
-		}
-		if err := withInitTimeout(func(ctx context.Context) error {
-			return runServiceSelection(ctx, resolvedToken, &ic, apiOpts)
-		}); err != nil {
-			clog.Warn().Err(err).Msg("service selection failed - skipping")
-		}
-	}
+	teamGroup := huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Default team filter").
+			Description("Used for incident and on-call views").
+			Options(teamOpts...).
+			Value(&teamID),
+	).WithHide(len(teams) == 0)
 
-	var enableInteractive bool
-	if err := huh.NewConfirm().
-		Title("Enable interactive mode by default? (launches TUI dashboard on pdc)").
-		Value(&enableInteractive).
+	serviceGroup := huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Default service filter").
+			Description("Used for incident views").
+			Options(serviceOpts...).
+			Value(&serviceID),
+	).WithHide(len(services) == 0)
+
+	prefsGroup := huh.NewGroup(
+		huh.NewConfirm().
+			Title("Enable interactive mode by default?").
+			Description("Launches TUI dashboard when running pdc").
+			Value(&interactive),
+	)
+
+	if err := huh.NewForm(emailGroup, teamGroup, serviceGroup, prefsGroup).
 		Run(); err != nil {
 		return err
 	}
-	ic.interactive = enableInteractive
-	clog.Info().Bool("enabled", enableInteractive).Msg("interactive mode")
 
-	configDir := filepath.Dir(cfgPath)
-	if err := writeInitConfig(configDir, ic); err != nil {
-		return fmt.Errorf("writing config: %w", err)
+	// Apply form results.
+	if email != "" {
+		ic.defaultEmail = email
 	}
+	ic.defaultTeamID = teamID
+	ic.defaultServiceID = serviceID
+	ic.interactive = interactive
 
-	clog.Info().Path("config", cfgPath).Msg("config written")
+	if ic.defaultEmail != "" {
+		clog.Debug().Str("email", ic.defaultEmail).Msg("email set")
+	}
+	if ic.defaultTeamID != "" {
+		clog.Debug().Str("team", ic.defaultTeamID).Msg("default team set")
+	}
+	if ic.defaultServiceID != "" {
+		clog.Debug().Str("service", ic.defaultServiceID).Msg("default service set")
+	}
+	clog.Debug().Bool("enabled", ic.interactive).Msg("interactive mode")
+
 	return nil
 }
 
-// validateToken checks a PagerDuty API token and returns the owner's email
+// authError indicates the token is definitively invalid (not a transient failure).
+type authError struct {
+	err error
+}
+
+func (e *authError) Error() string { return e.err.Error() }
+func (e *authError) Unwrap() error { return e.err }
+
+func isAuthErr(err error) bool {
+	_, ok := errors.AsType[*authError](err)
+	return ok
+}
+
+// validateTokenAPI checks a PagerDuty API token and returns the owner's email
 // if available. It tries /users/me first (works with user tokens). If that
 // returns 400 (account-level API key), it falls back to /abilities which
 // works with both token types.
 //
 // Returns ("", nil) when the token is valid but no email could be resolved
 // (account-level key). Returns ("", err) when the token is invalid.
-func validateToken(token string, opts []api.Option) (string, error) {
+func validateTokenAPI(ctx context.Context, token string, opts []api.Option) (string, error) {
+	client := api.NewClient(token, opts...)
+
+	user, userErr := client.GetCurrentUser(ctx)
+	if userErr == nil {
+		return user.Email, nil
+	}
+
+	if apiErr, ok := errors.AsType[*api.APIError](userErr); ok {
+		switch apiErr.StatusCode {
+		case 400:
+			// Account-level API key - /users/me doesn't apply.
+			// Fall back to /abilities to confirm the key is valid.
+			clog.Debug().Msg("account-level API key detected, validating via /abilities")
+			if _, abErr := client.ListAbilities(ctx); abErr != nil {
+				return "", fmt.Errorf("token validation failed: %w", abErr)
+			}
+			return "", nil
+		case 401, 403:
+			return "", &authError{err: fmt.Errorf(
+				"authentication failed (HTTP %d) - check your token is a valid REST API key, not an Events/integration key",
+				apiErr.StatusCode)}
+		default:
+			return "", fmt.Errorf(
+				"PagerDuty API returned HTTP %d - check your token and try again",
+				apiErr.StatusCode)
+		}
+	}
+	return "", fmt.Errorf("could not reach PagerDuty API: %w", userErr)
+}
+
+func validateWithSpinner(token string, opts []api.Option) (string, error) {
+	suffix := token
+	if len(token) > 3 {
+		suffix = token[len(token)-3:]
+	}
+
 	var email string
 	err := withInitTimeout(func(ctx context.Context) error {
-		client := api.NewClient(token, opts...)
-
-		user, userErr := client.GetCurrentUser(ctx)
-		if userErr == nil {
-			email = user.Email
-			return nil
-		}
-
-		if apiErr, ok := errors.AsType[*api.APIError](userErr); ok {
-			switch apiErr.StatusCode {
-			case 400:
-				// Account-level API key - /users/me doesn't apply.
-				// Fall back to /abilities to confirm the key is valid.
-				clog.Debug().Msg("account-level API key detected, validating via /abilities")
-				if _, abErr := client.ListAbilities(ctx); abErr != nil {
-					return fmt.Errorf("token validation failed: %w", abErr)
-				}
-				return nil
-			case 401, 403:
-				return fmt.Errorf("authentication failed (HTTP %d) - check your token is a valid REST API key, not an Events/integration key", apiErr.StatusCode)
-			default:
-				return fmt.Errorf("PagerDuty API returned HTTP %d - check your token and try again", apiErr.StatusCode)
-			}
-		}
-		return fmt.Errorf("could not reach PagerDuty API: %w", userErr)
+		return spinner.New().
+			Title("Validating token ..." + suffix).
+			ActionWithErr(func(sCtx context.Context) error {
+				var vErr error
+				email, vErr = validateTokenAPI(sCtx, token, opts)
+				return vErr
+			}).
+			Context(ctx).
+			Run()
 	})
 	return email, err
+}
+
+// maybeStoreKeyringToken stores a token in the OS keyring, prompting
+// before overwriting an existing entry.
+func maybeStoreKeyringToken(token string) error {
+	if existing, err := keyring.Get(credential.ServiceName, credential.AccountName); err == nil && existing != "" {
+		var overwrite bool
+		if err := huh.NewConfirm().
+			Title("A token is already stored in the OS keyring. Overwrite it?").
+			Value(&overwrite).
+			Run(); err != nil {
+			return err
+		}
+		if !overwrite {
+			return nil
+		}
+	}
+	return keyring.Set(credential.ServiceName, credential.AccountName, token)
+}
+
+func promptAndStoreToken(ic *initConfig, apiOpts []api.Option) (string, error) {
+	// Check for existing keyring token.
+	if existing, err := keyring.Get(credential.ServiceName, credential.AccountName); err == nil && existing != "" {
+		var overwrite bool
+		if err := huh.NewConfirm().
+			Title("A token is already stored in the OS keyring. Overwrite it?").
+			Value(&overwrite).
+			Run(); err != nil {
+			return "", err
+		}
+		if !overwrite {
+			email, err := validateWithSpinner(existing, apiOpts)
+			switch {
+			case isAuthErr(err):
+				clog.Warn().Err(err).Msg("stored keyring token is invalid - enter a new one")
+			case err != nil:
+				clog.Warn().Err(err).Msg("token validation failed - continuing with setup")
+				ic.credentialSource = credential.SourceKeyring
+				return existing, nil
+			default:
+				ic.defaultEmail = email
+				ic.credentialSource = credential.SourceKeyring
+				return existing, nil
+			}
+		}
+	}
+
+	var rawToken string
+	if err := huh.NewInput().
+		Title("PagerDuty API token").
+		EchoMode(huh.EchoModePassword).
+		Value(&rawToken).
+		Validate(func(s string) error {
+			if s == "" {
+				return errors.New("token is required")
+			}
+			return nil
+		}).
+		Run(); err != nil {
+		return "", err
+	}
+
+	email, err := validateWithSpinner(rawToken, apiOpts)
+	switch {
+	case isAuthErr(err):
+		return "", err
+	case err != nil:
+		clog.Warn().Err(err).Msg("token validation failed - storing anyway")
+	default:
+		ic.defaultEmail = email
+	}
+
+	if err := keyring.Set(credential.ServiceName, credential.AccountName, rawToken); err != nil {
+		clog.Warn().Err(err).Msg("could not store token in OS keyring")
+	} else {
+		ic.credentialSource = credential.SourceKeyring
+	}
+	return rawToken, nil
 }
 
 // writeInitConfig writes config.toml to configDir with mode 0600.
@@ -291,133 +498,4 @@ func isWSL() bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(string(data)), "microsoft")
-}
-
-// setupKeyringToken handles the keyring token flow: check existing, prompt for new, validate, store.
-// Callers must ensure the keyring is available before calling this function.
-func setupKeyringToken(ic *initConfig, resolvedToken *string, apiOpts []api.Option) error {
-	if existing, err := keyring.Get(credential.ServiceName, credential.AccountName); err == nil && existing != "" {
-		var overwriteKey bool
-		if err := huh.NewConfirm().
-			Title("A token is already stored in the OS keyring. Overwrite it?").
-			Value(&overwriteKey).
-			Run(); err != nil {
-			return err
-		}
-		if !overwriteKey {
-			clog.Info().Msg("keeping existing keyring token")
-			*resolvedToken = existing
-		}
-	}
-
-	if *resolvedToken == "" {
-		var rawToken string
-		if err := huh.NewInput().
-			Title("PagerDuty API token").
-			EchoMode(huh.EchoModePassword).
-			Value(&rawToken).
-			Validate(func(s string) error {
-				if s == "" {
-					return errors.New("token is required")
-				}
-				return nil
-			}).
-			Run(); err != nil {
-			return err
-		}
-
-		if email, err := validateToken(rawToken, apiOpts); err != nil {
-			clog.Info().Err(err).Msg("token validation failed - storing anyway")
-		} else {
-			clog.Info().Msg("token verified")
-			if ic.defaultEmail == "" {
-				ic.defaultEmail = email
-			}
-		}
-
-		if err := keyring.Set(credential.ServiceName, credential.AccountName, rawToken); err != nil {
-			clog.Warn().Err(err).Msg("could not store token in OS keyring - use PDC_TOKEN or --token instead")
-		}
-		*resolvedToken = rawToken
-	} else {
-		if email, err := validateToken(*resolvedToken, apiOpts); err != nil {
-			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
-		} else {
-			clog.Info().Msg("token verified")
-			if ic.defaultEmail == "" {
-				ic.defaultEmail = email
-			}
-		}
-	}
-
-	ic.credentialSource = credential.SourceKeyring
-	return nil
-}
-
-// runTeamSelection runs the optional team picker step.
-func runTeamSelection(ctx context.Context, token string, ic *initConfig, opts []api.Option) error {
-	c := api.NewClient(token, opts...)
-	teams, err := c.ListTeams(ctx, api.ListTeamsOpts{})
-	if err != nil {
-		if isPlanLimitation(err) {
-			clog.Info().Str("reason", "not available on this plan").Msg("teams skipped")
-			return nil
-		}
-		return err
-	}
-	if len(teams) == 0 {
-		clog.Info().Str("reason", "none found").Msg("teams skipped")
-		return nil
-	}
-
-	options := []huh.Option[string]{huh.NewOption("No default", "")}
-	for _, t := range teams {
-		options = append(options, huh.NewOption(t.Name, t.ID))
-	}
-
-	if err := huh.NewSelect[string]().
-		Title("Select a default team filter (used for incident and on-call views)").
-		Options(options...).
-		Value(&ic.defaultTeamID).
-		Run(); err != nil {
-		return err
-	}
-	if ic.defaultTeamID != "" {
-		clog.Info().Str("team", ic.defaultTeamID).Msg("default team set")
-	}
-	return nil
-}
-
-// runServiceSelection runs the optional service picker step.
-func runServiceSelection(ctx context.Context, token string, ic *initConfig, opts []api.Option) error {
-	c := api.NewClient(token, opts...)
-	services, err := c.ListServices(ctx, api.ListServicesOpts{})
-	if err != nil {
-		if isPlanLimitation(err) {
-			clog.Info().Str("reason", "not available on this plan").Msg("services skipped")
-			return nil
-		}
-		return err
-	}
-	if len(services) == 0 {
-		clog.Info().Str("reason", "none found").Msg("services skipped")
-		return nil
-	}
-
-	options := []huh.Option[string]{huh.NewOption("No default", "")}
-	for _, s := range services {
-		options = append(options, huh.NewOption(s.Name, s.ID))
-	}
-
-	if err := huh.NewSelect[string]().
-		Title("Select a default service filter (used for incident views)").
-		Options(options...).
-		Value(&ic.defaultServiceID).
-		Run(); err != nil {
-		return err
-	}
-	if ic.defaultServiceID != "" {
-		clog.Info().Str("service", ic.defaultServiceID).Msg("default service set")
-	}
-	return nil
 }

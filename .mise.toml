@@ -2,7 +2,6 @@
 go = "1.26"
 actionlint = "latest"
 goreleaser = "latest"
-syft = "latest"
 task = "latest"
 zizmor = "latest"
 "github:rvben/rumdl" = "latest"

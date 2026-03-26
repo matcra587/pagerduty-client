@@ -121,12 +121,12 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// Prompt for email if we couldn't auto-detect it (account-level key).
-	if ic.defaultEmail == "" && resolvedToken != "" {
+	// Prompt for email if we couldn't auto-detect it (account-level key
+	// or token validation failed).
+	if ic.defaultEmail == "" {
 		var email string
 		if err := huh.NewInput().
-			Title("PagerDuty email address (used for write operations like ack/resolve)").
-			Description("Could not detect automatically. Enter your PagerDuty login email.").
+			Title("PagerDuty email address (optional, used for write operations like ack/resolve)").
 			Value(&email).
 			Run(); err != nil {
 			return err
@@ -307,7 +307,7 @@ func setupKeyringToken(ic *initConfig, resolvedToken *string, apiOpts []api.Opti
 			clog.Warn().Err(err).Msg("could not store token in OS keyring - use PDC_TOKEN or --token instead")
 		}
 		*resolvedToken = rawToken
-	} else if *resolvedToken != "" {
+	} else {
 		if email, err := validateToken(*resolvedToken, apiOpts); err != nil {
 			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
 		} else {

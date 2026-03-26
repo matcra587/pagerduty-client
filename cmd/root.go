@@ -100,6 +100,21 @@ var rootCmd = &cobra.Command{
 			apiOpts = append(apiOpts, api.WithBaseURL(cfg.BaseURL))
 		}
 
+		// Handle shell completion requests before token resolution so
+		// --install-completion and --print-completion work without a token.
+		// Dynamic completion (team/service names) is best-effort: it uses
+		// whatever token is available from env/keyring.
+		flagToken, _ := pf.GetString("token")
+		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
+		gen.Subs = clib.Subcommands(cmd.Root())
+		handled, err := comp.Handle(gen, completionHandler(flagToken, apiOpts...))
+		if err != nil {
+			return err
+		}
+		if handled {
+			os.Exit(0) //nolint:revive // completion handler must exit after handling
+		}
+
 		ctx := cmd.Context()
 		if ctx == nil {
 			ctx = context.Background()
@@ -117,7 +132,6 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Resolve token from flag, env, or credential store.
-		flagToken, _ := pf.GetString("token")
 		resolvedToken, err := resolveToken(ctx, cfg, flagToken)
 		if err != nil {
 			return fmt.Errorf("resolving credentials: %w", err)
@@ -127,17 +141,6 @@ var rootCmd = &cobra.Command{
 
 		if err := cfg.Validate(); err != nil {
 			return err
-		}
-
-		// Handle shell completion requests (exits if handled).
-		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
-		gen.Subs = clib.Subcommands(cmd.Root())
-		handled, err := comp.Handle(gen, completionHandler(cfg.Token, apiOpts...))
-		if err != nil {
-			return err
-		}
-		if handled {
-			os.Exit(0) //nolint:revive // completion handler must exit after handling
 		}
 
 		client := api.NewClient(cfg.Token, apiOpts...)

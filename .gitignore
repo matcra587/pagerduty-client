@@ -39,6 +39,9 @@ dist/
 # Linter cache
 .rumdl_cache/
 
+# Git worktrees
+.worktrees/
+
 # Editor/IDE
 !.vscode/settings.json
 !.vscode/extensions.json

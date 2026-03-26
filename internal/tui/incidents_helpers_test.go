@@ -106,6 +106,17 @@ func TestTruncate_ZeroWidth(t *testing.T) {
 	assert.Empty(t, truncate("hello", 0))
 }
 
+func TestTruncate_ResultMatchesTargetWidth(t *testing.T) {
+	result := truncate("hello world", 5)
+	assert.Len(t, []rune(result), 5)
+	assert.Equal(t, "hell…", result)
+}
+
+func TestTruncate_NoTruncationNeeded(t *testing.T) {
+	result := truncate("hello", 10)
+	assert.Equal(t, "hello", result)
+}
+
 func TestLayoutColumnsBreakpointBoundaries(t *testing.T) {
 	tests := []struct {
 		width       int

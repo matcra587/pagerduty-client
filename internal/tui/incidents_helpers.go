@@ -187,9 +187,9 @@ func truncate(s string, n int) string {
 		return s
 	}
 	if n <= 1 {
-		return "..."
+		return "…"
 	}
-	return string(runes[:n-1]) + "..."
+	return string(runes[:n-1]) + "…"
 }
 
 type column struct {

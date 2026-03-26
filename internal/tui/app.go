@@ -150,10 +150,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.statusBar.Width = msg.Width
 
 		// Compute body height: total minus header and footer chrome.
-		headerH := 0
-		if a.current == viewDashboard {
-			headerH = 1
-		}
+		// Always reserve 1 line for the header (tab bar) so bodyH
+		// stays consistent across view transitions without needing
+		// recomputation when switching between dashboard and detail.
+		const headerH = 1
 		const footerH = 3 // hint bar (border-top + text) + status line
 		a.bodyH = max(a.height-headerH-footerH, 1)
 
@@ -601,10 +601,6 @@ func (a App) View() tea.View {
 
 	// --- header ---
 	header := a.headerView()
-	headerH := lipgloss.Height(header)
-	if header == "" {
-		headerH = 0
-	}
 
 	// --- footer (set hint context first) ---
 	var viewName string
@@ -621,11 +617,8 @@ func (a App) View() tea.View {
 		Paused:        a.paused,
 	}
 	footer := a.statusBar.View().Content
-	footerH := lipgloss.Height(footer)
 
-	// --- body ---
-	bodyH := max(a.height-headerH-footerH, 1)
-
+	// --- body (use pre-computed bodyH from Update, single source of truth) ---
 	var bodyContent string
 	switch a.current {
 	case viewDashboard:
@@ -635,19 +628,19 @@ func (a App) View() tea.View {
 	default:
 		bodyContent = a.dashboard.View().Content
 	}
-	body := lipgloss.NewStyle().Width(a.width).Height(bodyH).Render(bodyContent)
+	body := lipgloss.NewStyle().Width(a.width).Height(a.bodyH).MaxHeight(a.bodyH).Render(bodyContent)
 
 	// Layer overlays on the body zone.
 	if a.textInput.Visible {
-		body = overlayCenter(body, a.textInput.View().Content, a.width, bodyH)
+		body = overlayCenter(body, a.textInput.View().Content, a.width, a.bodyH)
 	} else if a.confirm.Visible {
-		body = overlayCenter(body, a.confirm.View().Content, a.width, bodyH)
+		body = overlayCenter(body, a.confirm.View().Content, a.width, a.bodyH)
 	} else if a.priorityPicker.Visible {
-		body = overlayCenter(body, a.priorityPicker.View().Content, a.width, bodyH)
+		body = overlayCenter(body, a.priorityPicker.View().Content, a.width, a.bodyH)
 	} else if a.teamSwitch.Visible {
-		body = overlayCenter(body, a.teamSwitch.View().Content, a.width, bodyH)
+		body = overlayCenter(body, a.teamSwitch.View().Content, a.width, a.bodyH)
 	} else if a.filterOpts.Visible {
-		body = overlayCenter(body, a.filterOpts.View().Content, a.width, bodyH)
+		body = overlayCenter(body, a.filterOpts.View().Content, a.width, a.bodyH)
 	}
 
 	// Compose zones vertically, omitting an empty header.

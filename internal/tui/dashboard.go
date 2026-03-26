@@ -4,6 +4,7 @@ import (
 	"context"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/matcra587/pagerduty-client/internal/api"
 )
@@ -54,5 +55,6 @@ func (d Dashboard) View() tea.View {
 	if d.width == 0 {
 		return tea.NewView("")
 	}
-	return tea.NewView(d.incidents.View().Content)
+	return tea.NewView(lipgloss.NewStyle().Width(d.width).Height(d.height).MaxHeight(d.height).
+		Render(d.incidents.View().Content))
 }

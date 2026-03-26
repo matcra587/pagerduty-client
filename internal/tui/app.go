@@ -85,6 +85,7 @@ type App struct {
 	statusID       int
 	tabs           []topTab
 	activeTab      int
+	bodyH          int
 }
 
 // New constructs an App wired to the given client, config and acting user email.
@@ -147,10 +148,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.width = msg.Width
 		a.height = msg.Height
 		a.statusBar.Width = msg.Width
-		dm, _ := a.dashboard.Update(msg)
+
+		// Compute body height: total minus header and footer chrome.
+		headerH := 0
+		if a.current == viewDashboard {
+			headerH = 1
+		}
+		const footerH = 3 // hint bar (border-top + text) + status line
+		a.bodyH = max(a.height-headerH-footerH, 1)
+
+		// Forward the body-scoped size to children.
+		childSize := tea.WindowSizeMsg{Width: msg.Width, Height: a.bodyH}
+		dm, _ := a.dashboard.Update(childSize)
 		a.dashboard = dm.(Dashboard)
 		if a.current == viewDetail {
-			dm2, _ := a.detail.Update(msg)
+			dm2, _ := a.detail.Update(childSize)
 			a.detail = dm2.(incidentDetail)
 		}
 		return a, nil
@@ -436,8 +448,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case IncidentSelected:
 		a.detail = newIncidentDetail(a.ctx, a.client, a.cfg, a.ansi, msg.Incident)
 		a.detail.width = a.width
-		a.detail.height = a.height
-		vpHeight := max(a.height-4, 1)
+		a.detail.height = a.bodyH
+		vpHeight := max(a.bodyH-2, 1) // subtract detail's own chrome: header + tab bar
 		for i := range a.detail.viewports {
 			a.detail.viewports[i].SetWidth(a.width)
 			a.detail.viewports[i].SetHeight(vpHeight)

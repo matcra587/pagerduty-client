@@ -90,7 +90,7 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		vpHeight := max(msg.Height-4, 1)
+		vpHeight := max(msg.Height-2, 1)
 		for i := range m.viewports {
 			m.viewports[i].SetWidth(msg.Width)
 			m.viewports[i].SetHeight(vpHeight)

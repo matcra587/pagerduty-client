@@ -4,7 +4,6 @@ import (
 	"context"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/matcra587/pagerduty-client/internal/api"
 )
@@ -41,7 +40,7 @@ func (d Dashboard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		d.width = ws.Width
 		d.height = ws.Height
 		d.incidents.width = ws.Width
-		d.incidents.height = max(d.height-3, 1)
+		d.incidents.height = d.height
 	}
 
 	im, iCmd := d.incidents.Update(msg)
@@ -55,7 +54,5 @@ func (d Dashboard) View() tea.View {
 	if d.width == 0 {
 		return tea.NewView("")
 	}
-	h := max(d.height-3, 1)
-	return tea.NewView(lipgloss.NewStyle().Width(d.width).Height(h).
-		Render(d.incidents.View().Content))
+	return tea.NewView(d.incidents.View().Content)
 }

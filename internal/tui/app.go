@@ -260,11 +260,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				vis := a.dashboard.incidents.visibleIncidents()
 				if len(vis) > 0 {
 					inc := vis[a.dashboard.incidents.cursor]
-					a.confirm = a.confirm.Show(
-						"Resolve incident",
-						fmt.Sprintf("Resolve %s?", inc.ID),
-						a.dashboard.incidents.resolveCmd(),
-					)
+					return a, func() tea.Msg {
+						return showInputMsg{
+							action:      "resolve",
+							incidentID:  inc.ID,
+							prompt:      fmt.Sprintf("Resolve %s - add a note (enter to skip):", inc.ID),
+							placeholder: "",
+						}
+					}
 				}
 				return a, nil
 			}
@@ -518,16 +521,17 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.reloadAfterAction("Merged into " + msg.TargetID)
 
 	case detailResolveMsg:
-		resolveCmd := a.detailResolveCmd(msg.id)
 		if msg.confirm {
-			a.confirm = a.confirm.Show(
-				"Resolve incident",
-				fmt.Sprintf("Resolve %s?", msg.id),
-				resolveCmd,
-			)
-			return a, nil
+			return a, func() tea.Msg {
+				return showInputMsg{
+					action:      "resolve",
+					incidentID:  msg.id,
+					prompt:      fmt.Sprintf("Resolve %s - add a note (enter to skip):", msg.id),
+					placeholder: "",
+				}
+			}
 		}
-		return a, resolveCmd
+		return a, a.detailResolveCmd(msg.id)
 
 	case batchResultMsg:
 		a.dashboard.incidents.selections = make(map[string]bool)
@@ -1110,6 +1114,26 @@ func (a App) executeInputAction(msg components.InputSubmitted) tea.Cmd {
 				return incidentErrMsg{op: "note", err: err}
 			}
 			return IncidentNoteAdded{ID: id}
+		}
+		return tea.Batch(pending, action)
+
+	case "resolve":
+		id := msg.ID
+		note := strings.TrimSpace(msg.Value)
+		action := func() tea.Msg {
+			// Best-effort note: don't block resolve if the note fails.
+			if note != "" {
+				// Best-effort: don't block resolve if the note fails.
+				noteCtx, noteCancel := context.WithTimeout(appCtx, 15*time.Second)
+				_ = client.AddIncidentNote(noteCtx, id, from, note)
+				noteCancel()
+			}
+			resolveCtx, resolveCancel := context.WithTimeout(appCtx, 15*time.Second)
+			defer resolveCancel()
+			if err := client.ResolveIncident(resolveCtx, id, from); err != nil {
+				return incidentErrMsg{op: "resolve", err: err}
+			}
+			return IncidentResolved{ID: id}
 		}
 		return tea.Batch(pending, action)
 

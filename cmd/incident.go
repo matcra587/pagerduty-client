@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/mail"
 	"os"
+	"strings"
 	"time"
 
+	"charm.land/huh/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
@@ -205,6 +207,26 @@ var incidentResolveCmd = &cobra.Command{
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
+		}
+
+		note, _ := cmd.Flags().GetString("note")
+
+		// Interactive terminal: prompt for an optional note.
+		if note == "" && !det.Active && terminal.Is(os.Stdout) {
+			if err := huh.NewText().
+				Title("Resolution note (enter to skip)").
+				Value(&note).
+				Run(); err != nil {
+				return err
+			}
+		}
+		note = strings.TrimSpace(note)
+
+		// Post note before resolving (same pattern as prl: comment then close).
+		if note != "" {
+			if err := client.AddIncidentNote(ctx, args[0], from, note); err != nil {
+				clog.Warn().Err(err).Msg("could not add resolution note")
+			}
 		}
 
 		if err := client.ResolveIncident(ctx, args[0], from); err != nil {
@@ -532,6 +554,12 @@ func init() {
 	incidentCmd.AddCommand(incidentShowCmd)
 	incidentCmd.AddCommand(incidentAckCmd)
 	incidentCmd.AddCommand(incidentResolveCmd)
+	incidentResolveCmd.Flags().StringP("note", "n", "", "Resolution note (optional)")
+	clib.Extend(incidentResolveCmd.Flags().Lookup("note"), clib.FlagExtra{
+		Group:       "Action",
+		Placeholder: "TEXT",
+		Terse:       "resolution note",
+	})
 	incidentCmd.AddCommand(incidentSnoozeCmd)
 	incidentCmd.AddCommand(incidentReassignCmd)
 	incidentCmd.AddCommand(incidentMergeCmd)

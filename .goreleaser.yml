@@ -17,7 +17,7 @@ before:
 builds:
   - id: pagerduty-client
     main: .
-    binary: pagerduty-client
+    binary: pdc
     mod_timestamp: "{{ .CommitTimestamp }}"
     env:
       - CGO_ENABLED=0

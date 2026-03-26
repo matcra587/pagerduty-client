@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,10 +18,10 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// validateToken
+// validateTokenAPI
 // ---------------------------------------------------------------------------
 
-func TestValidateToken_UserToken_ReturnsEmail(t *testing.T) {
+func TestValidateTokenAPI_UserToken_ReturnsEmail(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/users/me", r.URL.Path)
 		assert.Equal(t, "Token token="+testToken, r.Header.Get("Authorization"))
@@ -27,12 +29,12 @@ func TestValidateToken_UserToken_ReturnsEmail(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	email, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	email, err := validateTokenAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.NoError(t, err)
 	assert.Equal(t, "test@example.com", email)
 }
 
-func TestValidateToken_AccountKey_FallsBackToAbilities(t *testing.T) {
+func TestValidateTokenAPI_AccountKey_FallsBackToAbilities(t *testing.T) {
 	mux := http.NewServeMux()
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -48,12 +50,12 @@ func TestValidateToken_AccountKey_FallsBackToAbilities(t *testing.T) {
 		_, _ = w.Write([]byte(`{"abilities":["sso","teams"]}`))
 	})
 
-	email, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	email, err := validateTokenAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.NoError(t, err)
 	assert.Empty(t, email, "account-level keys have no associated email")
 }
 
-func TestValidateToken_AccountKey_AbilitiesAlsoFails(t *testing.T) {
+func TestValidateTokenAPI_AccountKey_AbilitiesAlsoFails(t *testing.T) {
 	mux := http.NewServeMux()
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -68,21 +70,24 @@ func TestValidateToken_AccountKey_AbilitiesAlsoFails(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":{"message":"Unauthorized","code":2006}}`))
 	})
 
-	_, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	_, err := validateTokenAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "token validation failed")
 }
 
-func TestValidateToken_Unauthorized(t *testing.T) {
+func TestValidateTokenAPI_Unauthorized(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":{"message":"Unauthorized","code":2006}}`))
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := validateToken(testToken, []api.Option{api.WithBaseURL(srv.URL)})
+	_, err := validateTokenAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication failed")
+
+	_, ok := errors.AsType[*authError](err)
+	assert.True(t, ok, "401 should return *authError")
 }
 
 // ---------------------------------------------------------------------------

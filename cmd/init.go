@@ -100,9 +100,6 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	var resolvedToken string
 
 	// If PDC_TOKEN is set, validate it and offer keyring as a fallback.
@@ -113,7 +110,9 @@ func runInit(cmd *cobra.Command, _ []string) error {
 		}
 		clog.Info().Str("token", "..."+suffix).Msg("PDC_TOKEN detected in environment")
 
-		if err := validateTokenViaAPI(ctx, envToken, apiOpts); err != nil {
+		if err := withInitTimeout(func(ctx context.Context) error {
+			return validateTokenViaAPI(ctx, envToken, apiOpts)
+		}); err != nil {
 			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
 		} else {
 			clog.Info().Msg("Token verified")
@@ -128,23 +127,27 @@ func runInit(cmd *cobra.Command, _ []string) error {
 			return err
 		}
 		if setupKeyring {
-			if err := setupKeyringToken(ctx, &ic, &resolvedToken, apiOpts); err != nil {
+			if err := setupKeyringToken(&ic, &resolvedToken, apiOpts); err != nil {
 				return err
 			}
 		}
 	} else {
 		// No env token - prompt for keyring storage.
-		if err := setupKeyringToken(ctx, &ic, &resolvedToken, apiOpts); err != nil {
+		if err := setupKeyringToken(&ic, &resolvedToken, apiOpts); err != nil {
 			return err
 		}
 	}
 
 	// Default team/service selection (only when we have a validated token).
 	if resolvedToken != "" {
-		if err := runTeamSelection(ctx, resolvedToken, &ic, apiOpts); err != nil {
+		if err := withInitTimeout(func(ctx context.Context) error {
+			return runTeamSelection(ctx, resolvedToken, &ic, apiOpts)
+		}); err != nil {
 			clog.Warn().Err(err).Msg("team selection failed - skipping")
 		}
-		if err := runServiceSelection(ctx, resolvedToken, &ic, apiOpts); err != nil {
+		if err := withInitTimeout(func(ctx context.Context) error {
+			return runServiceSelection(ctx, resolvedToken, &ic, apiOpts)
+		}); err != nil {
 			clog.Warn().Err(err).Msg("service selection failed - skipping")
 		}
 	}
@@ -219,8 +222,20 @@ func writeInitConfig(configDir string, ic initConfig) error {
 	return os.WriteFile(path, []byte(sb.String()), 0o600)
 }
 
+// initCallTimeout is the per-call deadline for API requests made during
+// the init wizard. Each call gets its own context so that time spent on
+// interactive prompts does not eat into the deadline.
+const initCallTimeout = 30 * time.Second
+
+// withInitTimeout runs fn with a fresh 30-second context.
+func withInitTimeout(fn func(ctx context.Context) error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), initCallTimeout)
+	defer cancel()
+	return fn(ctx)
+}
+
 // setupKeyringToken handles the keyring token flow: check existing, prompt for new, validate, store.
-func setupKeyringToken(ctx context.Context, ic *initConfig, resolvedToken *string, apiOpts []api.Option) error {
+func setupKeyringToken(ic *initConfig, resolvedToken *string, apiOpts []api.Option) error {
 	if existing, err := keyring.Get(credential.ServiceName, credential.AccountName); err == nil && existing != "" {
 		var overwriteKey bool
 		if err := huh.NewConfirm().
@@ -251,7 +266,9 @@ func setupKeyringToken(ctx context.Context, ic *initConfig, resolvedToken *strin
 			return err
 		}
 
-		if err := validateTokenViaAPI(ctx, rawToken, apiOpts); err != nil {
+		if err := withInitTimeout(func(ctx context.Context) error {
+			return validateTokenViaAPI(ctx, rawToken, apiOpts)
+		}); err != nil {
 			clog.Info().Err(err).Msg("token validation failed - storing anyway")
 		} else {
 			clog.Info().Msg("Token verified")
@@ -262,7 +279,9 @@ func setupKeyringToken(ctx context.Context, ic *initConfig, resolvedToken *strin
 		}
 		*resolvedToken = rawToken
 	} else if *resolvedToken != "" {
-		if err := validateTokenViaAPI(ctx, *resolvedToken, apiOpts); err != nil {
+		if err := withInitTimeout(func(ctx context.Context) error {
+			return validateTokenViaAPI(ctx, *resolvedToken, apiOpts)
+		}); err != nil {
 			clog.Info().Err(err).Msg("token validation failed - continuing with setup")
 		} else {
 			clog.Info().Msg("Token verified")

@@ -30,10 +30,12 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run GoReleaser
+        # TODO: Pin to a stable release once goreleaser/goreleaser#6466
+        # (cask stanza order fix) ships in a tagged version.
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29
         with:
           distribution: goreleaser
-          version: '~> v2'
+          version: nightly
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

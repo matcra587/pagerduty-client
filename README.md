@@ -1,7 +1,5 @@
 # pagerduty-client
 
-**Work in progress. No PagerDuty API endpoints are implemented yet - this repo is project scaffolding only (tooling, CI, linting). See the roadmap below.**
-
 PagerDuty from the command line - built for AI agents, usable by humans.
 
 ## Background
@@ -32,13 +30,13 @@ keyboard-driven actions and team switching.
 
 ### Homebrew
 
-```bash
-brew install matcra587/tap/pagerduty-client
-```
-
 > [!NOTE]
 > The Homebrew tap requires the repository to be public.
 > Until then, use one of the methods below.
+
+```bash
+brew install matcra587/tap/pagerduty-client
+```
 
 ### GitHub Releases
 
@@ -48,39 +46,48 @@ and place it on your `PATH`.
 
 ### Go
 
-```bash
-go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
-```
-
-Requires Go 1.26+.
-
-> [!NOTE]
-> While the repository is private, Go needs SSH access and the
-> private module bypass:
->
-> ```bash
-> git config --global url."git@github.com:matcra587/".insteadOf "https://github.com/matcra587/"
-> GOPRIVATE=github.com/matcra587 go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
-> ```
-
-### Build from source
+Requires Go `1.26+`.
 
 ```bash
-mise install && task deps && task build
-# Binary at ./dist/pdc-<os>-<arch>
+git config --global url."git@github.com:matcra587/".insteadOf "https://github.com/matcra587/"
+GOPRIVATE=github.com/matcra587 go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
 ```
 
 ## Quick Start
 
 ```bash
-pdc init                             # First-run setup (token, defaults)
-pdc incident list                    # List incidents (table on TTY, JSON for agents)
-pdc incident ack P000001             # Acknowledge an incident
-pdc oncall                           # Who is on call
-pdc --interactive                    # TUI dashboard
+pdc init                         # First-run setup (token, defaults)
+pdc incident list                # List incidents (table on TTY, JSON for agents)
+pdc incident ack P000001         # Acknowledge an incident
+pdc oncall                       # Who is on call
+pdc --interactive                # TUI dashboard
 ```
 
-## Development
+## API Coverage
+
+| Resource | List | Get | Create | Update |
+|----------|------|-----|--------|--------|
+| Incidents | yes | yes | - | ack, resolve, snooze, merge, reassign, note |
+| Services | yes | - | - | - |
+| Users | yes | - | - | - |
+| Teams | yes | - | - | - |
+| Schedules | yes | - | - | overrides |
+| On-call | yes | - | - | - |
+| Alerts | yes | - | - | - |
+| Escalation policies | - | - | - | - |
+
+## Contributing
+
+1.  Fork and branch.
+1.  Set up tooling and build:
+
+    ```bash
+    mise install && task deps && task build
+    ```
+
+1.  Write a failing test, then the implementation.
+1.  `task lint && task test` before pushing.
+1.  Open a pull request.
 
 ```bash
 task test                        # Run tests
@@ -96,28 +103,6 @@ task security                    # Run govulncheck
 > (golangci-lint, gofumpt, govulncheck).
 
 [tools]: https://go.dev/doc/modules/managing-dependencies#tools
-
-## API Coverage
-
-None yet. Planned resources:
-
-| Resource | Status |
-|----------|--------|
-| Incidents | Not started |
-| Services | Not started |
-| Users | Not started |
-| Teams | Not started |
-| Schedules | Not started |
-| On-call | Not started |
-| Escalation policies | Not started |
-
-## Contributing
-
-1.  Fork and branch.
-1.  `mise install` to set up tooling.
-1.  Write a failing test, then the implementation.
-1.  `task lint && task test` before pushing.
-1.  Open a pull request.
 
 ## Acknowledgements
 

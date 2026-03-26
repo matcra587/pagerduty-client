@@ -28,31 +28,56 @@ keyboard-driven actions and team switching.
 > the kind of thing that slips through when you're clicking around
 > a web UI.
 
-## Quick Start
+## Installation
+
+### Homebrew
+
+```bash
+brew install matcra587/tap/pagerduty-client
+```
+
+> [!NOTE]
+> The Homebrew tap requires the repository to be public.
+> Until then, use one of the methods below.
+
+### GitHub Releases
+
+Download a pre-built binary from the
+[releases page](https://github.com/matcra587/pagerduty-client/releases)
+and place it on your `PATH`.
+
+### Go
+
+```bash
+go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
+```
+
+Requires Go 1.26+.
+
+> [!NOTE]
+> While the repository is private, Go needs SSH access and the
+> private module bypass:
+>
+> ```bash
+> git config --global url."git@github.com:matcra587/".insteadOf "https://github.com/matcra587/"
+> GOPRIVATE=github.com/matcra587 go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
+> ```
+
+### Build from source
 
 ```bash
 mise install && task deps && task build
-
-./dist/pagerduty-client                          # TUI dashboard
-./dist/pagerduty-client incident list -f json    # Incidents as JSON
-./dist/pagerduty-client incident ack P000001     # Acknowledge
-./dist/pagerduty-client oncall                   # Who is on call
+# Binary at ./dist/pdc-<os>-<arch>
 ```
 
-## Installation
-
-[mise](https://mise.jdx.dev/) handles Go and all tooling:
+## Quick Start
 
 ```bash
-mise install
-task build
-task install                     # Optional: install to GOPATH/bin
-```
-
-Or build from source if you already have Go 1.26+:
-
-```bash
-go install github.com/matcra587/pagerduty-client@latest
+pdc init                             # First-run setup (token, defaults)
+pdc incident list                    # List incidents (table on TTY, JSON for agents)
+pdc incident ack P000001             # Acknowledge an incident
+pdc oncall                           # Who is on call
+pdc --interactive                    # TUI dashboard
 ```
 
 ## Development

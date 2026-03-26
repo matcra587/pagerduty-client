@@ -572,23 +572,29 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-// View composes the active view, status bar and optional overlays.
+// View composes three zones - header (tab bar), body (content) and footer
+// (status bar) - and layers any active overlay on top.
 func (a App) View() tea.View {
 	if a.width == 0 {
 		return tea.NewView("")
 	}
 
-	var mainView string
-	switch a.current {
-	case viewDashboard:
-		tabBar := a.topTabBar()
-		mainView = tabBar + "\n" + a.dashboard.View().Content
-	case viewDetail:
-		mainView = a.detail.View().Content
-	default:
-		mainView = a.dashboard.View().Content
+	// Help overlay replaces the entire viewport.
+	if a.help.Visible {
+		overlay := a.help.View().Content
+		v := tea.NewView(overlayFullScreen(overlay, a.width, a.height))
+		v.AltScreen = true
+		return v
 	}
 
+	// --- header ---
+	header := a.headerView()
+	headerH := lipgloss.Height(header)
+	if header == "" {
+		headerH = 0
+	}
+
+	// --- footer (set hint context first) ---
 	var viewName string
 	switch a.current {
 	case viewDashboard:
@@ -602,34 +608,56 @@ func (a App) View() tea.View {
 		FilterActive:  a.current == viewDashboard && a.dashboard.FilterActive(),
 		Paused:        a.paused,
 	}
+	footer := a.statusBar.View().Content
+	footerH := lipgloss.Height(footer)
 
-	bar := a.statusBar.View().Content
+	// --- body ---
+	bodyH := max(a.height-headerH-footerH, 1)
 
-	base := lipgloss.JoinVertical(lipgloss.Left, mainView, bar)
+	var bodyContent string
+	switch a.current {
+	case viewDashboard:
+		bodyContent = a.dashboard.View().Content
+	case viewDetail:
+		bodyContent = a.detail.View().Content
+	default:
+		bodyContent = a.dashboard.View().Content
+	}
+	body := lipgloss.NewStyle().Width(a.width).Height(bodyH).Render(bodyContent)
 
+	// Layer overlays on the body zone.
 	if a.textInput.Visible {
-		overlay := a.textInput.View().Content
-		base = overlayCenter(base, overlay, a.width, a.height)
+		body = overlayCenter(body, a.textInput.View().Content, a.width, bodyH)
 	} else if a.confirm.Visible {
-		overlay := a.confirm.View().Content
-		base = overlayCenter(base, overlay, a.width, a.height)
+		body = overlayCenter(body, a.confirm.View().Content, a.width, bodyH)
 	} else if a.priorityPicker.Visible {
-		overlay := a.priorityPicker.View().Content
-		base = overlayCenter(base, overlay, a.width, a.height)
+		body = overlayCenter(body, a.priorityPicker.View().Content, a.width, bodyH)
 	} else if a.teamSwitch.Visible {
-		overlay := a.teamSwitch.View().Content
-		base = overlayCenter(base, overlay, a.width, a.height)
+		body = overlayCenter(body, a.teamSwitch.View().Content, a.width, bodyH)
 	} else if a.filterOpts.Visible {
-		overlay := a.filterOpts.View().Content
-		base = overlayCenter(base, overlay, a.width, a.height)
-	} else if a.help.Visible {
-		overlay := a.help.View().Content
-		base = overlayFullScreen(overlay, a.width, a.height)
+		body = overlayCenter(body, a.filterOpts.View().Content, a.width, bodyH)
+	}
+
+	// Compose zones vertically, omitting an empty header.
+	var base string
+	if header != "" {
+		base = lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
+	} else {
+		base = lipgloss.JoinVertical(lipgloss.Left, body, footer)
 	}
 
 	v := tea.NewView(base)
 	v.AltScreen = true
 	return v
+}
+
+// headerView returns the top tab bar on the dashboard view, or an empty
+// string on other views.
+func (a App) headerView() string {
+	if a.current == viewDashboard {
+		return a.topTabBar()
+	}
+	return ""
 }
 
 // topTabBar renders the top-level tab bar. Only shown on the dashboard view.

@@ -84,27 +84,27 @@ func TestGetRejectsInvalidPath(t *testing.T) {
 	c := NewClient("tok")
 	_, err := c.get(context.Background(), "/incidents/../../admin", nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid path segment")
+	assert.ErrorContains(t, err, "invalid path segment")
 }
 
 func TestPutFromRejectsInvalidPath(t *testing.T) {
 	c := NewClient("tok")
 	_, err := c.putFrom(context.Background(), "/incidents/../../admin", nil, "user@example.com")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid path segment")
+	assert.ErrorContains(t, err, "invalid path segment")
 }
 
 func TestPostFromRejectsInvalidPath(t *testing.T) {
 	c := NewClient("tok")
 	_, err := c.postFrom(context.Background(), "/incidents/../../admin", nil, "user@example.com")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid path segment")
+	assert.ErrorContains(t, err, "invalid path segment")
 }
 
 func TestValidatePathRejectsQueryString(t *testing.T) {
 	err := validatePath("/incidents?foo=bar")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "query string")
+	assert.ErrorContains(t, err, "query string")
 }
 
 func TestValidatePathSegment(t *testing.T) {
@@ -148,7 +148,7 @@ func TestClientRejectsOversizedResponse(t *testing.T) {
 	c := NewClient("test-token", WithBaseURL(server.URL))
 	_, err := c.get(context.Background(), "/test", nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "response body too large")
+	assert.ErrorContains(t, err, "response body too large")
 }
 
 func TestClientRetryOn5xx(t *testing.T) {

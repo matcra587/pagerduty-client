@@ -58,7 +58,7 @@ func TestResolveToken_KeyringNotFound_ReturnsError(t *testing.T) {
 	token, err := resolveToken(context.Background(), cfg, "", "")
 	assert.Empty(t, token)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pdc init")
+	assert.ErrorContains(t, err, "pdc init")
 }
 
 func TestResolveToken_EmptyFallthrough(t *testing.T) {
@@ -79,7 +79,7 @@ func TestResolveToken_UnknownSource(t *testing.T) {
 	token, err := resolveToken(context.Background(), cfg, "", "")
 	assert.Empty(t, token)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown credential_source")
+	assert.ErrorContains(t, err, "unknown credential_source")
 }
 
 func TestResolveToken_FromFile(t *testing.T) {
@@ -97,11 +97,11 @@ func TestResolveToken_TokenAndFileAreMutuallyExclusive(t *testing.T) {
 
 	_, err := resolveToken(context.Background(), &config.Config{}, "flag-token", f)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mutually exclusive")
+	assert.ErrorContains(t, err, "mutually exclusive")
 }
 
 func TestResolveToken_FileNotFound(t *testing.T) {
 	_, err := resolveToken(context.Background(), &config.Config{}, "", "/nonexistent/token")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "reading token file")
+	assert.ErrorContains(t, err, "reading token file")
 }

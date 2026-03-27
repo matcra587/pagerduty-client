@@ -51,6 +51,7 @@ func ProjectIncidentForAgent(i pagerduty.Incident) AgentIncident {
 			All:       i.AlertCounts.All,
 		},
 		IsMergeable: i.IsMergeable,
+		Assignees:   []AgentRef{},
 	}
 
 	if i.Priority != nil {

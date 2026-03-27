@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -62,10 +63,10 @@ func TestListTeams_Pagination(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	callCount := 0
+	var callCount atomic.Int32
 	mux.HandleFunc("/teams", func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		if callCount == 1 {
+		n := callCount.Add(1)
+		if n == 1 {
 			_, _ = w.Write([]byte(`{
 				"teams": [{"id": "PT1"}, {"id": "PT2"}],
 				"limit": 2, "offset": 0, "more": true, "total": 3
@@ -82,7 +83,7 @@ func TestListTeams_Pagination(t *testing.T) {
 	teams, err := c.ListTeams(context.Background(), ListTeamsOpts{})
 	require.NoError(t, err)
 	assert.Len(t, teams, 3)
-	assert.Equal(t, 2, callCount)
+	assert.Equal(t, int32(2), callCount.Load())
 }
 
 func TestGetTeam(t *testing.T) {

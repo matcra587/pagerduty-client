@@ -14,6 +14,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Long:  "Print the pdc version, commit, branch and build metadata.",
+	Args:  cobra.NoArgs,
 	// Suppress root PersistentPreRunE: version does not require a token.
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return nil },
 	RunE: func(cmd *cobra.Command, _ []string) error {

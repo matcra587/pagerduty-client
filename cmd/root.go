@@ -249,6 +249,8 @@ func init() {
 		Terse:       "colour mode",
 	})
 
+	rootCmd.MarkFlagsMutuallyExclusive("token", "token-file")
+
 	// Command groups for themed help.
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "resources", Title: "Resources"},

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -67,10 +68,10 @@ func TestListIncidents_Pagination(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	callCount := 0
+	var callCount atomic.Int32
 	mux.HandleFunc("/incidents", func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		if callCount == 1 {
+		n := callCount.Add(1)
+		if n == 1 {
 			_, _ = w.Write([]byte(`{
 				"incidents": [{"id": "P1"}, {"id": "P2"}],
 				"limit": 2, "offset": 0, "more": true, "total": 4
@@ -87,7 +88,7 @@ func TestListIncidents_Pagination(t *testing.T) {
 	incidents, err := c.ListIncidents(context.Background(), ListIncidentsOpts{})
 	require.NoError(t, err)
 	assert.Len(t, incidents, 4)
-	assert.Equal(t, 2, callCount)
+	assert.Equal(t, int32(2), callCount.Load())
 }
 
 func TestListIncidents_SinceUntil(t *testing.T) {
@@ -247,7 +248,7 @@ func TestAckIncident_EmptyFromRejected(t *testing.T) {
 	c := NewClient("test-token")
 	err := c.AckIncident(context.Background(), "P1", "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "from email is required")
+	assert.ErrorContains(t, err, "from email is required")
 }
 
 func TestResolveIncident(t *testing.T) {
@@ -478,7 +479,7 @@ func TestEscalateIncident_AlreadyAtHighestLevel(t *testing.T) {
 	c := NewClient("test-token", WithBaseURL(server.URL))
 	err := c.EscalateIncident(context.Background(), "P1", "user@example.com")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already at highest escalation level")
+	assert.ErrorContains(t, err, "already at highest escalation level")
 }
 
 func TestEscalateIncident_Level0(t *testing.T) {

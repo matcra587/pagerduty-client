@@ -10,8 +10,8 @@ import (
 
 func TestAPIError_Error(t *testing.T) {
 	err := &APIError{StatusCode: 404, Code: 2001, Message: "Not Found"}
-	assert.Contains(t, err.Error(), "404")
-	assert.Contains(t, err.Error(), "Not Found")
+	require.ErrorContains(t, err, "404")
+	require.ErrorContains(t, err, "Not Found")
 }
 
 func TestAPIError_Is(t *testing.T) {

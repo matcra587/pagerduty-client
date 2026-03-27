@@ -1,0 +1,56 @@
+---
+name: actions
+
+on:
+  pull_request:
+    paths:
+      - '.github/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: ActionLint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install mise
+        uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run actionlint
+        run: actionlint -color
+
+  zizmor:
+    name: Zizmor workflow security
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # Required to upload SARIF results to the Security tab.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8
+        with:
+          inputs: ./.github/
+          persona: pedantic
+          advanced-security: false
+          annotations: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

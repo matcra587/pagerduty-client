@@ -23,6 +23,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/credential"
 	"github.com/matcra587/pagerduty-client/internal/tui"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // contextKey is a package-local type for context value keys to avoid collisions.
@@ -48,71 +49,17 @@ var rootCmd = &cobra.Command{
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		pf := cmd.Root().PersistentFlags()
 
-		// Collect flag overrides (token resolved separately after config load).
-		var opts []config.Option
-
-		if cfgPath, _ := pf.GetString("config"); cfgPath != "" {
-			opts = append(opts, config.WithPath(cfgPath))
-		}
-		if team, _ := pf.GetString("team"); team != "" {
-			opts = append(opts, config.WithTeam(team))
-		}
-
-		cfg, err := config.Load(opts...)
+		state, err := loadConfigAndFlags(pf)
 		if err != nil {
-			return fmt.Errorf("loading config: %w", err)
+			return err
 		}
 
-		// Apply remaining flag overrides directly to cfg.
-		if pf.Changed("format") {
-			cfg.Format, _ = pf.GetString("format")
-		}
-		if pf.Changed("interactive") {
-			if v, _ := pf.GetBool("interactive"); v {
-				cfg.Interactive = true
-			}
-		}
-		if debug, _ := pf.GetBool("debug"); debug {
-			cfg.Debug = true
-		}
-
-		clog.SetEnvPrefix("PDC")
-		clog.SetVerbose(cfg.Debug)
-
-		if colorMode, _ := pf.GetString("color"); colorMode != "" {
-			switch colorMode {
-			case "auto":
-				// default, no action
-			case "always":
-				clog.SetColorMode(clog.ColorAlways)
-			case "never":
-				clog.SetColorMode(clog.ColorNever)
-			default:
-				return fmt.Errorf("invalid colour mode %q: must be \"auto\", \"always\" or \"never\"", colorMode)
-			}
-		}
-
-		// Agent mode detection.
-		agentFlag, _ := pf.GetBool("agent")
-		det := agent.DetectWithFlag(agentFlag)
-		cfg.AgentMode = det.Active
-		clog.Debug().Str("agent", det.Name).Bool("active", det.Active).Msg("agent detection")
-
-		// API client options.
-		var apiOpts []api.Option
-		if cfg.BaseURL != "" {
-			clog.Debug().Str("base_url", cfg.BaseURL).Msg("custom base URL")
-			apiOpts = append(apiOpts, api.WithBaseURL(cfg.BaseURL))
-		}
-
-		// Handle shell completion requests before token resolution so
+		// Handle shell completion before token resolution so
 		// --install-completion and --print-completion work without a token.
-		// Dynamic completion (team/service names) is best-effort: it uses
-		// whatever token is available from env/keyring.
 		flagToken, _ := pf.GetString("token")
 		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 		gen.Subs = clib.Subcommands(cmd.Root())
-		handled, err := comp.Handle(gen, completionHandler(flagToken, apiOpts...))
+		handled, err := comp.Handle(gen, completionHandler(flagToken, state.apiOpts...))
 		if err != nil {
 			return err
 		}
@@ -125,35 +72,10 @@ var rootCmd = &cobra.Command{
 			ctx = context.Background()
 		}
 
-		// Resolve token from flag, env, or credential store.
-		flagTokenFile, _ := pf.GetString("token-file")
-		resolvedToken, err := resolveToken(ctx, cfg, flagToken, flagTokenFile)
+		ctx, err = resolveAndStore(ctx, pf, state, flagToken)
 		if err != nil {
-			return fmt.Errorf("resolving credentials: %w", err)
-		}
-		cfg.Token = resolvedToken
-		clog.Debug().Str("source", tokenSource(flagToken, flagTokenFile, cfg)).Msg("token resolved")
-
-		if err := cfg.Validate(); err != nil {
 			return err
 		}
-
-		client := api.NewClient(cfg.Token, apiOpts...)
-
-		// Store values on context.
-		ctx = context.WithValue(ctx, configKey, cfg)
-		ctx = context.WithValue(ctx, clientKey, client)
-		ctx = context.WithValue(ctx, agentKey, det)
-
-		// Resolve the token owner's email for write operations (From header).
-		// Best-effort: a failure here must not block startup.
-		if cfg.Token != "" {
-			if u, err := client.GetCurrentUser(ctx); err == nil {
-				clog.Debug().Str("email", u.Email).Msg("resolved token owner")
-				ctx = context.WithValue(ctx, userEmailKey, u.Email)
-			}
-		}
-
 		cmd.SetContext(ctx)
 
 		return nil
@@ -190,6 +112,104 @@ func Execute() error {
 // Called from Execute to guarantee init() across all cmd/ files has run.
 func setup() {
 	comp = clib.NewCompletion(rootCmd)
+}
+
+type preRunState struct {
+	cfg     *config.Config
+	det     agent.DetectionResult
+	apiOpts []api.Option
+}
+
+// loadConfigAndFlags loads configuration from file/env, applies flag
+// overrides, sets up logging and detects agent mode.
+func loadConfigAndFlags(pf *pflag.FlagSet) (preRunState, error) {
+	var opts []config.Option
+	if cfgPath, _ := pf.GetString("config"); cfgPath != "" {
+		opts = append(opts, config.WithPath(cfgPath))
+	}
+	if team, _ := pf.GetString("team"); team != "" {
+		opts = append(opts, config.WithTeam(team))
+	}
+
+	cfg, err := config.Load(opts...)
+	if err != nil {
+		return preRunState{}, fmt.Errorf("loading config: %w", err)
+	}
+
+	if pf.Changed("format") {
+		cfg.Format, _ = pf.GetString("format")
+	}
+	if pf.Changed("interactive") {
+		if v, _ := pf.GetBool("interactive"); v {
+			cfg.Interactive = true
+		}
+	}
+	if debug, _ := pf.GetBool("debug"); debug {
+		cfg.Debug = true
+	}
+
+	clog.SetEnvPrefix("PDC")
+	clog.SetVerbose(cfg.Debug)
+
+	if colorMode, _ := pf.GetString("color"); colorMode != "" {
+		switch colorMode {
+		case "auto":
+			// default, no action
+		case "always":
+			clog.SetColorMode(clog.ColorAlways)
+		case "never":
+			clog.SetColorMode(clog.ColorNever)
+		default:
+			return preRunState{}, fmt.Errorf("invalid colour mode %q: must be \"auto\", \"always\" or \"never\"", colorMode)
+		}
+	}
+
+	agentFlag, _ := pf.GetBool("agent")
+	det := agent.DetectWithFlag(agentFlag)
+	cfg.AgentMode = det.Active
+	clog.Debug().Str("agent", det.Name).Bool("active", det.Active).Msg("agent detection")
+
+	var apiOpts []api.Option
+	if cfg.BaseURL != "" {
+		clog.Debug().Str("base_url", cfg.BaseURL).Msg("custom base URL")
+		apiOpts = append(apiOpts, api.WithBaseURL(cfg.BaseURL))
+	}
+
+	return preRunState{cfg: cfg, det: det, apiOpts: apiOpts}, nil
+}
+
+// resolveAndStore resolves the API token, creates the client and
+// stores config, client, agent detection and user email on context.
+func resolveAndStore(ctx context.Context, pf *pflag.FlagSet, state preRunState, flagToken string) (context.Context, error) {
+	cfg, det, apiOpts := state.cfg, state.det, state.apiOpts
+	flagTokenFile, _ := pf.GetString("token-file")
+	resolvedToken, err := resolveToken(ctx, cfg, flagToken, flagTokenFile)
+	if err != nil {
+		return ctx, fmt.Errorf("resolving credentials: %w", err)
+	}
+	cfg.Token = resolvedToken
+	clog.Debug().Str("source", tokenSource(flagToken, flagTokenFile, cfg)).Msg("token resolved")
+
+	if err := cfg.Validate(); err != nil {
+		return ctx, err
+	}
+
+	client := api.NewClient(cfg.Token, apiOpts...)
+
+	ctx = context.WithValue(ctx, configKey, cfg)
+	ctx = context.WithValue(ctx, clientKey, client)
+	ctx = context.WithValue(ctx, agentKey, det)
+
+	// Resolve the token owner's email for write operations (From header).
+	// Best-effort: a failure here must not block startup.
+	if cfg.Token != "" {
+		if u, err := client.GetCurrentUser(ctx); err == nil {
+			clog.Debug().Str("email", u.Email).Msg("resolved token owner")
+			ctx = context.WithValue(ctx, userEmailKey, u.Email)
+		}
+	}
+
+	return ctx, nil
 }
 
 func init() {

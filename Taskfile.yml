@@ -128,7 +128,13 @@ tasks:
     cmd: go mod download
 
   deps:update:
-    desc: Update all dependencies
+    desc: Update all dependencies (patch only)
+    cmds:
+      - go get -u=patch ./...
+      - go mod tidy
+
+  deps:update:minor:
+    desc: Update all dependencies (minor + patch)
     cmds:
       - go get -u ./...
       - go mod tidy

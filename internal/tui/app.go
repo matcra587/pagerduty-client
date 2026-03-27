@@ -40,6 +40,9 @@ type topTab struct {
 // tickMsg is sent on each polling interval.
 type tickMsg time.Time
 
+// uiTickMsg triggers a UI-only re-render (e.g. to update the refresh age counter).
+type uiTickMsg time.Time
+
 // incidentsLoadedMsg carries freshly fetched incidents from the API.
 type incidentsLoadedMsg struct {
 	incidents []pagerduty.Incident
@@ -108,7 +111,7 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 
 	filterOpts := components.NewFilterOptions()
 
-	return App{
+	a := App{
 		ctx:            ctx,
 		cancel:         cancel,
 		client:         client,
@@ -126,9 +129,13 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		spinner:        sp,
 		loading:        true,
 		interval:       interval,
-		tabs:           []topTab{{label: "Incidents"}},
-		activeTab:      0,
+		tabs: []topTab{
+			{label: "Incidents"},
+		},
+		activeTab: 0,
 	}
+	a.statusBar.LastRefresh = time.Now()
+	return a
 }
 
 // Init starts the polling ticker and triggers the first data fetch.
@@ -136,6 +143,7 @@ func (a App) Init() tea.Cmd {
 	return tea.Batch(
 		a.dashboard.Init(),
 		tickCmd(a.interval),
+		uiTickCmd(),
 		a.fetchIncidentsCmd(),
 		a.spinner.Tick,
 	)
@@ -153,8 +161,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Always reserve 1 line for the header (tab bar) so bodyH
 		// stays consistent across view transitions without needing
 		// recomputation when switching between dashboard and detail.
-		const headerH = 1
-		const footerH = 3 // hint bar (border-top + text) + status line
+		const headerH = 2 // tab bar + border-bottom separator
+		const footerH = 2 // labelled border + hint line
 		a.bodyH = max(a.height-headerH-footerH, 1)
 
 		// Forward the body-scoped size to children.
@@ -215,10 +223,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
-		// Top-level tab switching via number keys (dashboard view only).
+		// Top-level tab switching (dashboard view only).
 		if a.current == viewDashboard {
 			if idx := tabIndexFromKey(msg.String()); idx >= 0 && idx < len(a.tabs) {
 				a.activeTab = idx
+				return a, nil
+			}
+			switch msg.String() {
+			case "tab":
+				a.activeTab = (a.activeTab + 1) % len(a.tabs)
+				return a, nil
+			case "shift+tab":
+				a.activeTab = (a.activeTab - 1 + len(a.tabs)) % len(a.tabs)
 				return a, nil
 			}
 		}
@@ -228,6 +244,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, tea.Quit
 		case "?":
 			a.help.Visible = true
+			if a.current == viewDetail {
+				a.help.CurrentView = "detail"
+			} else {
+				a.help.CurrentView = "dashboard"
+			}
 			return a, nil
 		case "R":
 			a.paused = !a.paused
@@ -384,27 +405,27 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.loading {
 			var cmd tea.Cmd
 			a.spinner, cmd = a.spinner.Update(msg)
-			a.dashboard.incidents.spinnerFrame = a.spinner.View()
 			return a, cmd
 		}
-		a.dashboard.incidents.spinnerFrame = ""
 		return a, nil
+
+	case uiTickMsg:
+		// Re-render only (updates the refresh age counter). No API call.
+		return a, uiTickCmd()
 
 	case tickMsg:
 		if !a.paused {
-			a.loading = true
+			// Background poll: no spinner overlay, just fetch silently.
 			a.statusBar.LastRefresh = time.Time(msg)
 			return a, tea.Batch(
 				tickCmd(a.interval),
 				a.fetchIncidentsCmd(),
-				a.spinner.Tick,
 			)
 		}
 		return a, nil
 
 	case incidentsLoadedMsg:
 		a.loading = false
-		a.dashboard.incidents.spinnerFrame = ""
 		if msg.err != nil {
 			return a, a.flashResult(fmt.Sprintf("Fetch failed: %v", msg.err), true)
 		}
@@ -449,7 +470,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.detail = newIncidentDetail(a.ctx, a.client, a.cfg, a.ansi, msg.Incident)
 		a.detail.width = a.width
 		a.detail.height = a.bodyH
-		vpHeight := max(a.bodyH-2, 1) // subtract detail's own chrome: header + tab bar
+		vpHeight := max(a.bodyH, 1) // title + tabs now in header zone
 		for i := range a.detail.viewports {
 			a.detail.viewports[i].SetWidth(a.width)
 			a.detail.viewports[i].SetHeight(vpHeight)
@@ -591,16 +612,14 @@ func (a App) View() tea.View {
 		return tea.NewView("")
 	}
 
-	// Help overlay replaces the entire viewport.
-	if a.help.Visible {
-		overlay := a.help.View().Content
-		v := tea.NewView(overlayFullScreen(overlay, a.width, a.height))
-		v.AltScreen = true
-		return v
-	}
-
 	// --- header ---
 	header := a.headerView()
+	headerBorder := lipgloss.NewStyle().
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		BorderForeground(theme.ColorOverlayBorder).
+		Width(a.width)
+	header = headerBorder.Render(header)
 
 	// --- footer (set hint context first) ---
 	var viewName string
@@ -622,13 +641,26 @@ func (a App) View() tea.View {
 	var bodyContent string
 	switch a.current {
 	case viewDashboard:
-		bodyContent = a.dashboard.View().Content
+		switch a.activeTab {
+		case 0:
+			bodyContent = a.dashboard.View().Content
+		default:
+			bodyContent = lipgloss.Place(a.width, a.bodyH, lipgloss.Center, lipgloss.Center,
+				lipgloss.NewStyle().Faint(true).Render("🚧 Not yet supported"))
+		}
 	case viewDetail:
 		bodyContent = a.detail.View().Content
 	default:
 		bodyContent = a.dashboard.View().Content
 	}
 	body := lipgloss.NewStyle().Width(a.width).Height(a.bodyH).MaxHeight(a.bodyH).Render(bodyContent)
+
+	// Dim the body and show a centred spinner while loading.
+	if a.loading {
+		body = lipgloss.NewStyle().Faint(true).Render(body)
+		spinnerOverlay := components.RenderOverlay(a.spinner.View()+"  Loading...", 0)
+		body = overlayCenter(body, spinnerOverlay, a.width, a.bodyH)
+	}
 
 	// Layer overlays on the body zone.
 	if a.textInput.Visible {
@@ -641,36 +673,36 @@ func (a App) View() tea.View {
 		body = overlayCenter(body, a.teamSwitch.View().Content, a.width, a.bodyH)
 	} else if a.filterOpts.Visible {
 		body = overlayCenter(body, a.filterOpts.View().Content, a.width, a.bodyH)
+	} else if a.help.Visible {
+		body = overlayCenter(body, a.help.View().Content, a.width, a.bodyH)
 	}
 
-	// Compose zones vertically, omitting an empty header.
-	var base string
-	if header != "" {
-		base = lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
-	} else {
-		base = lipgloss.JoinVertical(lipgloss.Left, body, footer)
-	}
+	// Compose zones vertically.
+	base := lipgloss.JoinVertical(lipgloss.Left, header, body, footer)
 
 	v := tea.NewView(base)
 	v.AltScreen = true
 	return v
 }
 
-// headerView returns the top tab bar on the dashboard view, or an empty
-// string on other views.
+// headerView returns context-specific header content for the current view.
 func (a App) headerView() string {
-	if a.current == viewDashboard {
+	switch a.current {
+	case viewDashboard:
 		return a.topTabBar()
+	case viewDetail:
+		return a.detail.headerContent()
+	default:
+		return ""
 	}
-	return ""
 }
 
-// topTabBar renders the top-level tab bar. Only shown on the dashboard view.
+// topTabBar renders the top-level tab bar with count pills on the right.
 func (a App) topTabBar() string {
 	active := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(theme.ColorTitleFg).
-		Background(theme.ColorHighlightBg).
+		Underline(true).
 		Padding(0, 1)
 	inactive := lipgloss.NewStyle().
 		Foreground(theme.ColorHeaderFg).
@@ -679,14 +711,39 @@ func (a App) topTabBar() string {
 
 	var parts []string
 	for i, t := range a.tabs {
-		label := fmt.Sprintf("%d %s", i+1, t.label)
+		label := t.label
 		if i == a.activeTab {
 			parts = append(parts, active.Render(label))
 		} else {
 			parts = append(parts, inactive.Render(label))
 		}
 	}
-	return strings.Join(parts, " ")
+	tabs := strings.Join(parts, " ")
+
+	// Count pills on the right.
+	pills := a.countPills()
+	pillsW := lipgloss.Width(pills)
+	tabsW := lipgloss.Width(tabs)
+
+	gap := max(a.width-tabsW-pillsW, 1)
+	return tabs + fmt.Sprintf("%*s", gap, "") + pills
+}
+
+// countPills renders incident count pills for the header bar.
+func (a App) countPills() string {
+	pill := func(label string, count int, active, dim lipgloss.Style) string {
+		s := fmt.Sprintf("%s %d", label, count)
+		if count > 0 {
+			return active.Render(s)
+		}
+		return dim.Render(s)
+	}
+
+	t := pill("triggered", a.statusBar.Triggered, theme.PillDanger, theme.PillDim)
+	ac := pill("acked", a.statusBar.Acknowledged, theme.PillWarning, theme.PillDim)
+	r := pill("resolved", a.statusBar.Resolved, theme.PillDim, theme.PillDim)
+
+	return t + ac + r
 }
 
 // tabIndexFromKey returns the zero-based tab index for number keys "1"-"9",
@@ -794,15 +851,11 @@ func tickCmd(d time.Duration) tea.Cmd {
 	})
 }
 
-// overlayFullScreen renders the overlay content centred on a full-viewport
-// opaque background.
-func overlayFullScreen(overlay string, w, h int) string {
-	return lipgloss.NewStyle().
-		Width(w).
-		Height(h).
-		Background(theme.ColorOverlayBg).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render(overlay)
+// uiTickCmd fires a UI-only re-render every 10 seconds.
+func uiTickCmd() tea.Cmd {
+	return tea.Tick(10*time.Second, func(t time.Time) tea.Msg {
+		return uiTickMsg(t)
+	})
 }
 
 // overlayCenter renders the overlay string centred over base.

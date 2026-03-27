@@ -49,9 +49,9 @@ func TestApply_UpdatesDerivedStyles(t *testing.T) {
 func TestApply_LightChromeColors(t *testing.T) {
 	theme.Apply(theme.Presets["light"]())
 
-	r, g, b, _ := theme.ColorStatusBarBg.RGBA()
+	r, g, b, _ := theme.ColorOverlayBg.RGBA()
 	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-	assert.Greater(t, luminance, 0.5, "light theme status bar background should be bright")
+	assert.Greater(t, luminance, 0.5, "light theme overlay background should be bright")
 
 	theme.Apply(theme.Presets["dark"]())
 }
@@ -59,9 +59,9 @@ func TestApply_LightChromeColors(t *testing.T) {
 func TestApply_DarkChromeColors(t *testing.T) {
 	theme.Apply(theme.Presets["dark"]())
 
-	r, g, b, _ := theme.ColorStatusBarBg.RGBA()
+	r, g, b, _ := theme.ColorOverlayBg.RGBA()
 	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-	assert.Less(t, luminance, 0.5, "dark theme status bar background should be dark")
+	assert.Less(t, luminance, 0.5, "dark theme overlay background should be dark")
 }
 
 func TestEntityColor_Deterministic(t *testing.T) {

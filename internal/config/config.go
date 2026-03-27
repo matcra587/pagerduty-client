@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/joho/godotenv"
 	koToml "github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
@@ -163,6 +164,10 @@ func Load(opts ...Option) (*Config, error) {
 	if k.Bool("defaults.interactive") {
 		cfg.Interactive = true
 	}
+
+	// Load .env from the working directory if present. Ignore errors
+	// (file is optional). Variables set here are picked up by applyEnv.
+	_ = godotenv.Load()
 
 	applyEnv(cfg)
 

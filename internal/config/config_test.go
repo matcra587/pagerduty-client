@@ -207,6 +207,36 @@ interactive = true
 	assert.True(t, cfg.Interactive)
 }
 
+func TestLoad_DotenvFile(t *testing.T) {
+	// Write a .env file in a temp directory and chdir there so
+	// godotenv.Load() picks it up.
+	dir := t.TempDir()
+	dotenv := "PDC_TEAM=PDOTENV\nPDC_BASE_URL=https://dotenv.pagerduty.com\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".env"), []byte(dotenv), 0o600))
+
+	t.Chdir(dir)
+
+	// godotenv.Load does not overwrite existing variables, so
+	// they must be fully unset (not just empty).
+	origTeam, teamSet := os.LookupEnv("PDC_TEAM")
+	origBase, baseSet := os.LookupEnv("PDC_BASE_URL")
+	require.NoError(t, os.Unsetenv("PDC_TEAM"))
+	require.NoError(t, os.Unsetenv("PDC_BASE_URL"))
+	t.Cleanup(func() {
+		if teamSet {
+			_ = os.Setenv("PDC_TEAM", origTeam) //nolint:errcheck,usetesting // cleanup restores pre-test state
+		}
+		if baseSet {
+			_ = os.Setenv("PDC_BASE_URL", origBase) //nolint:errcheck,usetesting // cleanup restores pre-test state
+		}
+	})
+
+	cfg, err := config.Load(config.WithPath(""))
+	require.NoError(t, err)
+	assert.Equal(t, "PDOTENV", cfg.Team)
+	assert.Equal(t, "https://dotenv.pagerduty.com", cfg.BaseURL)
+}
+
 func TestLoad_InteractiveFromEnv(t *testing.T) {
 	t.Setenv("PDC_INTERACTIVE", "1")
 

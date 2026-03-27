@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,8 +51,7 @@ func TestListAbilities_Unauthorized(t *testing.T) {
 	_, err := c.ListAbilities(context.Background())
 	require.Error(t, err)
 
-	apiErr := &APIError{}
-	ok := errors.As(err, &apiErr)
+	apiErr, ok := errors.AsType[*APIError](err)
 	require.True(t, ok)
 	assert.Equal(t, 401, apiErr.StatusCode)
 }
@@ -67,17 +67,16 @@ func TestListAbilities_Forbidden(t *testing.T) {
 	_, err := c.ListAbilities(context.Background())
 	require.Error(t, err)
 
-	apiErr := &APIError{}
-	ok := errors.As(err, &apiErr)
+	apiErr, ok := errors.AsType[*APIError](err)
 	require.True(t, ok)
 	assert.Equal(t, 403, apiErr.StatusCode)
 }
 
 func TestListAbilities_RateLimited(t *testing.T) {
-	attempt := 0
+	var attempt atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		attempt++
-		if attempt == 1 {
+		n := attempt.Add(1)
+		if n == 1 {
 			w.Header().Set("Retry-After", "0")
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, _ = w.Write([]byte(`{"error":{"message":"Rate Limit Exceeded","code":2020}}`))

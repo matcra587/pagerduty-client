@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,12 +123,12 @@ func TestPaginateCancelledContext(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	page := 0
+	var page atomic.Int32
 	mux.HandleFunc("/items", func(w http.ResponseWriter, r *http.Request) {
-		page++
+		n := page.Add(1)
 		_, _ = w.Write(fmt.Appendf(nil,
 			`{"items":[{"id":"%d"}],"limit":1,"offset":%d,"more":true,"total":100}`,
-			page, page-1,
+			n, n-1,
 		))
 	})
 
@@ -179,5 +180,5 @@ func TestPaginateMalformedEnvelope(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "decoding pagination limit")
+	assert.ErrorContains(t, err, "decoding pagination limit")
 }

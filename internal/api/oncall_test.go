@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -105,10 +106,10 @@ func TestClient_ListOnCalls_Pagination(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	callCount := 0
+	var callCount atomic.Int32
 	mux.HandleFunc("/oncalls", func(w http.ResponseWriter, r *http.Request) {
-		callCount++
-		if callCount == 1 {
+		n := callCount.Add(1)
+		if n == 1 {
 			_, _ = w.Write([]byte(`{
 				"oncalls": [
 					{"escalation_level": 1, "user": {"id": "U1", "summary": "Alice"}},
@@ -133,5 +134,5 @@ func TestClient_ListOnCalls_Pagination(t *testing.T) {
 	assert.Equal(t, "U1", oncalls[0].User.APIObject.ID)
 	assert.Equal(t, "U2", oncalls[1].User.APIObject.ID)
 	assert.Equal(t, "U3", oncalls[2].User.APIObject.ID)
-	assert.Equal(t, 2, callCount)
+	assert.Equal(t, int32(2), callCount.Load())
 }

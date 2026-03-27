@@ -79,6 +79,7 @@ of every command, its flags and subcommands. AI agents can use this for
 capability discovery without reading external documentation.
 
 Use --compact to strip descriptions and examples for smaller context windows.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		compact, _ := cmd.Flags().GetBool("compact")
 		schema := buildSchema(cmd.Root(), compact)

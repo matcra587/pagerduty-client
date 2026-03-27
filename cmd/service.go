@@ -24,6 +24,7 @@ var serviceCmd = &cobra.Command{
 var serviceListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List services",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

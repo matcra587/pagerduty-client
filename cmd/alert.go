@@ -24,6 +24,7 @@ var alertCmd = &cobra.Command{
 var alertListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List alerts for an incident",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

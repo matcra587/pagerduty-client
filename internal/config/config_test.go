@@ -106,8 +106,8 @@ func TestValidate_MissingToken(t *testing.T) {
 	cfg := config.Default()
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "token is required")
-	assert.Contains(t, err.Error(), "pdc init")
+	require.ErrorContains(t, err, "token is required")
+	assert.ErrorContains(t, err, "pdc init")
 }
 
 func TestValidate_BadFormat(t *testing.T) {
@@ -116,7 +116,7 @@ func TestValidate_BadFormat(t *testing.T) {
 	cfg.Format = "xml"
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid format")
+	assert.ErrorContains(t, err, "invalid format")
 }
 
 func TestValidate_BadRefreshInterval(t *testing.T) {
@@ -125,7 +125,7 @@ func TestValidate_BadRefreshInterval(t *testing.T) {
 	cfg.RefreshInterval = 0
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "refresh interval must be positive")
+	assert.ErrorContains(t, err, "refresh interval must be positive")
 }
 
 func TestValidate_OK(t *testing.T) {

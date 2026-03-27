@@ -3,8 +3,10 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,11 +58,11 @@ func TestClient_ListSchedules_Pagination(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	page := 0
+	var page atomic.Int32
 	mux.HandleFunc("/schedules", func(w http.ResponseWriter, r *http.Request) {
-		page++
+		n := page.Add(1)
 		w.WriteHeader(http.StatusOK)
-		if page == 1 {
+		if n == 1 {
 			_, _ = w.Write([]byte(`{"schedules":[{"id":"S1","name":"Schedule 1"}],"limit":1,"offset":0,"more":true,"total":2}`))
 		} else {
 			_, _ = w.Write([]byte(`{"schedules":[{"id":"S2","name":"Schedule 2"}],"limit":1,"offset":1,"more":false,"total":2}`))
@@ -113,8 +115,8 @@ func TestClient_GetSchedule_NotFound(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, schedule)
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr)
+	apiErr, ok := errors.AsType[*APIError](err)
+	require.True(t, ok)
 	assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 }
 
@@ -208,7 +210,7 @@ func TestClient_CreateOverride_Error(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	var apiErr *APIError
-	require.ErrorAs(t, err, &apiErr)
+	apiErr, ok := errors.AsType[*APIError](err)
+	require.True(t, ok)
 	assert.Equal(t, http.StatusBadRequest, apiErr.StatusCode)
 }

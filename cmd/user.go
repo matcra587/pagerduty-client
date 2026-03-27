@@ -24,6 +24,7 @@ var userCmd = &cobra.Command{
 var userListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List users",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -108,6 +109,7 @@ var userShowCmd = &cobra.Command{
 var userMeCmd = &cobra.Command{
 	Use:   "me",
 	Short: "Show the current API token user",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

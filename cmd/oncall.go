@@ -19,6 +19,7 @@ var oncallCmd = &cobra.Command{
 	Use:     "oncall",
 	Short:   "List on-call entries",
 	Long:    "Show who is currently on call, optionally filtered by team, schedule or escalation policy.",
+	Args:    cobra.NoArgs,
 	GroupID: "resources",
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()

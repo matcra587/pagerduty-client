@@ -23,6 +23,7 @@ var teamCmd = &cobra.Command{
 var teamListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List teams",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

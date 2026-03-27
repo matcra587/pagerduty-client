@@ -55,7 +55,7 @@ func TestResolveTeam_NoMatch(t *testing.T) {
 	}
 	_, err := config.ResolveTeam("Ghost", listFn)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no team found matching")
+	assert.ErrorContains(t, err, "no team found matching")
 }
 
 func TestResolveTeam_Ambiguous(t *testing.T) {
@@ -67,9 +67,9 @@ func TestResolveTeam_Ambiguous(t *testing.T) {
 	}
 	_, err := config.ResolveTeam("Platform", listFn)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "ambiguous team name")
-	assert.Contains(t, err.Error(), "PTEAM01")
-	assert.Contains(t, err.Error(), "PTEAM02")
+	require.ErrorContains(t, err, "ambiguous team name")
+	require.ErrorContains(t, err, "PTEAM01")
+	assert.ErrorContains(t, err, "PTEAM02")
 }
 
 func TestResolveTeam_ListError(t *testing.T) {
@@ -78,5 +78,5 @@ func TestResolveTeam_ListError(t *testing.T) {
 	}
 	_, err := config.ResolveTeam("Platform", listFn)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "api timeout")
+	assert.ErrorContains(t, err, "api timeout")
 }

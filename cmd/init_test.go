@@ -72,7 +72,7 @@ func TestValidateTokenAPI_AccountKey_AbilitiesAlsoFails(t *testing.T) {
 
 	_, err := validateTokenAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "token validation failed")
+	assert.ErrorContains(t, err, "token validation failed")
 }
 
 func TestValidateTokenAPI_Unauthorized(t *testing.T) {
@@ -84,7 +84,7 @@ func TestValidateTokenAPI_Unauthorized(t *testing.T) {
 
 	_, err := validateTokenAPI(context.Background(), testToken, []api.Option{api.WithBaseURL(srv.URL)})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "authentication failed")
+	require.ErrorContains(t, err, "authentication failed")
 
 	_, ok := errors.AsType[*authError](err)
 	assert.True(t, ok, "401 should return *authError")

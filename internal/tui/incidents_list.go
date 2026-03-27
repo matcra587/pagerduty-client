@@ -20,6 +20,7 @@ import (
 type incidentList struct {
 	ctx          context.Context //nolint:containedctx // Bubble Tea models are value-typed; context must travel with the model.
 	incidents    []pagerduty.Incident
+	searchIndex  []string
 	cursor       int
 	scrollOffset int
 	selections   map[string]bool
@@ -230,7 +231,8 @@ func (m incidentList) View() tea.View {
 		return tea.NewView(sb.String())
 	}
 
-	sb.WriteString(m.renderHeader())
+	widths := layoutColumns(m.width, incidentColumns, m.hiddenColumns()...)
+	sb.WriteString(m.renderHeader(widths))
 	sb.WriteString("\n")
 
 	maxRows := m.viewportRows()
@@ -238,7 +240,7 @@ func (m incidentList) View() tea.View {
 	start := min(m.scrollOffset, max(0, len(vis)-maxRows))
 
 	for i := start; i < len(vis) && (i-start) < maxRows; i++ {
-		sb.WriteString(m.renderRowFromIncident(vis[i], i == m.cursor))
+		sb.WriteString(m.renderRowFromIncident(vis[i], i == m.cursor, widths))
 		sb.WriteString("\n")
 	}
 
@@ -248,6 +250,10 @@ func (m incidentList) View() tea.View {
 // SetIncidents replaces the incident list and clamps the cursor.
 func (m *incidentList) SetIncidents(incidents []pagerduty.Incident) {
 	m.incidents = incidents
+	m.searchIndex = make([]string, len(incidents))
+	for i, inc := range incidents {
+		m.searchIndex[i] = buildSearchEntry(inc)
+	}
 	vis := m.visibleIncidents()
 	if m.cursor >= len(vis) {
 		m.cursor = max(0, len(vis)-1)
@@ -287,9 +293,15 @@ func (m incidentList) visibleIncidents() []pagerduty.Incident {
 	}
 
 	var result []pagerduty.Incident
-	for _, inc := range m.incidents {
-		if query != "" && !matchesFilter(inc, query) {
-			continue
+	for i, inc := range m.incidents {
+		if query != "" {
+			if i < len(m.searchIndex) {
+				if !strings.Contains(m.searchIndex[i], query) {
+					continue
+				}
+			} else if !matchesFilter(inc, query) {
+				continue
+			}
 		}
 		if hasStructured && !matchesStructuredFilter(inc, m.filterState) {
 			continue
@@ -325,6 +337,21 @@ func matchesStructuredFilter(inc pagerduty.Incident, fs components.FilterState) 
 	return true
 }
 
+// buildSearchEntry returns a lowercased, null-delimited string joining
+// all searchable fields of an incident. The null separator prevents
+// cross-field substring matches (e.g. "abc" spanning ID "ab" and title "cd").
+func buildSearchEntry(inc pagerduty.Incident) string {
+	parts := []string{
+		strings.ToLower(inc.ID),
+		strings.ToLower(inc.Title),
+		strings.ToLower(inc.Service.Summary),
+	}
+	for _, a := range inc.Assignments {
+		parts = append(parts, strings.ToLower(a.Assignee.Summary))
+	}
+	return strings.Join(parts, "\x00")
+}
+
 func matchesFilter(inc pagerduty.Incident, query string) bool {
 	if strings.Contains(strings.ToLower(inc.ID), query) {
 		return true
@@ -350,8 +377,7 @@ func (m incidentList) hiddenColumns() []int {
 	return nil
 }
 
-func (m incidentList) renderHeader() string {
-	widths := layoutColumns(m.width, incidentColumns, m.hiddenColumns()...)
+func (m incidentList) renderHeader(widths []int) string {
 	var parts []string
 	for i, col := range incidentColumns {
 		w := widths[i]
@@ -363,9 +389,7 @@ func (m incidentList) renderHeader() string {
 	return theme.TableHeader.Render(strings.Join(parts, " "))
 }
 
-func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor bool) string {
-	widths := layoutColumns(m.width, incidentColumns, m.hiddenColumns()...)
-
+func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor bool, widths []int) string {
 	isSelected := m.selections[inc.ID]
 
 	style := incidentStyle(inc)

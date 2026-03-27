@@ -30,8 +30,13 @@ func TestPresets_ContainsExpectedNames(t *testing.T) {
 }
 
 func TestApply_UpdatesDerivedStyles(t *testing.T) {
+	theme.ResetForTest()
 	light := theme.Presets["light"]()
 	theme.Apply(light)
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
 
 	assert.Equal(t, light, theme.Theme, "Theme should be set to light preset")
 	assert.Equal(t, light.Red.GetForeground(), theme.UrgencyHigh.GetForeground(),
@@ -41,31 +46,55 @@ func TestApply_UpdatesDerivedStyles(t *testing.T) {
 		_, ok := theme.PriorityStyle(p)
 		assert.True(t, ok, "PriorityStyles missing %s after Apply", p)
 	}
-
-	// Restore default to avoid polluting other tests.
-	theme.Apply(theme.Presets["dark"]())
 }
 
 func TestApply_LightChromeColors(t *testing.T) {
+	theme.ResetForTest()
 	theme.Apply(theme.Presets["light"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
 
 	r, g, b, _ := theme.ColorOverlayBg.RGBA()
 	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
 	assert.Greater(t, luminance, 0.5, "light theme overlay background should be bright")
-
-	theme.Apply(theme.Presets["dark"]())
 }
 
 func TestApply_DarkChromeColors(t *testing.T) {
+	theme.ResetForTest()
 	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
 
 	r, g, b, _ := theme.ColorOverlayBg.RGBA()
 	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
 	assert.Less(t, luminance, 0.5, "dark theme overlay background should be dark")
 }
 
-func TestEntityColor_Deterministic(t *testing.T) {
+func TestApply_SecondCallIsNoop(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["light"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	lightRed := theme.UrgencyHigh.GetForeground()
 	theme.Apply(theme.Presets["dark"]())
+	assert.Equal(t, lightRed, theme.UrgencyHigh.GetForeground(),
+		"second Apply should be a no-op")
+}
+
+func TestEntityColor_Deterministic(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
 
 	s1 := theme.EntityColor("web-api")
 	s2 := theme.EntityColor("web-api")
@@ -81,7 +110,12 @@ func TestEntityColor_EmptyReturnsPlain(t *testing.T) {
 }
 
 func TestEntityColor_DifferentNamesVary(t *testing.T) {
+	theme.ResetForTest()
 	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
 
 	// With 20 palette colours, two short distinct strings are very likely
 	// to hash to different indices.

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+
+	"github.com/PagerDuty/go-pagerduty"
 )
 
 const defaultPageSize = 100
@@ -23,12 +25,6 @@ func withMaxResults(n int) paginateOption {
 	return func(cfg *paginateConfig) {
 		cfg.maxResults = n
 	}
-}
-
-type pageEnvelope struct {
-	Limit  int  `json:"limit"`
-	Offset int  `json:"offset"`
-	More   bool `json:"more"`
 }
 
 type paginateRequest struct {
@@ -69,30 +65,21 @@ func paginate[T any](ctx context.Context, c *Client, req paginateRequest, collec
 			return err
 		}
 
-		var raw map[string]json.RawMessage
-		if err := json.Unmarshal(body, &raw); err != nil {
-			return fmt.Errorf("decoding response: %w", err)
-		}
-
-		var envelope pageEnvelope
-		if v, ok := raw["limit"]; ok {
-			if err := json.Unmarshal(v, &envelope.Limit); err != nil {
-				return fmt.Errorf("decoding pagination limit: %w", err)
-			}
-		}
-		if v, ok := raw["offset"]; ok {
-			if err := json.Unmarshal(v, &envelope.Offset); err != nil {
-				return fmt.Errorf("decoding pagination offset: %w", err)
-			}
-		}
-		if v, ok := raw["more"]; ok {
-			if err := json.Unmarshal(v, &envelope.More); err != nil {
-				return fmt.Errorf("decoding pagination more: %w", err)
-			}
+		// Unmarshal envelope fields (limit, offset, more) using the
+		// go-pagerduty type. Unknown fields (the data array) are ignored.
+		var envelope pagerduty.APIListObject
+		if err := json.Unmarshal(body, &envelope); err != nil {
+			return fmt.Errorf("decoding pagination envelope: %w", err)
 		}
 
 		if envelope.Limit == 0 {
 			return errors.New("invalid pagination response: limit is 0")
+		}
+
+		// Extract the data array by dynamic key.
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(body, &raw); err != nil {
+			return fmt.Errorf("decoding response: %w", err)
 		}
 
 		rawItems, ok := raw[req.key]
@@ -125,7 +112,7 @@ func paginate[T any](ctx context.Context, c *Client, req paginateRequest, collec
 			break
 		}
 
-		offset = envelope.Offset + envelope.Limit
+		offset = int(envelope.Offset) + int(envelope.Limit) //nolint:gosec // PD offset capped at 10,000
 		if offset >= pdOffsetCap {
 			break
 		}

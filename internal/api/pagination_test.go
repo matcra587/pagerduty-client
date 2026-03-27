@@ -180,5 +180,5 @@ func TestPaginateMalformedEnvelope(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "decoding pagination limit")
+	assert.ErrorContains(t, err, "decoding pagination envelope")
 }

@@ -40,7 +40,6 @@ type Config struct {
 	Debug            bool              `koanf:"-"`
 	AgentMode        bool              `koanf:"-"`
 	Interactive      bool              `koanf:"-"`
-	TestMode         bool              `koanf:"test_mode"`
 	TUI              TUI               `koanf:"tui"`
 	CredentialSource credential.Source `koanf:"credential_source"`
 
@@ -54,9 +53,6 @@ var validFormats = map[string]bool{
 
 // Validate checks required fields and value constraints.
 func (c *Config) Validate() error {
-	if c.TestMode {
-		return nil
-	}
 	if c.Token == "" {
 		return errors.New("token is required: set PDC_TOKEN or configure a credential source (run \"pdc init\")")
 	}

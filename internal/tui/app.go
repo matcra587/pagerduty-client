@@ -241,6 +241,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "q", "ctrl+c":
+			a.cancel()
 			return a, tea.Quit
 		case "?":
 			a.help.Visible = true
@@ -757,12 +758,6 @@ func tabIndexFromKey(key string) int {
 
 // fetchIncidentsCmd returns a tea.Cmd that loads incidents from the API.
 func (a App) fetchIncidentsCmd() tea.Cmd {
-	if a.cfg.TestMode {
-		return func() tea.Msg {
-			return incidentsLoadedMsg{incidents: testIncidents()}
-		}
-	}
-
 	client := a.client
 	appCtx := a.ctx
 	opts := api.ListIncidentsOpts{}

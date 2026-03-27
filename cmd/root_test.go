@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/matcra587/pagerduty-client/internal/config"
@@ -21,7 +23,7 @@ func TestResolveToken_FlagWins(t *testing.T) {
 	require.NoError(t, keyring.Set(credential.ServiceName, credential.AccountName, "keyring-token"))
 
 	cfg := &config.Config{CredentialSource: credential.SourceKeyring}
-	token, err := resolveToken(context.Background(), cfg, testToken)
+	token, err := resolveToken(context.Background(), cfg, testToken, "")
 	require.NoError(t, err)
 	assert.Equal(t, testToken, token)
 }
@@ -32,7 +34,7 @@ func TestResolveToken_EnvVarWins(t *testing.T) {
 	cfg := &config.Config{CredentialSource: credential.SourceKeyring} // keyring configured but env should win
 	keyring.MockInit()                                                // empty keyring
 
-	token, err := resolveToken(context.Background(), cfg, "") // no flag
+	token, err := resolveToken(context.Background(), cfg, "", "") // no flag
 	require.NoError(t, err)
 	assert.Equal(t, testToken, token)
 }
@@ -43,7 +45,7 @@ func TestResolveToken_Keyring(t *testing.T) {
 	require.NoError(t, keyring.Set(credential.ServiceName, credential.AccountName, testToken))
 
 	cfg := &config.Config{CredentialSource: credential.SourceKeyring}
-	token, err := resolveToken(context.Background(), cfg, "")
+	token, err := resolveToken(context.Background(), cfg, "", "")
 	require.NoError(t, err)
 	assert.Equal(t, testToken, token)
 }
@@ -53,7 +55,7 @@ func TestResolveToken_KeyringNotFound_ReturnsError(t *testing.T) {
 	keyring.MockInit() // empty store
 
 	cfg := &config.Config{CredentialSource: credential.SourceKeyring}
-	token, err := resolveToken(context.Background(), cfg, "")
+	token, err := resolveToken(context.Background(), cfg, "", "")
 	assert.Empty(t, token)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pdc init")
@@ -65,7 +67,7 @@ func TestResolveToken_EmptyFallthrough(t *testing.T) {
 	// No credential source configured - falls through to empty token.
 	// Validate() catches the missing token downstream.
 	cfg := &config.Config{}
-	token, err := resolveToken(context.Background(), cfg, "")
+	token, err := resolveToken(context.Background(), cfg, "", "")
 	require.NoError(t, err)
 	assert.Empty(t, token)
 }
@@ -74,8 +76,32 @@ func TestResolveToken_UnknownSource(t *testing.T) {
 	t.Setenv("PDC_TOKEN", "")
 
 	cfg := &config.Config{CredentialSource: "vault"}
-	token, err := resolveToken(context.Background(), cfg, "")
+	token, err := resolveToken(context.Background(), cfg, "", "")
 	assert.Empty(t, token)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown credential_source")
+}
+
+func TestResolveToken_FromFile(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(f, []byte("file-token\n"), 0o600))
+
+	token, err := resolveToken(context.Background(), &config.Config{}, "", f)
+	require.NoError(t, err)
+	assert.Equal(t, "file-token", token)
+}
+
+func TestResolveToken_TokenAndFileAreMutuallyExclusive(t *testing.T) {
+	f := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(f, []byte("file-token\n"), 0o600))
+
+	_, err := resolveToken(context.Background(), &config.Config{}, "flag-token", f)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
+}
+
+func TestResolveToken_FileNotFound(t *testing.T) {
+	_, err := resolveToken(context.Background(), &config.Config{}, "", "/nonexistent/token")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reading token file")
 }

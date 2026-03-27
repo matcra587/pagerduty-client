@@ -474,11 +474,6 @@ func (m incidentDetail) notesSection() string {
 
 func (m incidentDetail) fetchNotesCmd() tea.Cmd {
 	incID := m.incident.ID
-	if m.cfg != nil && m.cfg.TestMode {
-		return func() tea.Msg {
-			return notesLoadedMsg{incidentID: incID, notes: testNotes(incID)}
-		}
-	}
 	client := m.client
 	detailCtx := m.ctx
 	return func() tea.Msg {
@@ -491,11 +486,6 @@ func (m incidentDetail) fetchNotesCmd() tea.Cmd {
 
 func (m incidentDetail) fetchAlertsCmd() tea.Cmd {
 	incID := m.incident.ID
-	if m.cfg != nil && m.cfg.TestMode {
-		return func() tea.Msg {
-			return alertsLoadedMsg{incidentID: incID, alerts: testAlerts(incID)}
-		}
-	}
 	client := m.client
 	detailCtx := m.ctx
 	return func() tea.Msg {

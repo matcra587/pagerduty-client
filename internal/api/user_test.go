@@ -11,6 +11,7 @@ import (
 )
 
 func TestListUsers(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -36,6 +37,7 @@ func TestListUsers(t *testing.T) {
 }
 
 func TestListUsers_WithTeamFilter(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -59,6 +61,7 @@ func TestListUsers_WithTeamFilter(t *testing.T) {
 }
 
 func TestListUsers_WithQuery(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -82,6 +85,7 @@ func TestListUsers_WithQuery(t *testing.T) {
 }
 
 func TestGetUser(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -109,6 +113,7 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestGetUser_NotFound(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -125,6 +130,7 @@ func TestGetUser_NotFound(t *testing.T) {
 }
 
 func TestGetCurrentUser(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -150,6 +156,7 @@ func TestGetCurrentUser(t *testing.T) {
 }
 
 func TestListContactMethods(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

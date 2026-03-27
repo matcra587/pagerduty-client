@@ -11,6 +11,7 @@ import (
 )
 
 func TestListIncidentNotes(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -35,6 +36,7 @@ func TestListIncidentNotes(t *testing.T) {
 }
 
 func TestListIncidentNotes_Empty(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

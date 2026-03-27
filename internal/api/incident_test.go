@@ -14,6 +14,7 @@ import (
 )
 
 func TestListIncidents(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -39,6 +40,7 @@ func TestListIncidents(t *testing.T) {
 }
 
 func TestListIncidents_WithFilters(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -64,6 +66,7 @@ func TestListIncidents_WithFilters(t *testing.T) {
 }
 
 func TestListIncidents_Pagination(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -92,6 +95,7 @@ func TestListIncidents_Pagination(t *testing.T) {
 }
 
 func TestListIncidents_SinceUntil(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -112,6 +116,7 @@ func TestListIncidents_SinceUntil(t *testing.T) {
 }
 
 func TestListIncidents_DateRange(t *testing.T) {
+	t.Parallel()
 	v := incidentListParams(ListIncidentsOpts{
 		DateRange: "all",
 		Statuses:  []string{"triggered"},
@@ -123,6 +128,7 @@ func TestListIncidents_DateRange(t *testing.T) {
 }
 
 func TestListIncidents_SinceUntilWithoutDateRange(t *testing.T) {
+	t.Parallel()
 	v := incidentListParams(ListIncidentsOpts{
 		Since: "2026-03-13T00:00:00Z",
 		Until: "2026-03-20T00:00:00Z",
@@ -133,6 +139,7 @@ func TestListIncidents_SinceUntilWithoutDateRange(t *testing.T) {
 }
 
 func TestListIncidents_TeamIDs(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -152,6 +159,7 @@ func TestListIncidents_TeamIDs(t *testing.T) {
 }
 
 func TestGetIncident(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -179,6 +187,7 @@ func TestGetIncident(t *testing.T) {
 }
 
 func TestGetIncident_NotFound(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -195,6 +204,7 @@ func TestGetIncident_NotFound(t *testing.T) {
 }
 
 func TestAckIncident(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -228,6 +238,7 @@ func TestAckIncident(t *testing.T) {
 }
 
 func TestAckIncident_FromHeaderCheck(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -245,6 +256,7 @@ func TestAckIncident_FromHeaderCheck(t *testing.T) {
 }
 
 func TestAckIncident_EmptyFromRejected(t *testing.T) {
+	t.Parallel()
 	c := NewClient("test-token")
 	err := c.AckIncident(context.Background(), "P1", "")
 	require.Error(t, err)
@@ -252,6 +264,7 @@ func TestAckIncident_EmptyFromRejected(t *testing.T) {
 }
 
 func TestResolveIncident(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -284,6 +297,7 @@ func TestResolveIncident(t *testing.T) {
 }
 
 func TestSnoozeIncident(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -312,6 +326,7 @@ func TestSnoozeIncident(t *testing.T) {
 }
 
 func TestReassignIncident(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -352,6 +367,7 @@ func TestReassignIncident(t *testing.T) {
 }
 
 func TestMergeIncidents(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -385,6 +401,7 @@ func TestMergeIncidents(t *testing.T) {
 }
 
 func TestEscalateIncident(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -450,6 +467,7 @@ func TestEscalateIncident(t *testing.T) {
 }
 
 func TestEscalateIncident_AlreadyAtHighestLevel(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -483,6 +501,7 @@ func TestEscalateIncident_AlreadyAtHighestLevel(t *testing.T) {
 }
 
 func TestEscalateIncident_Level0(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -543,6 +562,7 @@ func TestEscalateIncident_Level0(t *testing.T) {
 }
 
 func TestAddIncidentNote(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -571,6 +591,7 @@ func TestAddIncidentNote(t *testing.T) {
 }
 
 func TestListPriorities(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -594,6 +615,7 @@ func TestListPriorities(t *testing.T) {
 }
 
 func TestUpdatePriority(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

@@ -12,6 +12,7 @@ import (
 )
 
 func TestListTeams(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -36,6 +37,7 @@ func TestListTeams(t *testing.T) {
 }
 
 func TestListTeams_WithQuery(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -59,6 +61,7 @@ func TestListTeams_WithQuery(t *testing.T) {
 }
 
 func TestListTeams_Pagination(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -87,6 +90,7 @@ func TestListTeams_Pagination(t *testing.T) {
 }
 
 func TestGetTeam(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -112,6 +116,7 @@ func TestGetTeam(t *testing.T) {
 }
 
 func TestGetTeam_NotFound(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

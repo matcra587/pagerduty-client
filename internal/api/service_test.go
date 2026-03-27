@@ -11,6 +11,7 @@ import (
 )
 
 func TestListServices(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -35,6 +36,7 @@ func TestListServices(t *testing.T) {
 }
 
 func TestListServices_WithTeamFilter(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -58,6 +60,7 @@ func TestListServices_WithTeamFilter(t *testing.T) {
 }
 
 func TestListServices_WithQuery(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -83,6 +86,7 @@ func TestListServices_WithQuery(t *testing.T) {
 }
 
 func TestGetService(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -110,6 +114,7 @@ func TestGetService(t *testing.T) {
 }
 
 func TestGetService_NotFound(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

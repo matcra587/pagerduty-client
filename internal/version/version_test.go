@@ -10,6 +10,7 @@ import (
 )
 
 func TestInfo(t *testing.T) {
+	t.Parallel()
 	info := version.Info()
 
 	require.NotEmpty(t, info.Version)
@@ -21,6 +22,7 @@ func TestInfo(t *testing.T) {
 }
 
 func TestBuildInfo_String(t *testing.T) {
+	t.Parallel()
 	info := version.Info()
 	s := info.String()
 

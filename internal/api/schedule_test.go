@@ -14,6 +14,7 @@ import (
 )
 
 func TestClient_ListSchedules(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -35,6 +36,7 @@ func TestClient_ListSchedules(t *testing.T) {
 }
 
 func TestClient_ListSchedules_WithQuery(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -54,6 +56,7 @@ func TestClient_ListSchedules_WithQuery(t *testing.T) {
 }
 
 func TestClient_ListSchedules_Pagination(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -79,6 +82,7 @@ func TestClient_ListSchedules_Pagination(t *testing.T) {
 }
 
 func TestClient_GetSchedule(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -101,6 +105,7 @@ func TestClient_GetSchedule(t *testing.T) {
 }
 
 func TestClient_GetSchedule_NotFound(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -121,6 +126,7 @@ func TestClient_GetSchedule_NotFound(t *testing.T) {
 }
 
 func TestClient_ListOverrides(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -144,6 +150,7 @@ func TestClient_ListOverrides(t *testing.T) {
 }
 
 func TestClient_CreateOverride(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -193,6 +200,7 @@ func TestClient_CreateOverride(t *testing.T) {
 }
 
 func TestClient_CreateOverride_Error(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

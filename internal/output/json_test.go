@@ -10,6 +10,7 @@ import (
 )
 
 func TestRenderJSON(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	incidents := testutil.LoadIncidents(t)
 	err := RenderJSON(&buf, incidents, false)
@@ -19,6 +20,7 @@ func TestRenderJSON(t *testing.T) {
 }
 
 func TestRenderJSON_Highlighted(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	data := map[string]string{"id": "P123", "status": "triggered"}
 	err := RenderJSON(&buf, data, true)
@@ -29,6 +31,7 @@ func TestRenderJSON_Highlighted(t *testing.T) {
 }
 
 func TestRenderAgentJSON(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	incidents := testutil.LoadIncidents(t)
 	err := RenderAgentJSON(&buf, "incident list", incidents, nil, nil)

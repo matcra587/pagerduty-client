@@ -84,6 +84,7 @@ func fullAlert() pagerduty.IncidentAlert {
 }
 
 func TestProjectAlertForAgent_FullCEFAlert(t *testing.T) {
+	t.Parallel()
 	a := fullAlert()
 	got := ProjectAlertForAgent(a)
 
@@ -109,6 +110,7 @@ func TestProjectAlertForAgent_FullCEFAlert(t *testing.T) {
 }
 
 func TestProjectAlertForAgent_NilBody(t *testing.T) {
+	t.Parallel()
 	a := fullAlert()
 	a.Body = nil
 
@@ -117,6 +119,7 @@ func TestProjectAlertForAgent_NilBody(t *testing.T) {
 }
 
 func TestProjectAlertForAgent_EmptyBody(t *testing.T) {
+	t.Parallel()
 	a := fullAlert()
 	a.Body = map[string]any{}
 
@@ -125,6 +128,7 @@ func TestProjectAlertForAgent_EmptyBody(t *testing.T) {
 }
 
 func TestProjectAlertForAgent_BodyWithUnexpectedTypes(t *testing.T) {
+	t.Parallel()
 	a := fullAlert()
 	a.Body = map[string]any{
 		"cef_details": map[string]any{
@@ -137,6 +141,7 @@ func TestProjectAlertForAgent_BodyWithUnexpectedTypes(t *testing.T) {
 }
 
 func TestProjectAlertForAgent_NonCEFBody(t *testing.T) {
+	t.Parallel()
 	a := fullAlert()
 	a.Body = map[string]any{
 		"details": map[string]any{
@@ -162,6 +167,7 @@ func TestProjectAlertForAgent_NonCEFBody(t *testing.T) {
 }
 
 func TestProjectAlertsForAgent_Slice(t *testing.T) {
+	t.Parallel()
 	alerts := []pagerduty.IncidentAlert{fullAlert(), fullAlert()}
 	alerts[1].APIObject.ID = "PALRT999"
 
@@ -172,6 +178,7 @@ func TestProjectAlertsForAgent_Slice(t *testing.T) {
 }
 
 func TestProjectAlertForAgent_DroppedFields(t *testing.T) {
+	t.Parallel()
 	a := fullAlert()
 	got := ProjectAlertForAgent(a)
 

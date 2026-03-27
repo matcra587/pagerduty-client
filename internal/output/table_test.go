@@ -9,6 +9,7 @@ import (
 )
 
 func TestRenderTable(t *testing.T) {
+	t.Parallel()
 	var buf bytes.Buffer
 	headers := []string{"ID", "Title", "Status"}
 	rows := [][]string{

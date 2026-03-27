@@ -31,6 +31,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	github.com/zalando/go-keyring v0.2.8
+	go.uber.org/goleak v1.3.0
 	golang.org/x/time v0.15.0
 )
 

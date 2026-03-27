@@ -15,12 +15,14 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
+	t.Parallel()
 	c := NewClient("test-token")
 	assert.Equal(t, "https://api.pagerduty.com", c.baseURL)
 	assert.Equal(t, "test-token", c.token)
 }
 
 func TestClientAuthHeader(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -39,6 +41,7 @@ func TestClientAuthHeader(t *testing.T) {
 }
 
 func TestClientAPIError(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -58,6 +61,7 @@ func TestClientAPIError(t *testing.T) {
 }
 
 func TestClientRetryOn429(t *testing.T) {
+	t.Parallel()
 	var attempts atomic.Int32
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -81,6 +85,7 @@ func TestClientRetryOn429(t *testing.T) {
 }
 
 func TestGetRejectsInvalidPath(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok")
 	_, err := c.get(context.Background(), "/incidents/../../admin", nil)
 	require.Error(t, err)
@@ -88,6 +93,7 @@ func TestGetRejectsInvalidPath(t *testing.T) {
 }
 
 func TestPutFromRejectsInvalidPath(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok")
 	_, err := c.putFrom(context.Background(), "/incidents/../../admin", nil, "user@example.com")
 	require.Error(t, err)
@@ -95,6 +101,7 @@ func TestPutFromRejectsInvalidPath(t *testing.T) {
 }
 
 func TestPostFromRejectsInvalidPath(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok")
 	_, err := c.postFrom(context.Background(), "/incidents/../../admin", nil, "user@example.com")
 	require.Error(t, err)
@@ -102,12 +109,14 @@ func TestPostFromRejectsInvalidPath(t *testing.T) {
 }
 
 func TestValidatePathRejectsQueryString(t *testing.T) {
+	t.Parallel()
 	err := validatePath("/incidents?foo=bar")
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "query string")
 }
 
 func TestValidatePathSegment(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		segment string
@@ -125,6 +134,7 @@ func TestValidatePathSegment(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validatePathSegment(tt.segment)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -136,6 +146,7 @@ func TestValidatePathSegment(t *testing.T) {
 }
 
 func TestClientRejectsOversizedResponse(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -152,6 +163,7 @@ func TestClientRejectsOversizedResponse(t *testing.T) {
 }
 
 func TestClientRetryOn5xx(t *testing.T) {
+	t.Parallel()
 	var attempts atomic.Int32
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -174,6 +186,7 @@ func TestClientRetryOn5xx(t *testing.T) {
 }
 
 func TestClient5xxExhaustsRetries(t *testing.T) {
+	t.Parallel()
 	var attempts atomic.Int32
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -195,6 +208,7 @@ func TestClient5xxExhaustsRetries(t *testing.T) {
 }
 
 func TestSleepContextCancelledStopsTimer(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := sleepContext(ctx, 10*time.Second)
@@ -203,6 +217,7 @@ func TestSleepContextCancelledStopsTimer(t *testing.T) {
 }
 
 func TestClientDoesNotFollowRedirects(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -223,41 +238,49 @@ func TestClientDoesNotFollowRedirects(t *testing.T) {
 }
 
 func TestWithBaseURL_RejectsPlainHTTP(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok", WithBaseURL("http://evil.com"))
 	assert.Equal(t, defaultBaseURL, c.baseURL)
 }
 
 func TestWithBaseURL_AllowsLocalhost(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok", WithBaseURL("http://localhost:4010"))
 	assert.Equal(t, "http://localhost:4010", c.baseURL)
 }
 
 func TestWithBaseURL_AllowsLoopback(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok", WithBaseURL("http://127.0.0.1:4010"))
 	assert.Equal(t, "http://127.0.0.1:4010", c.baseURL)
 }
 
 func TestWithBaseURL_RejectsLocalhostSubdomain(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok", WithBaseURL("http://localhost.evil.com"))
 	assert.Equal(t, defaultBaseURL, c.baseURL)
 }
 
 func TestWithBaseURL_RejectsLoopbackSubdomain(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok", WithBaseURL("http://127.0.0.1.evil.com"))
 	assert.Equal(t, defaultBaseURL, c.baseURL)
 }
 
 func TestWithBaseURL_AllowsHTTPS(t *testing.T) {
+	t.Parallel()
 	c := NewClient("tok", WithBaseURL("https://custom.pagerduty.com"))
 	assert.Equal(t, "https://custom.pagerduty.com", c.baseURL)
 }
 
 func TestRetryAfterDuration_CapsAt60Seconds(t *testing.T) {
+	t.Parallel()
 	got := retryAfterDuration("3600", time.Second)
 	assert.Equal(t, 60*time.Second, got)
 }
 
 func TestRetryAfterDuration_PassesThroughReasonableValues(t *testing.T) {
+	t.Parallel()
 	got := retryAfterDuration("5", time.Second)
 	assert.Equal(t, 5*time.Second, got)
 }

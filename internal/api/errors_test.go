@@ -9,12 +9,14 @@ import (
 )
 
 func TestAPIError_Error(t *testing.T) {
+	t.Parallel()
 	err := &APIError{StatusCode: 404, Code: 2001, Message: "Not Found"}
 	require.ErrorContains(t, err, "404")
 	require.ErrorContains(t, err, "Not Found")
 }
 
 func TestAPIError_Is(t *testing.T) {
+	t.Parallel()
 	err := &APIError{StatusCode: 404, Code: 2001, Message: "Not Found"}
 	wrapped := fmt.Errorf("something failed: %w", err)
 
@@ -23,6 +25,7 @@ func TestAPIError_Is(t *testing.T) {
 }
 
 func TestAPIError_Sentinels(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		err      *APIError
@@ -36,6 +39,7 @@ func TestAPIError_Sentinels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if tt.want {
 				assert.ErrorIs(t, tt.err, tt.sentinel)
 			} else {

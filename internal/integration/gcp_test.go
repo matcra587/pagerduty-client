@@ -44,11 +44,13 @@ func gcpEnv() AlertEnvelope {
 }
 
 func TestGCP_MatchesPayload(t *testing.T) {
+	t.Parallel()
 	_, ok := GCP{}.Normalise(gcpEnv())
 	assert.True(t, ok)
 }
 
 func TestGCP_RejectsNonGCP(t *testing.T) {
+	t.Parallel()
 	env := UnwrapAlert(map[string]any{
 		"details": map[string]any{
 			"custom_details": map[string]any{"monitor": "cpu_high"},
@@ -59,6 +61,7 @@ func TestGCP_RejectsNonGCP(t *testing.T) {
 }
 
 func TestGCP_ExtractsFields(t *testing.T) {
+	t.Parallel()
 	s, _ := GCP{}.Normalise(gcpEnv())
 
 	assert.Equal(t, "Google Cloud Monitoring", s.Source)
@@ -76,6 +79,7 @@ func TestGCP_ExtractsFields(t *testing.T) {
 }
 
 func TestGCP_ExtractsLinks(t *testing.T) {
+	t.Parallel()
 	s, _ := GCP{}.Normalise(gcpEnv())
 
 	require.GreaterOrEqual(t, len(s.Links), 2)

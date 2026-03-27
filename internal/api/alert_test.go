@@ -12,6 +12,7 @@ import (
 )
 
 func TestListIncidentAlerts(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -36,6 +37,7 @@ func TestListIncidentAlerts(t *testing.T) {
 }
 
 func TestListIncidentAlerts_Pagination(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -64,6 +66,7 @@ func TestListIncidentAlerts_Pagination(t *testing.T) {
 }
 
 func TestGetIncidentAlert(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

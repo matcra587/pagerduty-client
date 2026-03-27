@@ -12,6 +12,7 @@ import (
 )
 
 func TestClient_ListOnCalls(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -40,6 +41,7 @@ func TestClient_ListOnCalls(t *testing.T) {
 }
 
 func TestClient_ListOnCalls_WithFilters(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -58,6 +60,7 @@ func TestClient_ListOnCalls_WithFilters(t *testing.T) {
 }
 
 func TestClient_ListOnCalls_WithMultipleFilters(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -84,6 +87,7 @@ func TestClient_ListOnCalls_WithMultipleFilters(t *testing.T) {
 }
 
 func TestClient_ListOnCalls_Earliest(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -102,6 +106,7 @@ func TestClient_ListOnCalls_Earliest(t *testing.T) {
 }
 
 func TestClient_ListOnCalls_Pagination(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

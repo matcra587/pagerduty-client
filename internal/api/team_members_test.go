@@ -12,6 +12,7 @@ import (
 )
 
 func TestListTeamMembers(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -38,6 +39,7 @@ func TestListTeamMembers(t *testing.T) {
 }
 
 func TestListTeamMembers_Pagination(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -66,6 +68,7 @@ func TestListTeamMembers_Pagination(t *testing.T) {
 }
 
 func TestListTeamMembers_Empty(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

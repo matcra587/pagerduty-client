@@ -8,6 +8,7 @@ import (
 )
 
 func TestUnwrapAlert_TopLevel(t *testing.T) {
+	t.Parallel()
 	body := map[string]any{
 		"client":     "Alertmanager",
 		"client_url": "http://am.example/",
@@ -23,6 +24,7 @@ func TestUnwrapAlert_TopLevel(t *testing.T) {
 }
 
 func TestUnwrapAlert_CEFDetails(t *testing.T) {
+	t.Parallel()
 	body := map[string]any{
 		"cef_details": map[string]any{
 			"client":     "Datadog",
@@ -40,6 +42,7 @@ func TestUnwrapAlert_CEFDetails(t *testing.T) {
 }
 
 func TestUnwrapAlert_CEFDetailsFallback(t *testing.T) {
+	t.Parallel()
 	// Datadog V1: cef_details.details IS the field map (no custom_details).
 	body := map[string]any{
 		"cef_details": map[string]any{
@@ -56,42 +59,50 @@ func TestUnwrapAlert_CEFDetailsFallback(t *testing.T) {
 }
 
 func TestUnwrapAlert_NilBody(t *testing.T) {
+	t.Parallel()
 	env := UnwrapAlert(nil)
 	assert.Empty(t, env.Client)
 	assert.Nil(t, env.CustomDetails)
 }
 
 func TestDetect_UnknownPayload_ReturnsGeneric(t *testing.T) {
+	t.Parallel()
 	s := Detect(map[string]any{"unknown_key": "value"})
 	assert.Equal(t, "Unknown", s.Source)
 }
 
 func TestDetect_NilBody_ReturnsGeneric(t *testing.T) {
+	t.Parallel()
 	s := Detect(nil)
 	assert.Equal(t, "Unknown", s.Source)
 }
 
 func TestDetect_GCPPayload(t *testing.T) {
+	t.Parallel()
 	s := Detect(gcpEnv().Raw)
 	assert.Equal(t, "Google Cloud Monitoring", s.Source)
 }
 
 func TestDetect_CloudWatchPayload(t *testing.T) {
+	t.Parallel()
 	s := Detect(cloudwatchEnv().Raw)
 	assert.Equal(t, "AWS CloudWatch", s.Source)
 }
 
 func TestDetect_DatadogPayload(t *testing.T) {
+	t.Parallel()
 	s := Detect(datadogEnv().Raw)
 	assert.Equal(t, "Datadog", s.Source)
 }
 
 func TestDetect_PrometheusPayload(t *testing.T) {
+	t.Parallel()
 	s := Detect(prometheusEnv().Raw)
 	assert.Equal(t, "Prometheus Alertmanager", s.Source)
 }
 
 func TestDetect_PayloadCustomDetails(t *testing.T) {
+	t.Parallel()
 	body := map[string]any{
 		"payload": map[string]any{
 			"custom_details": map[string]any{"alert": "test"},
@@ -103,6 +114,7 @@ func TestDetect_PayloadCustomDetails(t *testing.T) {
 }
 
 func TestDetect_CEFPayloadCustomDetails(t *testing.T) {
+	t.Parallel()
 	body := map[string]any{
 		"cef_details": map[string]any{
 			"payload": map[string]any{

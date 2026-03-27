@@ -30,17 +30,20 @@ func cloudwatchEnv() AlertEnvelope {
 }
 
 func TestCloudWatch_MatchesPayload(t *testing.T) {
+	t.Parallel()
 	s, ok := CloudWatch{}.Normalise(cloudwatchEnv())
 	assert.True(t, ok)
 	assert.Equal(t, "AWS CloudWatch", s.Source)
 }
 
 func TestCloudWatch_RejectsNonCloudWatch(t *testing.T) {
+	t.Parallel()
 	_, ok := CloudWatch{}.Normalise(gcpEnv())
 	assert.False(t, ok)
 }
 
 func TestCloudWatch_ExtractsFields(t *testing.T) {
+	t.Parallel()
 	s, _ := CloudWatch{}.Normalise(cloudwatchEnv())
 	fieldMap := make(map[string]string)
 	for _, f := range s.Fields {

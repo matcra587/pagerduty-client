@@ -27,17 +27,20 @@ func datadogEnv() AlertEnvelope {
 }
 
 func TestDatadog_MatchesPayload(t *testing.T) {
+	t.Parallel()
 	s, ok := Datadog{}.Normalise(datadogEnv())
 	assert.True(t, ok)
 	assert.Equal(t, "Datadog", s.Source)
 }
 
 func TestDatadog_RejectsNonDatadog(t *testing.T) {
+	t.Parallel()
 	_, ok := Datadog{}.Normalise(gcpEnv())
 	assert.False(t, ok)
 }
 
 func TestDatadog_ExtractsFields(t *testing.T) {
+	t.Parallel()
 	s, _ := Datadog{}.Normalise(datadogEnv())
 	fieldMap := make(map[string]string)
 	for _, f := range s.Fields {

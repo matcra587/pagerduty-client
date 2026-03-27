@@ -86,6 +86,7 @@ func fullIncident() pagerduty.Incident {
 }
 
 func TestProjectIncidentForAgent_FullIncident(t *testing.T) {
+	t.Parallel()
 	inc := fullIncident()
 	got := ProjectIncidentForAgent(inc)
 
@@ -114,6 +115,7 @@ func TestProjectIncidentForAgent_FullIncident(t *testing.T) {
 }
 
 func TestProjectIncidentForAgent_NilPriority(t *testing.T) {
+	t.Parallel()
 	inc := fullIncident()
 	inc.Priority = nil
 
@@ -122,6 +124,7 @@ func TestProjectIncidentForAgent_NilPriority(t *testing.T) {
 }
 
 func TestProjectIncidentForAgent_EmptyAssignments(t *testing.T) {
+	t.Parallel()
 	inc := fullIncident()
 	inc.Assignments = nil
 
@@ -130,6 +133,7 @@ func TestProjectIncidentForAgent_EmptyAssignments(t *testing.T) {
 }
 
 func TestProjectIncidentsForAgent_Slice(t *testing.T) {
+	t.Parallel()
 	incidents := []pagerduty.Incident{fullIncident(), fullIncident()}
 	incidents[1].APIObject.ID = "PXYZ999"
 
@@ -140,6 +144,7 @@ func TestProjectIncidentsForAgent_Slice(t *testing.T) {
 }
 
 func TestProjectIncidentForAgent_DroppedFields(t *testing.T) {
+	t.Parallel()
 	inc := fullIncident()
 	got := ProjectIncidentForAgent(inc)
 

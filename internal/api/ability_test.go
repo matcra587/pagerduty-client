@@ -13,6 +13,7 @@ import (
 )
 
 func TestListAbilities(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/abilities", r.URL.Path)
 		assert.Equal(t, "Token token=test-token", r.Header.Get("Authorization"))
@@ -27,6 +28,7 @@ func TestListAbilities(t *testing.T) {
 }
 
 func TestListAbilities_Empty(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"abilities":[]}`))
 	}))
@@ -41,6 +43,7 @@ func TestListAbilities_Empty(t *testing.T) {
 // OpenAPI defines 401, 403 and 429 as error responses for GET /abilities.
 
 func TestListAbilities_Unauthorized(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":{"message":"Unauthorized","code":2006}}`))
@@ -57,6 +60,7 @@ func TestListAbilities_Unauthorized(t *testing.T) {
 }
 
 func TestListAbilities_Forbidden(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"error":{"message":"Forbidden","code":2010}}`))
@@ -73,6 +77,7 @@ func TestListAbilities_Forbidden(t *testing.T) {
 }
 
 func TestListAbilities_RateLimited(t *testing.T) {
+	t.Parallel()
 	var attempt atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		n := attempt.Add(1)

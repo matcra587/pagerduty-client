@@ -16,6 +16,7 @@ import (
 )
 
 func TestPaginateAll(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -53,6 +54,7 @@ func TestPaginateAll(t *testing.T) {
 }
 
 func TestPaginateWithLimit(t *testing.T) {
+	t.Parallel()
 	requestCount := 0
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -85,6 +87,7 @@ func TestPaginateWithLimit(t *testing.T) {
 }
 
 func TestPaginateStopsAtOffsetCap(t *testing.T) {
+	t.Parallel()
 	requestCount := 0
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -119,6 +122,7 @@ func TestPaginateStopsAtOffsetCap(t *testing.T) {
 }
 
 func TestPaginateCancelledContext(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
@@ -157,6 +161,7 @@ func TestPaginateCancelledContext(t *testing.T) {
 }
 
 func TestPaginateMalformedEnvelope(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

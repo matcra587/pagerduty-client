@@ -8,6 +8,7 @@ import (
 )
 
 func TestGeneric_NoMatch_ReturnsFalse(t *testing.T) {
+	t.Parallel()
 	g := Generic{}
 	env := UnwrapAlert(map[string]any{"random": true})
 	_, ok := g.Normalise(env)
@@ -15,6 +16,7 @@ func TestGeneric_NoMatch_ReturnsFalse(t *testing.T) {
 }
 
 func TestGeneric_FlattensScalars(t *testing.T) {
+	t.Parallel()
 	env := UnwrapAlert(map[string]any{
 		"details": map[string]any{
 			"custom_details": map[string]any{

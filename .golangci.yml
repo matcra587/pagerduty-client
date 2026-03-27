@@ -95,6 +95,12 @@ linters:
               desc: "use github.com/gechr/clog instead of the standard log package"
             - pkg: "log/slog"
               desc: "use github.com/gechr/clog instead of log/slog"
+            - pkg: "io/ioutil"
+              desc: "deprecated since Go 1.16 - use io and os packages instead"
+            - pkg: "crypto/md5"
+              desc: "weak hash - use crypto/sha256 or stronger"
+            - pkg: "crypto/sha1"
+              desc: "weak hash - use crypto/sha256 or stronger"
     staticcheck:
       checks:
         - "all"

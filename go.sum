@@ -233,12 +233,8 @@ github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
 github.com/fzipp/gocyclo v0.6.0 h1:lsblElZG7d3ALtGMx9fmxeTKZaLLpU8mET09yN4BBLo=
 github.com/fzipp/gocyclo v0.6.0/go.mod h1:rXPyn8fnlpa0R2csP/31uerbiVBugk5whMdlyaLkLoA=
-github.com/gechr/clib v0.1.2 h1:+2mbAxhpCe0lWyeIpKERvkM1LCIT1vwE7pbD2X+tXZY=
-github.com/gechr/clib v0.1.2/go.mod h1:BMuA8l7DV+M+msj6rStlV2NXhRU8TtHWtqPQRTigVU8=
 github.com/gechr/clib v0.1.7 h1:kmKTAhDhufsWrMPFCn/f1oL7wKKs8jEUXespaHql7sA=
 github.com/gechr/clib v0.1.7/go.mod h1:BMuA8l7DV+M+msj6rStlV2NXhRU8TtHWtqPQRTigVU8=
-github.com/gechr/clog v0.7.14 h1:SsfzGFoAs0XjU1cz1yzwph5W+6tzXx4ikIRSfKdiYUk=
-github.com/gechr/clog v0.7.14/go.mod h1:0maT2qOHkOl3pqO75BmX5DCmtskNpwzRfPYy1x+HXHw=
 github.com/gechr/clog v0.7.22 h1:jg/l0w9KUyCTtFB0l2iplF1zWZ28ep5Y14r9c7MbWxM=
 github.com/gechr/clog v0.7.22/go.mod h1:0maT2qOHkOl3pqO75BmX5DCmtskNpwzRfPYy1x+HXHw=
 github.com/ghostiam/protogetter v0.3.20 h1:oW7OPFit2FxZOpmMRPP9FffU4uUpfeE/rEdE1f+MzD0=
@@ -419,6 +415,8 @@ github.com/jingyugao/rowserrcheck v1.1.1 h1:zibz55j/MJtLsjP1OF4bSdgXxwL1b+Vn7Tjz
 github.com/jingyugao/rowserrcheck v1.1.1/go.mod h1:4yvlZSDb3IyDTUZJUmpZfm2Hwok+Dtp+nu2qOq+er9c=
 github.com/jjti/go-spancheck v0.6.5 h1:lmi7pKxa37oKYIMScialXUK6hP3iY5F1gu+mLBPgYB8=
 github.com/jjti/go-spancheck v0.6.5/go.mod h1:aEogkeatBrbYsyW6y5TgDfihCulDYciL1B7rG2vSsrU=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/jpillora/backoff v1.0.0/go.mod h1:J/6gKK9jxlEcS3zixgDgUAsiuZ7yrSoa/FX5e0EB2j4=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/json-iterator/go v1.1.10/go.mod h1:KdQUCv79m/52Kvf8AW2vK1V8akMuk1QjK/uOdHXbAo4=

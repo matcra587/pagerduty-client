@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
@@ -14,35 +15,95 @@ type binding struct {
 	desc string
 }
 
-var bindings = []binding{
-	{"j/k / ↑↓", "navigate"},
-	{"g / G", "jump to top / bottom"},
-	{"enter", "detail"},
-	{"esc", "back / deselect"},
-	{"space", "toggle selection"},
-	{"ctrl+a", "select all"},
-	{"a", "acknowledge"},
-	{"r / alt+r", "resolve / immediate"},
-	{"e / alt+e", "escalate / immediate"},
-	{"m / alt+m", "merge selected / immediate"},
-	{"s", "snooze"},
-	{"n", "add note"},
-	{"p", "set priority (detail)"},
-	{"y", "copy URL"},
-	{"/", "filter incidents"},
-	{"O", "filter options"},
-	{"o", "open in browser"},
-	{"alt+o", "open external link"},
-	{"R", "toggle refresh"},
-	{"t", "team switcher"},
-	{"?", "help"},
-	{"q", "quit"},
+// section groups bindings under a heading.
+type section struct {
+	title    string
+	bindings []binding
+	footer   string
 }
 
-// Help is a Bubble Tea model that renders a keybinding overlay.
-// It is shown when Visible is true and overlaid on the parent view.
+var listSections = []section{
+	{
+		title: "Actions",
+		bindings: []binding{
+			{"a", "acknowledge"},
+			{"r *", "resolve"},
+			{"e *", "escalate"},
+			{"m *", "merge selected"},
+			{"s", "snooze"},
+			{"n", "add note"},
+		},
+		footer: "* alt skips confirmation",
+	},
+	{
+		title: "Navigation",
+		bindings: []binding{
+			{"↑↓", "navigate"},
+			{"enter", "detail"},
+			{"esc", "back / deselect"},
+			{"space", "toggle selection"},
+			{"shift+↑↓", "select and move"},
+			{"ctrl+a", "select all"},
+		},
+	},
+	{
+		title: "Filters",
+		bindings: []binding{
+			{"/", "filter incidents"},
+			{"O", "filter options"},
+			{"t", "team switcher"},
+		},
+	},
+	{
+		title: "Other",
+		bindings: []binding{
+			{"o", "open in browser"},
+			{"alt+o", "open external link"},
+			{"y", "copy URL"},
+			{"R", "toggle refresh"},
+			{"?", "help"},
+			{"q", "quit"},
+		},
+	},
+}
+
+var detailSections = []section{
+	{
+		title: "Actions",
+		bindings: []binding{
+			{"a", "acknowledge"},
+			{"r *", "resolve"},
+			{"e *", "escalate"},
+			{"n", "add note"},
+			{"p", "set priority"},
+		},
+		footer: "* alt skips confirmation",
+	},
+	{
+		title: "Navigation",
+		bindings: []binding{
+			{"↑↓", "scroll"},
+			{"tab", "next tab"},
+			{"shift+tab", "previous tab"},
+			{"esc", "back to list"},
+		},
+	},
+	{
+		title: "Other",
+		bindings: []binding{
+			{"o", "open in browser"},
+			{"alt+o", "open external link"},
+			{"y", "copy URL"},
+			{"?", "help"},
+			{"q", "quit"},
+		},
+	},
+}
+
+// Help is a Bubble Tea model that renders a context-aware keybinding overlay.
 type Help struct {
-	Visible bool
+	Visible     bool
+	CurrentView string // "dashboard" or "detail"
 }
 
 // Init implements tea.Model.
@@ -59,21 +120,58 @@ func (h Help) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return h, nil
 }
 
-// View implements tea.Model. Returns an empty string when not visible.
+// View implements tea.Model.
 func (h Help) View() tea.View {
 	if !h.Visible {
 		return tea.NewView("")
 	}
 
-	var sb strings.Builder
-	sb.WriteString(theme.Title.Render("Keybindings"))
-	sb.WriteString("\n\n")
-
-	for _, b := range bindings {
-		key := theme.HelpKey.Render(fmt.Sprintf("%-16s", b.key))
-		desc := theme.HelpDesc.Render(b.desc)
-		sb.WriteString(key + desc + "\n")
+	sections := listSections
+	if h.CurrentView == "detail" {
+		sections = detailSections
 	}
 
-	return tea.NewView(RenderOverlay(sb.String(), 0))
+	sectionStyle := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorTitleFg)
+	dimDesc := lipgloss.NewStyle().Faint(true)
+
+	var columns []string
+	for _, sec := range sections {
+		var sb strings.Builder
+		sb.WriteString(sectionStyle.Render(sec.title))
+		sb.WriteString("\n")
+		for _, b := range sec.bindings {
+			key := theme.HelpKey.Render(fmt.Sprintf("%-10s", b.key))
+			desc := dimDesc.Render(b.desc)
+			sb.WriteString(key + desc + "\n")
+		}
+		if sec.footer != "" {
+			sb.WriteString(dimDesc.Render(sec.footer) + "\n")
+		}
+		columns = append(columns, sb.String())
+	}
+
+	// Two-column layout: pair sections side by side.
+	var left, right string
+	switch len(columns) {
+	case 4:
+		left = columns[0] + "\n" + columns[2]
+		right = columns[1] + "\n" + columns[3]
+	case 3:
+		left = columns[0]
+		right = columns[1] + "\n" + columns[2]
+	case 2:
+		left = columns[0]
+		right = columns[1]
+	case 1:
+		left = columns[0]
+	}
+
+	var content string
+	if right != "" {
+		content = lipgloss.JoinHorizontal(lipgloss.Top, left, "    ", right)
+	} else {
+		content = left
+	}
+
+	return tea.NewView(RenderOverlay(content, 0))
 }

@@ -79,9 +79,21 @@ var (
 	StatusErr = lipgloss.NewStyle().Foreground(Theme.Red.GetForeground()).Bold(true)
 )
 
+// Pill renders a compact label with horizontal padding. Use with a
+// foreground or background colour for a coloured pill effect.
+var Pill = lipgloss.NewStyle().Padding(0, 1)
+
+// PillDanger is a pill for critical counts (triggered incidents).
+var PillDanger = Pill.Foreground(Theme.Red.GetForeground()).Bold(true)
+
+// PillWarning is a pill for warning counts (acknowledged incidents).
+var PillWarning = Pill.Foreground(Theme.Yellow.GetForeground())
+
+// PillDim is a pill for inactive or resolved counts.
+var PillDim = Pill.Faint(true)
+
 // UI chrome colours - project-specific, no clib equivalent.
 var (
-	ColorStatusBarBg   = lipgloss.Color("#1A1A2E")
 	ColorStatusBarFg   = lipgloss.Color("#E0E0E0")
 	ColorTitleFg       = lipgloss.Color("#FFFFFF")
 	ColorHighlightBg   = lipgloss.Color("#2D2D44")
@@ -91,12 +103,6 @@ var (
 	ColorOverlayBorder = lipgloss.Color("#7F849C")
 	ColorSelectedBg    = lipgloss.Color("#313244")
 )
-
-// StatusBar is the style for the bottom status bar.
-var StatusBar = lipgloss.NewStyle().
-	Background(ColorStatusBarBg).
-	Foreground(ColorStatusBarFg).
-	Padding(0, 1)
 
 // TableHeader is the style for table column headers.
 var TableHeader = lipgloss.NewStyle().
@@ -128,7 +134,7 @@ var HelpOverlay = lipgloss.NewStyle().
 var HelpKey = lipgloss.NewStyle().Foreground(Theme.Yellow.GetForeground()).Bold(true)
 
 // HelpDesc is the style for keybinding descriptions.
-var HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg)
+var HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg).Faint(true)
 
 // Detail view styles - derived from clib theme colours.
 var (
@@ -174,10 +180,6 @@ func Apply(t *clibtheme.Theme) {
 	applyChrome(t)
 
 	// Compound styles that depend on chrome colours.
-	StatusBar = lipgloss.NewStyle().
-		Background(ColorStatusBarBg).
-		Foreground(ColorStatusBarFg).
-		Padding(0, 1)
 	TableHeader = lipgloss.NewStyle().
 		Foreground(ColorHeaderFg).
 		Bold(true).
@@ -197,7 +199,12 @@ func Apply(t *clibtheme.Theme) {
 		BorderForeground(ColorOverlayBorder).
 		Padding(1, 2)
 	HelpKey = lipgloss.NewStyle().Foreground(t.Yellow.GetForeground()).Bold(true)
-	HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg)
+	HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg).Faint(true)
+
+	// Pill styles.
+	PillDanger = Pill.Foreground(t.Red.GetForeground()).Bold(true)
+	PillWarning = Pill.Foreground(t.Yellow.GetForeground())
+	PillDim = Pill.Faint(true)
 
 	// Detail view styles.
 	DetailHeader = lipgloss.NewStyle().Bold(true).Foreground(t.Magenta.GetForeground())
@@ -222,7 +229,6 @@ func applyChrome(t *clibtheme.Theme) {
 
 	if luminance < 0.5 {
 		// Light theme chrome.
-		ColorStatusBarBg = lipgloss.Color("#D8DEE9")
 		ColorStatusBarFg = lipgloss.Color("#2E3440")
 		ColorTitleFg = lipgloss.Color("#2E3440")
 		ColorHighlightBg = lipgloss.Color("#C8CED8")
@@ -233,7 +239,6 @@ func applyChrome(t *clibtheme.Theme) {
 		ColorSelectedBg = lipgloss.Color("#D8E8D8")
 	} else {
 		// Dark / high-contrast theme chrome.
-		ColorStatusBarBg = lipgloss.Color("#1A1A2E")
 		ColorStatusBarFg = lipgloss.Color("#E0E0E0")
 		ColorTitleFg = lipgloss.Color("#FFFFFF")
 		ColorHighlightBg = lipgloss.Color("#2D2D44")

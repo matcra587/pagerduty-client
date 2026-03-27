@@ -28,7 +28,6 @@ type incidentList struct {
 	client       *api.Client
 	fromEmail    string
 	hideService  bool
-	spinnerFrame string
 	filterInput  textinput.Model
 	filterActive bool
 	filterState  components.FilterState
@@ -104,6 +103,20 @@ func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.cursor > 0 {
 			m.cursor--
 		}
+	case "shift+down":
+		if len(vis) > 0 {
+			m.selections[vis[m.cursor].ID] = true
+			if m.cursor < len(vis)-1 {
+				m.cursor++
+			}
+		}
+	case "shift+up":
+		if len(vis) > 0 {
+			m.selections[vis[m.cursor].ID] = true
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		}
 	case "space":
 		if len(vis) > 0 {
 			m.selections[vis[m.cursor].ID] = !m.selections[vis[m.cursor].ID]
@@ -178,12 +191,11 @@ func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// viewportRows returns the number of incident rows that fit in the
-// current terminal height, accounting for title, header and filter bar.
+// viewportRows returns how many incident data rows fit in the available height.
 func (m incidentList) viewportRows() int {
-	rows := m.height - 2 // title + column header
+	rows := m.height - 1 // column header
 	if m.filterActive || m.filterInput.Value() != "" {
-		rows--
+		rows-- // filter bar
 	}
 	return max(rows, 1)
 }
@@ -195,13 +207,6 @@ func (m incidentList) View() tea.View {
 	}
 
 	var sb strings.Builder
-
-	title := theme.Title.Render("Incidents")
-	if m.spinnerFrame != "" {
-		title += "  " + m.spinnerFrame
-	}
-	sb.WriteString(title)
-	sb.WriteString("\n")
 
 	showFilter := m.filterActive || m.filterInput.Value() != ""
 	if showFilter {
@@ -216,11 +221,12 @@ func (m incidentList) View() tea.View {
 	vis := m.visibleIncidents()
 
 	if len(vis) == 0 {
+		msg := "🎉 No active incidents"
 		if showFilter {
-			sb.WriteString("\n  No matching incidents\n")
-		} else {
-			sb.WriteString("\n  No active incidents\n")
+			msg = "🔍 No matching incidents"
 		}
+		sb.WriteString(lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+			lipgloss.NewStyle().Faint(true).Render(msg)))
 		return tea.NewView(sb.String())
 	}
 

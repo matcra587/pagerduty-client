@@ -90,7 +90,7 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		vpHeight := max(msg.Height-2, 1)
+		vpHeight := max(msg.Height, 1) // title + tabs now in header zone
 		for i := range m.viewports {
 			m.viewports[i].SetWidth(msg.Width)
 			m.viewports[i].SetHeight(vpHeight)
@@ -165,9 +165,17 @@ func (m incidentDetail) View() tea.View {
 	if m.width == 0 {
 		return tea.NewView("")
 	}
+	return tea.NewView(m.viewports[m.activeTab].View())
+}
 
-	header := theme.Title.Render("Incident: " + m.incident.ID)
-	return tea.NewView(header + "\n" + m.tabBar() + "\n" + m.viewports[m.activeTab].View())
+// headerContent returns the detail tab bar with incident ID on the right.
+func (m incidentDetail) headerContent() string {
+	tabs := m.tabBar()
+	id := m.ansi.Hyperlink(m.incident.HTMLURL, m.incident.ID)
+	idW := lipgloss.Width(id)
+	tabsW := lipgloss.Width(tabs)
+	gap := max(m.width-tabsW-idW, 1)
+	return tabs + fmt.Sprintf("%*s", gap, "") + id
 }
 
 func (m incidentDetail) tabBar() string {
@@ -184,10 +192,11 @@ func (m incidentDetail) tabBar() string {
 	active := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(theme.ColorTitleFg).
-		Background(theme.ColorHighlightBg).
+		Underline(true).
 		Padding(0, 1)
 	inactive := lipgloss.NewStyle().
 		Foreground(theme.ColorHeaderFg).
+		Faint(true).
 		Padding(0, 1)
 
 	var parts []string

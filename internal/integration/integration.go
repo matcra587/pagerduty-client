@@ -121,31 +121,37 @@ func FormatValue(v any) string {
 	}
 }
 
+// walkMap traverses nested maps by key path, returning nil if any step
+// is missing or not a map.
+func walkMap(m map[string]any, keys ...string) map[string]any {
+	for _, k := range keys {
+		v, ok := m[k].(map[string]any)
+		if !ok {
+			return nil
+		}
+		m = v
+	}
+	return m
+}
+
 // extractCustomDetails walks common PagerDuty alert body structures to
 // find the custom_details map.
 func extractCustomDetails(body map[string]any) map[string]any {
-	if details, ok := body["details"].(map[string]any); ok {
-		if cd, ok := details["custom_details"].(map[string]any); ok {
+	// details.custom_details
+	if cd := walkMap(body, "details", "custom_details"); cd != nil {
+		return cd
+	}
+	// payload.custom_details
+	if cd := walkMap(body, "payload", "custom_details"); cd != nil {
+		return cd
+	}
+	// cef_details.details.custom_details or cef_details.details
+	if details := walkMap(body, "cef_details", "details"); details != nil {
+		if cd := walkMap(details, "custom_details"); cd != nil {
 			return cd
 		}
+		return details
 	}
-	if payload, ok := body["payload"].(map[string]any); ok {
-		if cd, ok := payload["custom_details"].(map[string]any); ok {
-			return cd
-		}
-	}
-	if cef, ok := body["cef_details"].(map[string]any); ok {
-		if details, ok := cef["details"].(map[string]any); ok {
-			if cd, ok := details["custom_details"].(map[string]any); ok {
-				return cd
-			}
-			return details
-		}
-		if payload, ok := cef["payload"].(map[string]any); ok {
-			if cd, ok := payload["custom_details"].(map[string]any); ok {
-				return cd
-			}
-		}
-	}
-	return nil
+	// cef_details.payload.custom_details
+	return walkMap(body, "cef_details", "payload", "custom_details")
 }

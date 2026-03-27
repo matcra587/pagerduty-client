@@ -81,10 +81,14 @@ var rootCmd = &cobra.Command{
 
 		if colorMode, _ := pf.GetString("color"); colorMode != "" {
 			switch colorMode {
+			case "auto":
+				// default, no action
 			case "always":
 				clog.SetColorMode(clog.ColorAlways)
 			case "never":
 				clog.SetColorMode(clog.ColorNever)
+			default:
+				return fmt.Errorf("invalid colour mode %q: must be \"auto\", \"always\" or \"never\"", colorMode)
 			}
 		}
 

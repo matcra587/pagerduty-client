@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -140,7 +141,7 @@ var incidentShowCmd = &cobra.Command{
 
 		payload, _ := cmd.Flags().GetBool("payload")
 		if payload {
-			return showIncidentPayload(cmd, client, det, cfg, incident)
+			return showIncidentPayload(cmd.Context(), client, det, cfg, incident)
 		}
 
 		isTTY := terminal.Is(os.Stdout)
@@ -409,8 +410,7 @@ func parseFromEmail(email string) (string, error) {
 
 // showIncidentPayload fetches the first alert's raw body payload, runs
 // integration detection and displays the source, extracted fields and raw JSON.
-func showIncidentPayload(cmd *cobra.Command, client *api.Client, det agent.DetectionResult, cfg *config.Config, incident *pagerduty.Incident) error {
-	ctx := cmd.Context()
+func showIncidentPayload(ctx context.Context, client *api.Client, det agent.DetectionResult, cfg *config.Config, incident *pagerduty.Incident) error {
 	alerts, err := client.ListIncidentAlerts(ctx, incident.ID)
 	if err != nil {
 		return fmt.Errorf("fetching alerts: %w", err)

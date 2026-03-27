@@ -76,13 +76,19 @@ func paginate[T any](ctx context.Context, c *Client, req paginateRequest, collec
 
 		var envelope pageEnvelope
 		if v, ok := raw["limit"]; ok {
-			_ = json.Unmarshal(v, &envelope.Limit)
+			if err := json.Unmarshal(v, &envelope.Limit); err != nil {
+				return fmt.Errorf("decoding pagination limit: %w", err)
+			}
 		}
 		if v, ok := raw["offset"]; ok {
-			_ = json.Unmarshal(v, &envelope.Offset)
+			if err := json.Unmarshal(v, &envelope.Offset); err != nil {
+				return fmt.Errorf("decoding pagination offset: %w", err)
+			}
 		}
 		if v, ok := raw["more"]; ok {
-			_ = json.Unmarshal(v, &envelope.More)
+			if err := json.Unmarshal(v, &envelope.More); err != nil {
+				return fmt.Errorf("decoding pagination more: %w", err)
+			}
 		}
 
 		if envelope.Limit == 0 {

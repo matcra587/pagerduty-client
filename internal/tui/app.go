@@ -17,6 +17,7 @@ import (
 	"github.com/atotto/clipboard"
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/gechr/clib/ansi"
+	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/integration"
@@ -1202,12 +1203,13 @@ func (a App) executeInputAction(msg components.InputSubmitted) tea.Cmd {
 		id := msg.ID
 		note := strings.TrimSpace(msg.Value)
 		action := func() tea.Msg {
-			// Best-effort note: don't block resolve if the note fails.
+			// Best-effort: don't block resolve if the note fails.
 			if note != "" {
-				// Best-effort: don't block resolve if the note fails.
 				noteCtx, noteCancel := context.WithTimeout(appCtx, 15*time.Second)
-				_ = client.AddIncidentNote(noteCtx, id, from, note)
-				noteCancel()
+				defer noteCancel()
+				if err := client.AddIncidentNote(noteCtx, id, from, note); err != nil {
+					clog.Warn().Err(err).Msg("could not add resolution note")
+				}
 			}
 			resolveCtx, resolveCancel := context.WithTimeout(appCtx, 15*time.Second)
 			defer resolveCancel()

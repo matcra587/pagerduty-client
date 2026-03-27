@@ -154,3 +154,30 @@ func TestPaginateCancelledContext(t *testing.T) {
 	assert.True(t, errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "context canceled"),
 		"expected context cancellation error, got: %v", err)
 }
+
+func TestPaginateMalformedEnvelope(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/items", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"items":[{"id":"1"}],"limit":"not-a-number","offset":0,"more":false}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+
+	type item struct {
+		ID string `json:"id"`
+	}
+
+	var all []item
+	err := paginate(context.Background(), c, paginateRequest{
+		path: "/items",
+		key:  "items",
+	}, func(items []item) {
+		all = append(all, items...)
+	})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "decoding pagination limit")
+}

@@ -67,6 +67,40 @@ func TestMatchesStructuredFilter_AgeNotFilteredClientSide(t *testing.T) {
 		"old incident should pass client-side filter; age is API-level")
 }
 
+func TestSearchIndex_BuiltOnSetIncidents(t *testing.T) {
+	m := newIncidentList(context.Background(), nil, "test@example.com", false)
+	m.SetIncidents([]pagerduty.Incident{
+		{
+			APIObject: pagerduty.APIObject{ID: "PABC123"},
+			Title:     "Database CPU High",
+			Service:   pagerduty.APIObject{Summary: "Web API"},
+			Assignments: []pagerduty.Assignment{
+				{Assignee: pagerduty.APIObject{Summary: "Alice Smith"}},
+			},
+		},
+	})
+
+	require.Len(t, m.searchIndex, 1)
+	assert.Contains(t, m.searchIndex[0], "pabc123")
+	assert.Contains(t, m.searchIndex[0], "database cpu high")
+	assert.Contains(t, m.searchIndex[0], "web api")
+	assert.Contains(t, m.searchIndex[0], "alice smith")
+}
+
+func TestSearchIndex_SeparatorPreventsCrossFieldMatch(t *testing.T) {
+	m := newIncidentList(context.Background(), nil, "test@example.com", false)
+	m.SetIncidents([]pagerduty.Incident{
+		{
+			APIObject: pagerduty.APIObject{ID: "abc"},
+			Title:     "def",
+		},
+	})
+
+	m.filterInput.SetValue("cde")
+	vis := m.visibleIncidents()
+	assert.Empty(t, vis, "cross-field query should not match")
+}
+
 func TestIsDefaultFilter(t *testing.T) {
 	tests := []struct {
 		name string

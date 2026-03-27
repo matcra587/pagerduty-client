@@ -3,10 +3,13 @@ package theme
 
 import (
 	"hash/fnv"
+	"sync"
 
 	"charm.land/lipgloss/v2"
 	clibtheme "github.com/gechr/clib/theme"
 )
+
+var applyOnce sync.Once
 
 // Presets maps theme names to constructor functions that return a
 // configured clib theme. The "dark" preset is the default.
@@ -151,11 +154,14 @@ var Paused = lipgloss.NewStyle().Foreground(Theme.Red.GetForeground()).Bold(true
 var Active = lipgloss.NewStyle().Foreground(Theme.Green.GetForeground()).Bold(true)
 
 // Apply sets the base clib theme and reinitialises all derived styles.
-// Call once during app startup before the TUI renders.
-//
-// WARNING: Apply mutates package-level variables and is not goroutine-safe.
-// It must be called exactly once, before any concurrent TUI rendering begins.
+// It runs at most once; subsequent calls are no-ops.
 func Apply(t *clibtheme.Theme) {
+	applyOnce.Do(func() {
+		applyTheme(t)
+	})
+}
+
+func applyTheme(t *clibtheme.Theme) {
 	Theme = t
 
 	// Urgency styles.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -120,24 +121,14 @@ var rootCmd = &cobra.Command{
 			ctx = context.Background()
 		}
 
-		// In test mode, skip credential resolution and use fixture data.
-		// No client is stored; ClientFromContext returns nil.
-		if cfg.TestMode {
-			clog.Debug().Msg("test mode active")
-			ctx = context.WithValue(ctx, configKey, cfg)
-			ctx = context.WithValue(ctx, agentKey, det)
-			ctx = context.WithValue(ctx, userEmailKey, "john.doe@example.com")
-			cmd.SetContext(ctx)
-			return nil
-		}
-
 		// Resolve token from flag, env, or credential store.
-		resolvedToken, err := resolveToken(ctx, cfg, flagToken)
+		flagTokenFile, _ := pf.GetString("token-file")
+		resolvedToken, err := resolveToken(ctx, cfg, flagToken, flagTokenFile)
 		if err != nil {
 			return fmt.Errorf("resolving credentials: %w", err)
 		}
 		cfg.Token = resolvedToken
-		clog.Debug().Str("source", tokenSource(flagToken, cfg)).Msg("token resolved")
+		clog.Debug().Str("source", tokenSource(flagToken, flagTokenFile, cfg)).Msg("token resolved")
 
 		if err := cfg.Validate(); err != nil {
 			return err
@@ -199,7 +190,8 @@ func setup() {
 
 func init() {
 	pf := rootCmd.PersistentFlags()
-	pf.StringP("token", "t", "", "PagerDuty API token (overrides PDC_TOKEN)")
+	pf.StringP("token", "t", "", "PagerDuty API token (not recommended - visible in process list)")
+	pf.String("token-file", "", "Read API token from file (preferred over --token)")
 	pf.StringP("team", "T", "", "Team name or ID filter (overrides PDC_TEAM)")
 	pf.StringP("format", "f", "table", `Output format: "table" or "json"`)
 	pf.BoolP("interactive", "i", false, "Launch interactive TUI dashboard")
@@ -212,7 +204,13 @@ func init() {
 	clib.Extend(pf.Lookup("token"), clib.FlagExtra{
 		Group:       "Connection",
 		Placeholder: "TOKEN",
-		Terse:       "API token",
+		Terse:       "API token (not recommended)",
+	})
+	clib.Extend(pf.Lookup("token-file"), clib.FlagExtra{
+		Group:       "Connection",
+		Placeholder: "PATH",
+		Hint:        "file",
+		Terse:       "token file path",
 	})
 	clib.Extend(pf.Lookup("team"), clib.FlagExtra{
 		Group:       "Filters",
@@ -310,12 +308,23 @@ func UserEmailFromContext(cmd *cobra.Command) string {
 
 // resolveToken determines the API token from available sources in precedence order:
 //  1. flagToken   - from --token flag (already resolved by Cobra before PersistentPreRunE)
-//  2. PDC_TOKEN   - env var (always overrides credential_source)
-//  3. keyring     - credential_source = "keyring": KeyringProvider.Provide
-//  4. fallthrough - empty string; Validate() catches the missing token downstream
-func resolveToken(ctx context.Context, cfg *config.Config, flagToken string) (string, error) {
+//  2. tokenFile   - from --token-file flag (mutually exclusive with --token)
+//  3. PDC_TOKEN   - env var (always overrides credential_source)
+//  4. keyring     - credential_source = "keyring": KeyringProvider.Provide
+//  5. fallthrough - empty string; Validate() catches the missing token downstream
+func resolveToken(ctx context.Context, cfg *config.Config, flagToken, tokenFile string) (string, error) {
+	if flagToken != "" && tokenFile != "" {
+		return "", errors.New("--token and --token-file are mutually exclusive")
+	}
 	if flagToken != "" {
 		return flagToken, nil
+	}
+	if tokenFile != "" {
+		b, err := os.ReadFile(tokenFile) //nolint:gosec // user-provided flag path, not attacker-controlled
+		if err != nil {
+			return "", fmt.Errorf("reading token file: %w", err)
+		}
+		return strings.TrimSpace(string(b)), nil
 	}
 	if v := os.Getenv("PDC_TOKEN"); v != "" {
 		return v, nil
@@ -335,9 +344,12 @@ func resolveToken(ctx context.Context, cfg *config.Config, flagToken string) (st
 	}
 }
 
-func tokenSource(flagToken string, cfg *config.Config) string {
+func tokenSource(flagToken, tokenFile string, cfg *config.Config) string {
 	if flagToken != "" {
 		return "flag"
+	}
+	if tokenFile != "" {
+		return "file"
 	}
 	if os.Getenv("PDC_TOKEN") != "" {
 		return "env"

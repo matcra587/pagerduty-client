@@ -201,3 +201,63 @@ func TestSleepContextCancelledStopsTimer(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, context.Canceled, err)
 }
+
+func TestClientDoesNotFollowRedirects(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/redirect", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/target", http.StatusFound)
+	})
+	mux.HandleFunc("/target", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	_, err := c.get(context.Background(), "/redirect", nil)
+
+	// Should NOT follow the redirect - should return the 302 as an error.
+	require.Error(t, err)
+}
+
+func TestWithBaseURL_RejectsPlainHTTP(t *testing.T) {
+	c := NewClient("tok", WithBaseURL("http://evil.com"))
+	assert.Equal(t, defaultBaseURL, c.baseURL)
+}
+
+func TestWithBaseURL_AllowsLocalhost(t *testing.T) {
+	c := NewClient("tok", WithBaseURL("http://localhost:4010"))
+	assert.Equal(t, "http://localhost:4010", c.baseURL)
+}
+
+func TestWithBaseURL_AllowsLoopback(t *testing.T) {
+	c := NewClient("tok", WithBaseURL("http://127.0.0.1:4010"))
+	assert.Equal(t, "http://127.0.0.1:4010", c.baseURL)
+}
+
+func TestWithBaseURL_RejectsLocalhostSubdomain(t *testing.T) {
+	c := NewClient("tok", WithBaseURL("http://localhost.evil.com"))
+	assert.Equal(t, defaultBaseURL, c.baseURL)
+}
+
+func TestWithBaseURL_RejectsLoopbackSubdomain(t *testing.T) {
+	c := NewClient("tok", WithBaseURL("http://127.0.0.1.evil.com"))
+	assert.Equal(t, defaultBaseURL, c.baseURL)
+}
+
+func TestWithBaseURL_AllowsHTTPS(t *testing.T) {
+	c := NewClient("tok", WithBaseURL("https://custom.pagerduty.com"))
+	assert.Equal(t, "https://custom.pagerduty.com", c.baseURL)
+}
+
+func TestRetryAfterDuration_CapsAt60Seconds(t *testing.T) {
+	got := retryAfterDuration("3600", time.Second)
+	assert.Equal(t, 60*time.Second, got)
+}
+
+func TestRetryAfterDuration_PassesThroughReasonableValues(t *testing.T) {
+	got := retryAfterDuration("5", time.Second)
+	assert.Equal(t, 5*time.Second, got)
+}

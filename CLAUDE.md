@@ -73,7 +73,9 @@ internal/tui/        Bubble Tea TUI (dashboard, incidents, components)
 ## Credentials
 
 Tokens never go in config.toml. Resolution chain (highest wins):
-`--token` flag > `PDC_TOKEN` env var > OS keyring.
+`--token` | `--token-file` > `PDC_TOKEN` env var > OS keyring.
+`--token` and `--token-file` are mutually exclusive. Prefer
+`--token-file` for programmatic use (`--token` is visible in `ps`).
 
 Config stores `credential_source = "keyring"` to indicate the backend.
 The `pdc init` wizard validates the token and stores it in the keyring.
@@ -109,6 +111,7 @@ standards - they follow their own conventions:
 | `tests.md` | `**/*_test.go` | Testing: TDD, testify, httptest patterns |
 | `docs.md` | `**/*.md` | Documentation: GFM, structure, tone |
 | `contributing.md` | `**/*` | Contributing: conventional commits, workflow |
+| `security.md` | `**/*.go` | Security: HTTP hardening, credentials, context lifecycle |
 
 CLAUDE.md itself and AGENTS.md (symlink) are excluded from `docs.md`
 rules - they follow the same terse style as the rules files.

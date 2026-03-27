@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/version"
 	"golang.org/x/time/rate"
 )
@@ -58,6 +59,7 @@ const (
 	pdRateLimit     = 15
 	maxRetries      = 3
 	maxResponseSize = 10 << 20
+	maxRetryAfter   = 60 * time.Second
 )
 
 // Client is an HTTP client for the PagerDuty REST API v2.
@@ -73,10 +75,25 @@ type Client struct {
 // Option configures a Client.
 type Option func(*Client)
 
-// WithBaseURL overrides the default PagerDuty API base URL.
+// WithBaseURL overrides the default PagerDuty API base URL. Plain HTTP
+// is rejected unless the host is localhost or 127.0.0.1 (for testing
+// against local mocks).
 func WithBaseURL(u string) Option {
 	return func(c *Client) {
-		c.baseURL = u
+		parsed, err := url.Parse(u)
+		if err != nil {
+			clog.Warn().Str("url", u).Msg("rejecting malformed base URL")
+			return
+		}
+		host := parsed.Hostname()
+		switch {
+		case parsed.Scheme == "https":
+			c.baseURL = u
+		case parsed.Scheme == "http" && (host == "localhost" || host == "127.0.0.1"):
+			c.baseURL = u
+		default:
+			clog.Warn().Str("url", u).Msg("rejecting non-HTTPS base URL")
+		}
 	}
 }
 
@@ -102,12 +119,20 @@ func NewClient(token string, opts ...Option) *Client {
 		token:   token,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
+			CheckRedirect: func(*http.Request, []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
 		},
 		limiter:   rate.NewLimiter(pdRateLimit, pdRateLimit),
 		userAgent: "pagerduty-client/" + version.Version,
 	}
 	for _, o := range opts {
 		o(c)
+	}
+	// Enforce redirect policy after options so WithHTTPClient cannot
+	// accidentally undo the hardening.
+	c.httpClient.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
 	}
 	return c
 }
@@ -172,6 +197,9 @@ func (c *Client) do(ctx context.Context, req *http.Request) ([]byte, error) {
 		}
 
 		switch {
+		case resp.StatusCode >= 300 && resp.StatusCode < 400:
+			return nil, &APIError{StatusCode: resp.StatusCode, Message: "unexpected redirect"}
+
 		case resp.StatusCode == http.StatusTooManyRequests:
 			if attempt == maxRetries {
 				return nil, &APIError{StatusCode: resp.StatusCode, Message: "rate limited"}
@@ -272,7 +300,7 @@ func retryAfterDuration(header string, fallback time.Duration) time.Duration {
 	if err != nil || secs < 0 {
 		return fallback
 	}
-	return max(time.Duration(secs)*time.Second, time.Second)
+	return min(max(time.Duration(secs)*time.Second, time.Second), maxRetryAfter)
 }
 
 func sleepContext(ctx context.Context, d time.Duration) error {

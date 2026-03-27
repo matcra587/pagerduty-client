@@ -16,7 +16,7 @@ func TestNewApp_DefaultFilterState(t *testing.T) {
 	app := New(
 		context.Background(),
 		api.NewClient("test-token"),
-		&config.Config{TestMode: true},
+		config.Default(),
 		"test@example.com",
 	)
 
@@ -35,7 +35,7 @@ func TestIncidentsLoadedMsg_ErrorShowsFlash(t *testing.T) {
 	app := New(
 		context.Background(),
 		api.NewClient("test-token"),
-		&config.Config{TestMode: true},
+		config.Default(),
 		"test@example.com",
 	)
 	msg := incidentsLoadedMsg{err: errors.New("API rate limited")}
@@ -91,7 +91,7 @@ func TestNewApp_HasTabBar(t *testing.T) {
 	app := New(
 		context.Background(),
 		api.NewClient("test-token"),
-		&config.Config{TestMode: true},
+		config.Default(),
 		"test@example.com",
 	)
 

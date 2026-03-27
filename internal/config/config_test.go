@@ -128,11 +128,6 @@ func TestValidate_BadRefreshInterval(t *testing.T) {
 	assert.Contains(t, err.Error(), "refresh interval must be positive")
 }
 
-func TestValidate_TestModeBypass(t *testing.T) {
-	cfg := &config.Config{TestMode: true}
-	require.NoError(t, cfg.Validate())
-}
-
 func TestValidate_OK(t *testing.T) {
 	cfg := config.Default()
 	cfg.Token = "tok"

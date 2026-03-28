@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -32,6 +33,7 @@ type incidentList struct {
 	filterInput  textinput.Model
 	filterActive bool
 	filterState  components.FilterState
+	keys         listKeyMap
 }
 
 func (m incidentList) readOnly() bool {
@@ -49,6 +51,7 @@ func newIncidentList(ctx context.Context, client *api.Client, fromEmail string, 
 		hideService: hideService,
 		selections:  make(map[string]bool),
 		filterInput: fi,
+		keys:        newListKeyMap(),
 	}
 }
 
@@ -57,91 +60,104 @@ func (m incidentList) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
 func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyPressMsg)
+	k, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
 	}
 
 	if m.filterActive {
-		switch key.String() {
-		case "esc":
-			m.filterInput.SetValue("")
-			m.filterInput.Blur()
-			m.filterActive = false
-			m.cursor = 0
-			m.scrollOffset = 0
-			return m, nil
-		case "enter":
-			m.filterInput.Blur()
-			m.filterActive = false
-			return m, nil
-		default:
-			var cmd tea.Cmd
-			m.filterInput, cmd = m.filterInput.Update(key)
-			vis := m.visibleIncidents()
-			if m.cursor >= len(vis) {
-				m.cursor = max(0, len(vis)-1)
-			}
-			if m.scrollOffset > m.cursor {
-				m.scrollOffset = m.cursor
-			}
-			return m, cmd
-		}
+		return m.updateFilterInput(k)
 	}
+	return m.updateNormalKey(k)
+}
 
+// updateFilterInput handles key presses while the filter input is focused.
+// Uses string matching rather than key.Binding because esc/enter have
+// different semantics here (cancel/confirm filter) than in normal mode
+// (deselect/open detail).
+func (m incidentList) updateFilterInput(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch k.String() {
+	case "esc":
+		m.filterInput.SetValue("")
+		m.filterInput.Blur()
+		m.filterActive = false
+		m.cursor = 0
+		m.scrollOffset = 0
+		return m, nil
+	case "enter":
+		m.filterInput.Blur()
+		m.filterActive = false
+		return m, nil
+	default:
+		var cmd tea.Cmd
+		m.filterInput, cmd = m.filterInput.Update(k)
+		vis := m.visibleIncidents()
+		if m.cursor >= len(vis) {
+			m.cursor = max(0, len(vis)-1)
+		}
+		if m.scrollOffset > m.cursor {
+			m.scrollOffset = m.cursor
+		}
+		return m, cmd
+	}
+}
+
+// updateNormalKey handles key presses in normal (non-filter) mode.
+func (m incidentList) updateNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	vis := m.visibleIncidents()
+	km := m.keys
 
-	switch key.String() {
-	case "/":
+	switch {
+	case key.Matches(msg, km.Filter):
 		m.filterActive = true
 		cmd := m.filterInput.Focus()
 		return m, tea.Batch(cmd, textinput.Blink)
-	case "j", "down":
-		if m.cursor < len(vis)-1 {
-			m.cursor++
-		}
-	case "k", "up":
+	case key.Matches(msg, km.Up):
 		if m.cursor > 0 {
 			m.cursor--
 		}
-	case "shift+down":
+	case key.Matches(msg, km.Down):
+		if m.cursor < len(vis)-1 {
+			m.cursor++
+		}
+	case key.Matches(msg, km.SelectDn):
 		if len(vis) > 0 {
 			m.selections[vis[m.cursor].ID] = true
 			if m.cursor < len(vis)-1 {
 				m.cursor++
 			}
 		}
-	case "shift+up":
+	case key.Matches(msg, km.SelectUp):
 		if len(vis) > 0 {
 			m.selections[vis[m.cursor].ID] = true
 			if m.cursor > 0 {
 				m.cursor--
 			}
 		}
-	case "space":
+	case key.Matches(msg, km.Toggle):
 		if len(vis) > 0 {
 			m.selections[vis[m.cursor].ID] = !m.selections[vis[m.cursor].ID]
 			if !m.selections[vis[m.cursor].ID] {
 				delete(m.selections, vis[m.cursor].ID)
 			}
 		}
-	case "ctrl+a":
+	case key.Matches(msg, km.SelectAll):
 		for _, inc := range vis {
 			m.selections[inc.ID] = true
 		}
-	case "esc":
+	case key.Matches(msg, km.Deselect):
 		if len(m.selections) > 0 {
 			m.selections = make(map[string]bool)
 			return m, nil
 		}
-	case "enter":
+	case key.Matches(msg, km.Open):
 		if len(vis) > 0 {
 			inc := vis[m.cursor]
 			return m, func() tea.Msg {
 				return IncidentSelected{Incident: inc}
 			}
 		}
-	case "a":
+	case key.Matches(msg, km.Ack):
 		if len(vis) == 0 {
 			return m, nil
 		}
@@ -150,7 +166,7 @@ func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return incidentActionPendingMsg{op: "ack", id: inc.ID}
 		}
 		return m, tea.Batch(pending, m.ackCmd())
-	case "s":
+	case key.Matches(msg, km.Snooze):
 		if len(vis) > 0 {
 			id := vis[m.cursor].ID
 			return m, func() tea.Msg {
@@ -162,7 +178,7 @@ func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-	case "n":
+	case key.Matches(msg, km.Note):
 		if len(vis) > 0 {
 			id := vis[m.cursor].ID
 			return m, func() tea.Msg {
@@ -173,14 +189,15 @@ func (m incidentList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-	case "g":
+	case key.Matches(msg, km.Top):
 		m.cursor = 0
-	case "G":
+	case key.Matches(msg, km.Bottom):
 		if len(vis) > 0 {
 			m.cursor = len(vis) - 1
 		}
 	}
 
+	// Clamp scroll offset to keep cursor visible.
 	maxRows := m.viewportRows()
 	if m.cursor < m.scrollOffset {
 		m.scrollOffset = m.cursor

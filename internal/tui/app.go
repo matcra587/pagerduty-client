@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -90,6 +91,7 @@ type App struct {
 	tabs           []topTab
 	activeTab      int
 	bodyH          int
+	keys           appKeyMap
 }
 
 // New constructs an App wired to the given client, config and acting user email.
@@ -134,6 +136,7 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 			{label: "Incidents"},
 		},
 		activeTab: 0,
+		keys:      newAppKeyMap(),
 	}
 	a.statusBar.LastRefresh = time.Now()
 	return a
@@ -150,7 +153,8 @@ func (a App) Init() tea.Cmd {
 	)
 }
 
-// Update handles global keys and routes remaining messages to the active view.
+// Update handles all messages, routing key presses to updateKeyPress
+// and dispatching other message types inline.
 func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -159,9 +163,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.statusBar.Width = msg.Width
 
 		// Compute body height: total minus header and footer chrome.
-		// Always reserve 1 line for the header (tab bar) so bodyH
-		// stays consistent across view transitions without needing
-		// recomputation when switching between dashboard and detail.
 		const headerH = 2 // tab bar + border-bottom separator
 		const footerH = 2 // labelled border + hint line
 		a.bodyH = max(a.height-headerH-footerH, 1)
@@ -177,231 +178,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case tea.KeyPressMsg:
-		if a.textInput.Visible {
-			tm, cmd := a.textInput.Update(msg)
-			a.textInput = tm.(components.TextInput)
-			return a, cmd
-		}
-
-		if a.confirm.Visible {
-			cm, cmd := a.confirm.Update(msg)
-			a.confirm = cm.(components.Confirm)
-			return a, cmd
-		}
-
-		if a.teamSwitch.Visible {
-			tm, cmd := a.teamSwitch.Update(msg)
-			a.teamSwitch = tm.(components.TeamSwitcher)
-			return a, cmd
-		}
-
-		if a.priorityPicker.Visible {
-			pm, cmd := a.priorityPicker.Update(msg)
-			a.priorityPicker = pm.(components.PriorityPicker)
-			return a, cmd
-		}
-
-		if a.filterOpts.Visible {
-			fm, cmd := a.filterOpts.Update(msg)
-			a.filterOpts = fm.(components.FilterOptions)
-			return a, cmd
-		}
-
-		if a.help.Visible {
-			hm, cmd := a.help.Update(msg)
-			a.help = hm.(components.Help)
-			return a, cmd
-		}
-
-		if a.current == viewDashboard && a.dashboard.FilterActive() {
-			dm, cmd := a.dashboard.Update(msg)
-			a.dashboard = dm.(Dashboard)
-			return a, cmd
-		}
-
-		if msg.String() == "esc" && a.current == viewDetail {
-			a.current = viewDashboard
-			return a, nil
-		}
-
-		// Top-level tab switching (dashboard view only).
-		if a.current == viewDashboard {
-			if idx := tabIndexFromKey(msg.String()); idx >= 0 && idx < len(a.tabs) {
-				a.activeTab = idx
-				return a, nil
-			}
-			switch msg.String() {
-			case "tab":
-				a.activeTab = (a.activeTab + 1) % len(a.tabs)
-				return a, nil
-			case "shift+tab":
-				a.activeTab = (a.activeTab - 1 + len(a.tabs)) % len(a.tabs)
-				return a, nil
-			}
-		}
-
-		switch msg.String() {
-		case "q", "ctrl+c":
-			a.cancel()
-			return a, tea.Quit
-		case "?":
-			a.help.Visible = true
-			if a.current == viewDetail {
-				a.help.CurrentView = "detail"
-			} else {
-				a.help.CurrentView = "dashboard"
-			}
-			return a, nil
-		case "R":
-			a.paused = !a.paused
-			a.statusBar.Paused = a.paused
-			if !a.paused {
-				return a, tickCmd(a.interval)
-			}
-			return a, nil
-		case "O":
-			a.filterOpts = a.filterOpts.Show()
-			return a, nil
-		case "t":
-			ts, cmd := a.teamSwitch.Show(a.fetchTeamsCmd())
-			a.teamSwitch = ts
-			return a, cmd
-		case "a":
-			if a.current == viewDashboard {
-				if len(a.dashboard.incidents.selections) > 0 {
-					n := len(a.dashboard.incidents.selections)
-					a.confirm = a.confirm.Show(
-						"Acknowledge incidents",
-						fmt.Sprintf("Acknowledge %d selected incidents?", n),
-						a.dashboard.incidents.batchAckCmd(),
-					)
-					return a, nil
-				}
-				dm, cmd := a.dashboard.Update(msg)
-				a.dashboard = dm.(Dashboard)
-				return a, cmd
-			}
-		case "r":
-			if a.current == viewDashboard {
-				if len(a.dashboard.incidents.selections) > 0 {
-					n := len(a.dashboard.incidents.selections)
-					a.confirm = a.confirm.Show(
-						"Resolve incidents",
-						fmt.Sprintf("Resolve %d selected incidents?", n),
-						a.dashboard.incidents.batchResolveCmd(),
-					)
-					return a, nil
-				}
-				vis := a.dashboard.incidents.visibleIncidents()
-				if len(vis) > 0 {
-					inc := vis[a.dashboard.incidents.cursor]
-					return a, func() tea.Msg {
-						return showInputMsg{
-							action:      "resolve",
-							incidentID:  inc.ID,
-							prompt:      fmt.Sprintf("Resolve %s - add a note (enter to skip):", inc.ID),
-							placeholder: "",
-						}
-					}
-				}
-				return a, nil
-			}
-		case "alt+r":
-			if a.current == viewDashboard {
-				if len(a.dashboard.incidents.selections) > 0 {
-					return a, a.dashboard.incidents.batchResolveCmd()
-				}
-				return a, a.dashboard.incidents.resolveCmd()
-			}
-		case "e":
-			if a.current == viewDashboard {
-				vis := a.dashboard.incidents.visibleIncidents()
-				if len(vis) > 0 {
-					inc := vis[a.dashboard.incidents.cursor]
-					a.confirm = a.confirm.Show(
-						"Escalate incident",
-						fmt.Sprintf("Escalate %s?", inc.ID),
-						a.escalateCmd(inc.ID),
-					)
-				}
-				return a, nil
-			}
-		case "alt+e":
-			if a.current == viewDashboard {
-				vis := a.dashboard.incidents.visibleIncidents()
-				if len(vis) > 0 {
-					inc := vis[a.dashboard.incidents.cursor]
-					return a, a.escalateCmd(inc.ID)
-				}
-				return a, nil
-			}
-		case "m":
-			if a.current == viewDashboard {
-				selected := a.dashboard.incidents.selectedIncidents()
-				if len(selected) >= 2 {
-					a.confirm = a.confirm.Show(
-						"Merge incidents",
-						fmt.Sprintf("Merge %d incidents?", len(selected)),
-						a.mergeCmd(selected),
-					)
-				}
-				return a, nil
-			}
-		case "alt+m":
-			if a.current == viewDashboard {
-				selected := a.dashboard.incidents.selectedIncidents()
-				if len(selected) >= 2 {
-					return a, a.mergeCmd(selected)
-				}
-				return a, nil
-			}
-		case "y":
-			var url string
-			switch a.current {
-			case viewDashboard:
-				vis := a.dashboard.incidents.visibleIncidents()
-				if len(vis) > 0 {
-					url = vis[a.dashboard.incidents.cursor].HTMLURL
-				}
-			case viewDetail:
-				url = a.detail.incident.HTMLURL
-			}
-			if url != "" {
-				if err := clipboard.WriteAll(url); err != nil {
-					return a, a.flashResult("Failed to copy URL", true)
-				}
-				return a, a.flashResult("Copied URL", false)
-			}
-			return a, nil
-		case "o":
-			if a.current == viewDashboard {
-				vis := a.dashboard.incidents.visibleIncidents()
-				if len(vis) > 0 {
-					inc := vis[a.dashboard.incidents.cursor]
-					url := inc.HTMLURL
-					if url != "" && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
-						return a, openBrowser(a.ctx, url)
-					}
-				}
-				return a, nil
-			}
-			if a.current == viewDetail {
-				url := a.detail.incident.HTMLURL
-				if url != "" && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
-					return a, openBrowser(a.ctx, url)
-				}
-				return a, nil
-			}
-		case "alt+o":
-			if a.current == viewDashboard {
-				return a, a.flashResult("Open detail view first", true)
-			}
-			url := a.resolveExternalLink()
-			if url != "" && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
-				return a, openBrowser(a.ctx, url)
-			}
-			return a, a.flashResult("No external link configured", true)
-		}
+		return a.updateKeyPress(msg)
 
 	case spinner.TickMsg:
 		if a.loading {
@@ -429,14 +206,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case incidentsLoadedMsg:
 		a.loading = false
 		if msg.err != nil {
-			return a, a.flashResult(fmt.Sprintf("Fetch failed: %v", msg.err), true)
+			a, cmd := a.flashResult(fmt.Sprintf("Fetch failed: %v", msg.err), true)
+			return a, cmd
 		}
 		a.dashboard.SetIncidents(msg.incidents)
 		a.updateStatusBarCounts(msg.incidents)
 		return a, nil
 
 	case incidentActionPendingMsg:
-		a.setStatusPending(msg.op, msg.id)
+		a = a.setStatusPending(msg.op, msg.id)
 		return a, nil
 
 	case clearStatusMsg:
@@ -472,7 +250,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.detail = newIncidentDetail(a.ctx, a.client, a.cfg, a.ansi, msg.Incident)
 		a.detail.width = a.width
 		a.detail.height = a.bodyH
-		vpHeight := max(a.bodyH, 1) // title + tabs now in header zone
+		vpHeight := max(a.bodyH, 1)
 		for i := range a.detail.viewports {
 			a.detail.viewports[i].SetWidth(a.width)
 			a.detail.viewports[i].SetHeight(vpHeight)
@@ -497,10 +275,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.reloadAfterAction("Reassigned " + msg.ID)
 
 	case statusMsg:
-		return a, a.flashResult(string(msg), false)
+		a, cmd := a.flashResult(string(msg), false)
+		return a, cmd
 
 	case incidentErrMsg:
-		return a, a.flashResult(msg.op+": "+msg.err.Error(), true)
+		a, cmd := a.flashResult(msg.op+": "+msg.err.Error(), true)
+		return a, cmd
 
 	case showInputMsg:
 		a.textInput = a.textInput.Show(msg.action, msg.incidentID, msg.prompt, msg.placeholder)
@@ -508,7 +288,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case components.InputSubmitted:
 		if msg.Action == "note" && strings.TrimSpace(msg.Value) == "" {
-			return a, a.flashResult("Note cannot be empty", true)
+			a, cmd := a.flashResult("Note cannot be empty", true)
+			return a, cmd
 		}
 		return a, a.executeInputAction(msg)
 
@@ -580,19 +361,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		a.loading = true
+		a, flashCmd := a.flashResult(text, msg.failures > 0)
 		return a, tea.Batch(
-			a.flashResult(text, msg.failures > 0),
+			flashCmd,
 			a.fetchIncidentsCmd(),
 			a.spinner.Tick,
 		)
 
 	case browserOpenedMsg:
 		if msg.err != nil {
-			return a, a.flashResult("Failed to open browser: "+msg.err.Error(), true)
+			a, cmd := a.flashResult("Failed to open browser: "+msg.err.Error(), true)
+			return a, cmd
 		}
 		return a, nil
 	}
 
+	// Non-key messages for the active view.
 	switch a.current {
 	case viewDashboard:
 		dm, cmd := a.dashboard.Update(msg)
@@ -605,6 +389,262 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return a, nil
+}
+
+// updateKeyPress handles all key press messages, routing through
+// overlays first, then global keys, then view-specific handlers.
+func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	// Overlay routing cascade - active overlay consumes the key.
+	if a.textInput.Visible {
+		tm, cmd := a.textInput.Update(msg)
+		a.textInput = tm.(components.TextInput)
+		return a, cmd
+	}
+	if a.confirm.Visible {
+		cm, cmd := a.confirm.Update(msg)
+		a.confirm = cm.(components.Confirm)
+		return a, cmd
+	}
+	if a.teamSwitch.Visible {
+		tm, cmd := a.teamSwitch.Update(msg)
+		a.teamSwitch = tm.(components.TeamSwitcher)
+		return a, cmd
+	}
+	if a.priorityPicker.Visible {
+		pm, cmd := a.priorityPicker.Update(msg)
+		a.priorityPicker = pm.(components.PriorityPicker)
+		return a, cmd
+	}
+	if a.filterOpts.Visible {
+		fm, cmd := a.filterOpts.Update(msg)
+		a.filterOpts = fm.(components.FilterOptions)
+		return a, cmd
+	}
+	if a.help.Visible {
+		hm, cmd := a.help.Update(msg)
+		a.help = hm.(components.Help)
+		return a, cmd
+	}
+
+	// Filter input is active - let the dashboard consume the key.
+	if a.current == viewDashboard && a.dashboard.FilterActive() {
+		dm, cmd := a.dashboard.Update(msg)
+		a.dashboard = dm.(Dashboard)
+		return a, cmd
+	}
+
+	// Esc in detail view returns to dashboard.
+	if key.Matches(msg, a.keys.Back) && a.current == viewDetail {
+		a.current = viewDashboard
+		return a, nil
+	}
+
+	// Top-level tab switching (dashboard view only).
+	if a.current == viewDashboard {
+		// Number keys are dynamic (tab count varies), so string matching
+		// is used here rather than key.Binding.
+		if idx := tabIndexFromKey(msg.String()); idx >= 0 && idx < len(a.tabs) {
+			a.activeTab = idx
+			return a, nil
+		}
+		switch {
+		case key.Matches(msg, a.keys.Tab):
+			a.activeTab = (a.activeTab + 1) % len(a.tabs)
+			return a, nil
+		case key.Matches(msg, a.keys.ShiftTab):
+			a.activeTab = (a.activeTab - 1 + len(a.tabs)) % len(a.tabs)
+			return a, nil
+		}
+	}
+
+	km := a.keys
+
+	// Global keys.
+	switch {
+	case key.Matches(msg, km.Quit):
+		a.cancel()
+		return a, tea.Quit
+	case key.Matches(msg, km.Help):
+		a.help.Visible = true
+		if a.current == viewDetail {
+			a.help.CurrentView = "detail"
+		} else {
+			a.help.CurrentView = "dashboard"
+		}
+		return a, nil
+	case key.Matches(msg, km.TogglePause):
+		a.paused = !a.paused
+		a.statusBar.Paused = a.paused
+		if !a.paused {
+			return a, tickCmd(a.interval)
+		}
+		return a, nil
+	case key.Matches(msg, km.FilterOpts):
+		a.filterOpts = a.filterOpts.Show()
+		return a, nil
+	case key.Matches(msg, km.TeamSwitch):
+		ts, cmd := a.teamSwitch.Show(a.fetchTeamsCmd())
+		a.teamSwitch = ts
+		return a, cmd
+	case key.Matches(msg, km.CopyURL):
+		var url string
+		switch a.current {
+		case viewDashboard:
+			vis := a.dashboard.incidents.visibleIncidents()
+			if len(vis) > 0 {
+				url = vis[a.dashboard.incidents.cursor].HTMLURL
+			}
+		case viewDetail:
+			url = a.detail.incident.HTMLURL
+		}
+		if url != "" {
+			if err := clipboard.WriteAll(url); err != nil {
+				a, cmd := a.flashResult("Failed to copy URL", true)
+				return a, cmd
+			}
+			a, cmd := a.flashResult("Copied URL", false)
+			return a, cmd
+		}
+		return a, nil
+	case key.Matches(msg, km.Open):
+		if a.current == viewDashboard {
+			vis := a.dashboard.incidents.visibleIncidents()
+			if len(vis) > 0 {
+				inc := vis[a.dashboard.incidents.cursor]
+				url := inc.HTMLURL
+				if url != "" && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+					return a, openBrowser(a.ctx, url)
+				}
+			}
+			return a, nil
+		}
+		if a.current == viewDetail {
+			url := a.detail.incident.HTMLURL
+			if url != "" && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+				return a, openBrowser(a.ctx, url)
+			}
+			return a, nil
+		}
+	case key.Matches(msg, km.OpenExt):
+		if a.current == viewDashboard {
+			a, cmd := a.flashResult("Open detail view first", true)
+			return a, cmd
+		}
+		url := a.resolveExternalLink()
+		if url != "" && (strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://")) {
+			return a, openBrowser(a.ctx, url)
+		}
+		a, cmd := a.flashResult("No external link configured", true)
+		return a, cmd
+	}
+
+	// Dashboard-only action keys.
+	if a.current == viewDashboard {
+		return a.updateDashboardKey(msg)
+	}
+
+	// Forward unhandled keys to the active view.
+	if a.current == viewDetail {
+		dm, cmd := a.detail.Update(msg)
+		a.detail = dm.(incidentDetail)
+		return a, cmd
+	}
+
+	return a, nil
+}
+
+// updateDashboardKey handles dashboard-specific action keys.
+func (a App) updateDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	km := a.keys
+
+	switch {
+	case key.Matches(msg, km.Ack):
+		if len(a.dashboard.incidents.selections) > 0 {
+			n := len(a.dashboard.incidents.selections)
+			a.confirm = a.confirm.Show(
+				"Acknowledge incidents",
+				fmt.Sprintf("Acknowledge %d selected incidents?", n),
+				a.dashboard.incidents.batchAckCmd(),
+			)
+			return a, nil
+		}
+		dm, cmd := a.dashboard.Update(msg)
+		a.dashboard = dm.(Dashboard)
+		return a, cmd
+
+	case key.Matches(msg, km.Resolve):
+		if len(a.dashboard.incidents.selections) > 0 {
+			n := len(a.dashboard.incidents.selections)
+			a.confirm = a.confirm.Show(
+				"Resolve incidents",
+				fmt.Sprintf("Resolve %d selected incidents?", n),
+				a.dashboard.incidents.batchResolveCmd(),
+			)
+			return a, nil
+		}
+		vis := a.dashboard.incidents.visibleIncidents()
+		if len(vis) > 0 {
+			inc := vis[a.dashboard.incidents.cursor]
+			return a, func() tea.Msg {
+				return showInputMsg{
+					action:      "resolve",
+					incidentID:  inc.ID,
+					prompt:      fmt.Sprintf("Resolve %s - add a note (enter to skip):", inc.ID),
+					placeholder: "",
+				}
+			}
+		}
+		return a, nil
+
+	case key.Matches(msg, km.ResolveNow):
+		if len(a.dashboard.incidents.selections) > 0 {
+			return a, a.dashboard.incidents.batchResolveCmd()
+		}
+		return a, a.dashboard.incidents.resolveCmd()
+
+	case key.Matches(msg, km.Escalate):
+		vis := a.dashboard.incidents.visibleIncidents()
+		if len(vis) > 0 {
+			inc := vis[a.dashboard.incidents.cursor]
+			a.confirm = a.confirm.Show(
+				"Escalate incident",
+				fmt.Sprintf("Escalate %s?", inc.ID),
+				a.escalateCmd(inc.ID),
+			)
+		}
+		return a, nil
+
+	case key.Matches(msg, km.EscalateNow):
+		vis := a.dashboard.incidents.visibleIncidents()
+		if len(vis) > 0 {
+			inc := vis[a.dashboard.incidents.cursor]
+			return a, a.escalateCmd(inc.ID)
+		}
+		return a, nil
+
+	case key.Matches(msg, km.Merge):
+		selected := a.dashboard.incidents.selectedIncidents()
+		if len(selected) >= 2 {
+			a.confirm = a.confirm.Show(
+				"Merge incidents",
+				fmt.Sprintf("Merge %d incidents?", len(selected)),
+				a.mergeCmd(selected),
+			)
+		}
+		return a, nil
+
+	case key.Matches(msg, km.MergeNow):
+		selected := a.dashboard.incidents.selectedIncidents()
+		if len(selected) >= 2 {
+			return a, a.mergeCmd(selected)
+		}
+		return a, nil
+	}
+
+	// Unhandled key - forward to dashboard sub-model.
+	dm, cmd := a.dashboard.Update(msg)
+	a.dashboard = dm.(Dashboard)
+	return a, cmd
 }
 
 // View composes three zones - header (tab bar), body (content) and footer
@@ -750,9 +790,9 @@ func (a App) countPills() string {
 
 // tabIndexFromKey returns the zero-based tab index for number keys "1"-"9",
 // or -1 if the key is not a tab switch key.
-func tabIndexFromKey(key string) int {
-	if len(key) == 1 && key[0] >= '1' && key[0] <= '9' {
-		return int(key[0] - '1')
+func tabIndexFromKey(k string) int {
+	if len(k) == 1 && k[0] >= '1' && k[0] <= '9' {
+		return int(k[0] - '1')
 	}
 	return -1
 }
@@ -905,7 +945,7 @@ func capitalise(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-func (a *App) setStatusPending(op, id string) {
+func (a App) setStatusPending(op, id string) App {
 	var verb string
 	switch op {
 	case "resolve":
@@ -914,24 +954,28 @@ func (a *App) setStatusPending(op, id string) {
 		verb = "Escalating"
 	case "merge":
 		verb = "Merging"
+	case "snooze":
+		verb = "Snoozing"
 	default:
 		verb = capitalise(op) + "ing"
 	}
 	a.statusBar.StatusMsg = theme.StatusOK.Render(verb + " " + id + "...")
+	return a
 }
 
 // reloadAfterAction sets loading state and returns a batch of commands to
 // flash a status message, refresh the incident list and tick the spinner.
-func (a *App) reloadAfterAction(text string) (tea.Model, tea.Cmd) {
+func (a App) reloadAfterAction(text string) (tea.Model, tea.Cmd) {
 	a.loading = true
-	return *a, tea.Batch(
-		a.flashResult(text, false),
+	a, flashCmd := a.flashResult(text, false)
+	return a, tea.Batch(
+		flashCmd,
 		a.fetchIncidentsCmd(),
 		a.spinner.Tick,
 	)
 }
 
-func (a *App) flashResult(msg string, isErr bool) tea.Cmd {
+func (a App) flashResult(msg string, isErr bool) (App, tea.Cmd) {
 	a.statusID++
 	id := a.statusID
 	if isErr {
@@ -939,9 +983,10 @@ func (a *App) flashResult(msg string, isErr bool) tea.Cmd {
 	} else {
 		a.statusBar.StatusMsg = theme.StatusOK.Render("✓ " + msg)
 	}
-	return tea.Tick(4*time.Second, func(time.Time) tea.Msg {
+	cmd := tea.Tick(4*time.Second, func(time.Time) tea.Msg {
 		return clearStatusMsg{id: id}
 	})
+	return a, cmd
 }
 
 func (a App) updatePriorityCmd(incidentID, priorityName string) tea.Cmd {

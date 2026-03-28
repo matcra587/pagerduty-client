@@ -23,7 +23,7 @@ var versionCmd = &cobra.Command{
 		info := version.Info()
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "version", info, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "version", output.ResourceNone, info, nil, nil)
 		}
 
 		_, _ = fmt.Fprintln(os.Stdout, info.String())

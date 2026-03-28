@@ -78,7 +78,7 @@ var oncallCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(oncalls)}
-			return output.RenderAgentJSON(os.Stdout, "oncall", oncalls, &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "oncall", output.ResourceOnCall, oncalls, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, oncalls, isTTY)
 		default:

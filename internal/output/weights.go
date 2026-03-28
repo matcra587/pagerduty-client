@@ -1,0 +1,172 @@
+package output
+
+import (
+	"os"
+	"strconv"
+)
+
+// Resource identifies a PagerDuty resource type for weight-based
+// field selection during compact output.
+type Resource string
+
+const (
+	ResourceIncident Resource = "incident"
+	ResourceAlert    Resource = "alert"
+	ResourceService  Resource = "service"
+	ResourceUser     Resource = "user"
+	ResourceTeam     Resource = "team"
+	ResourceSchedule Resource = "schedule"
+	ResourceOnCall   Resource = "oncall"
+	ResourceNone     Resource = ""
+)
+
+// ResourceWeights defines per-field importance weights and a token
+// budget for a resource type. Higher weights mean the field is more
+// likely to survive compaction.
+type ResourceWeights struct {
+	Fields        map[string]float64
+	DefaultWeight float64
+	Budget        int
+}
+
+// ForField returns the weight for field, falling back to DefaultWeight
+// if the field is not listed.
+func (w ResourceWeights) ForField(field string) float64 {
+	if v, ok := w.Fields[field]; ok {
+		return v
+	}
+
+	return w.DefaultWeight
+}
+
+// resourceWeights holds the per-resource weight profiles.
+var resourceWeights = map[Resource]ResourceWeights{
+	ResourceIncident: {
+		Budget:        250,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":                    1.0,
+			"title":                 1.0,
+			"status":                1.0,
+			"urgency":               1.0,
+			"priority":              1.0,
+			"service":               0.9,
+			"assignments":           0.9,
+			"incident_number":       0.8,
+			"created_at":            0.8,
+			"escalation_policy":     0.7,
+			"teams":                 0.7,
+			"acknowledgements":      0.7,
+			"body":                  0.8,
+			"alert_counts":          0.6,
+			"last_status_change_at": 0.5,
+			"html_url":              0.4,
+			"description":           0.3,
+			"incident_key":          0.3,
+		},
+	},
+	ResourceAlert: {
+		Budget:        150,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":          1.0,
+			"status":      1.0,
+			"severity":    0.9,
+			"service":     0.8,
+			"incident":    0.8,
+			"body":        0.7,
+			"summary":     0.7,
+			"created_at":  0.7,
+			"suppressed":  0.6,
+			"alert_key":   0.5,
+			"integration": 0.4,
+			"html_url":    0.3,
+		},
+	},
+	ResourceService: {
+		Budget:        120,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":                      1.0,
+			"name":                    1.0,
+			"status":                  0.9,
+			"escalation_policy":       0.8,
+			"teams":                   0.7,
+			"last_incident_timestamp": 0.6,
+			"description":             0.5,
+			"html_url":                0.3,
+		},
+	},
+	ResourceUser: {
+		Budget:        100,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":        1.0,
+			"name":      1.0,
+			"email":     0.8,
+			"teams":     0.7,
+			"role":      0.5,
+			"time_zone": 0.4,
+			"html_url":  0.3,
+		},
+	},
+	ResourceTeam: {
+		Budget:        60,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":          1.0,
+			"name":        1.0,
+			"parent":      0.5,
+			"description": 0.4,
+			"html_url":    0.3,
+		},
+	},
+	ResourceSchedule: {
+		Budget:        150,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":                  1.0,
+			"name":                1.0,
+			"users":               0.7,
+			"escalation_policies": 0.7,
+			"time_zone":           0.6,
+			"description":         0.3,
+			"html_url":            0.3,
+		},
+	},
+	ResourceOnCall: {
+		Budget:        100,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"user":              1.0,
+			"escalation_policy": 0.9,
+			"escalation_level":  0.9,
+			"schedule":          0.8,
+			"start":             0.7,
+			"end":               0.7,
+		},
+	},
+}
+
+// WeightsForResource looks up the weight profile for a resource type.
+// It returns false if no profile is defined.
+func WeightsForResource(r Resource) (ResourceWeights, bool) {
+	w, ok := resourceWeights[r]
+	return w, ok
+}
+
+// budgetOverride reads PDC_AGENT_BUDGET from the environment and
+// returns its value as an int. Returns 0 if unset, invalid or negative.
+func budgetOverride() int {
+	s := os.Getenv("PDC_AGENT_BUDGET")
+	if s == "" {
+		return 0
+	}
+
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
+
+	return n
+}

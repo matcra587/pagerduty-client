@@ -52,7 +52,7 @@ var scheduleListCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(schedules)}
-			return output.RenderAgentJSON(os.Stdout, "schedule list", schedules, &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "schedule list", output.ResourceSchedule, schedules, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, schedules, isTTY)
 		default:
@@ -86,7 +86,7 @@ var scheduleShowCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "schedule show", schedule, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "schedule show", output.ResourceSchedule, schedule, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, schedule, isTTY)
 		default:
@@ -138,7 +138,7 @@ var scheduleOverrideCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "schedule override", map[string]string{
+			return output.RenderAgentJSON(os.Stdout, "schedule override", output.ResourceNone, map[string]string{
 				"schedule": args[0],
 				"user":     userID,
 				"start":    start,

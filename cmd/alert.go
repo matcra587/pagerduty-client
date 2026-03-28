@@ -54,7 +54,7 @@ var alertListCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(alerts)}
-			return output.RenderAgentJSON(os.Stdout, "alert list", output.ProjectAlertsForAgent(alerts), &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "alert list", output.ResourceAlert, alerts, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, alerts, isTTY)
 		default:
@@ -93,7 +93,7 @@ var alertShowCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "alert show", output.ProjectAlertForAgent(*alert), nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "alert show", output.ResourceAlert, alert, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, alert, isTTY)
 		default:

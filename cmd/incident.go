@@ -114,7 +114,7 @@ var incidentListCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(incidents)}
-			return output.RenderAgentJSON(os.Stdout, "incident list", output.ProjectIncidentsForAgent(incidents), &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident list", output.ResourceIncident, incidents, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, incidents, isTTY)
 		default:
@@ -153,7 +153,7 @@ var incidentShowCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "incident show", output.ProjectIncidentForAgent(*incident), nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident show", output.ResourceIncident, incident, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, incident, isTTY)
 		default:
@@ -190,7 +190,7 @@ var incidentAckCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident ack", map[string]string{"id": args[0], "status": "acknowledged"}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident ack", output.ResourceNone, map[string]string{"id": args[0], "status": "acknowledged"}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident acknowledged")
 		return nil
@@ -236,7 +236,7 @@ var incidentResolveCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident resolve", map[string]string{"id": args[0], "status": "resolved"}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident resolve", output.ResourceNone, map[string]string{"id": args[0], "status": "resolved"}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident resolved")
 		return nil
@@ -268,7 +268,7 @@ var incidentSnoozeCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident snooze", map[string]string{"id": args[0], "duration": durationStr}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident snooze", output.ResourceNone, map[string]string{"id": args[0], "duration": durationStr}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Duration("duration", dur).Msg("Incident snoozed")
 		return nil
@@ -299,7 +299,7 @@ var incidentReassignCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident reassign", map[string]any{"id": args[0], "assignees": users}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident reassign", output.ResourceNone, map[string]any{"id": args[0], "assignees": users}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Strs("users", users).Msg("Incident reassigned")
 		return nil
@@ -330,7 +330,7 @@ var incidentMergeCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident merge", map[string]any{"target": args[0], "sources": sources}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident merge", output.ResourceNone, map[string]any{"target": args[0], "sources": sources}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Strs("sources", sources).Msg("Incidents merged")
 		return nil
@@ -361,7 +361,7 @@ var incidentNoteCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident note", map[string]string{"id": args[0]}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident note", output.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Note added")
 		return nil
@@ -433,7 +433,7 @@ func showIncidentPayload(ctx context.Context, client *api.Client, det agent.Dete
 	switch format {
 	case output.FormatAgentJSON:
 		data := payloadResult(summary, body)
-		return output.RenderAgentJSON(os.Stdout, "incident show --payload", data, nil, nil)
+		return output.RenderAgentJSON(os.Stdout, "incident show --payload", output.ResourceNone, data, nil, nil)
 	case output.FormatJSON:
 		data := payloadResult(summary, body)
 		return output.RenderJSON(os.Stdout, data, isTTY)

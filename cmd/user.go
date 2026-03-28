@@ -55,7 +55,7 @@ var userListCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(users)}
-			return output.RenderAgentJSON(os.Stdout, "user list", users, &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "user list", output.ResourceUser, users, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, users, isTTY)
 		default:
@@ -89,7 +89,7 @@ var userShowCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "user show", user, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "user show", output.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, user, isTTY)
 		default:
@@ -131,7 +131,7 @@ var userMeCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "user me", user, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "user me", output.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, user, isTTY)
 		default:

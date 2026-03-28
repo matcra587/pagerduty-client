@@ -34,7 +34,7 @@ func TestRenderAgentJSON(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	incidents := testutil.LoadIncidents(t)
-	err := RenderAgentJSON(&buf, "incident list", incidents, nil, nil)
+	err := RenderAgentJSON(&buf, "incident list", ResourceIncident, incidents, nil, nil)
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), `"success":true`)
 	assert.Contains(t, buf.String(), `"command":"incident list"`)

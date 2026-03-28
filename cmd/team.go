@@ -54,7 +54,7 @@ var teamListCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(teams)}
-			return output.RenderAgentJSON(os.Stdout, "team list", teams, &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "team list", output.ResourceTeam, teams, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, teams, isTTY)
 		default:
@@ -88,7 +88,7 @@ var teamShowCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "team show", team, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "team show", output.ResourceTeam, team, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, team, isTTY)
 		default:

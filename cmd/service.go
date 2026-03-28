@@ -57,7 +57,7 @@ var serviceListCmd = &cobra.Command{
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(services)}
-			return output.RenderAgentJSON(os.Stdout, "service list", services, &meta, nil)
+			return output.RenderAgentJSON(os.Stdout, "service list", output.ResourceService, services, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, services, isTTY)
 		default:
@@ -91,7 +91,7 @@ var serviceShowCmd = &cobra.Command{
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "service show", service, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "service show", output.ResourceService, service, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(os.Stdout, service, isTTY)
 		default:

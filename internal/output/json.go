@@ -24,8 +24,12 @@ func RenderJSON(w io.Writer, data any, isTTY bool) error {
 
 // RenderAgentJSON wraps data in an agent envelope and writes compact JSON to w.
 // Pass nil for metadata when the response has no pagination.
-func RenderAgentJSON(w io.Writer, command string, data any, metadata *agent.Metadata, hints []string) error {
-	env := agent.Success(command, data, metadata, hints)
+func RenderAgentJSON(w io.Writer, command string, resource Resource, data any, metadata *agent.Metadata, hints []string) error {
+	compacted := Compact(data)
+	if rw, ok := WeightsForResource(resource); ok {
+		compacted = budgetSelect(compacted, rw)
+	}
+	env := agent.Success(command, compacted, metadata, hints)
 	b, err := json.Marshal(env)
 	if err != nil {
 		return err

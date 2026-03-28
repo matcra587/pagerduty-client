@@ -86,7 +86,7 @@ Use --compact to strip descriptions and examples for smaller context windows.`,
 
 		det := AgentFromContext(cmd)
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "agent schema", schema, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "agent schema", output.ResourceNone, schema, nil, nil)
 		}
 
 		enc := json.NewEncoder(os.Stdout)

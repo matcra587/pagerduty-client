@@ -22,6 +22,8 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/credential"
 	"github.com/matcra587/pagerduty-client/internal/tui"
+	"github.com/matcra587/pagerduty-client/internal/update"
+	"github.com/matcra587/pagerduty-client/internal/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -30,10 +32,11 @@ import (
 type contextKey string
 
 const (
-	configKey    contextKey = "config"
-	clientKey    contextKey = "client"
-	agentKey     contextKey = "agent"
-	userEmailKey contextKey = "userEmail"
+	configKey       contextKey = "config"
+	clientKey       contextKey = "client"
+	agentKey        contextKey = "agent"
+	userEmailKey    contextKey = "userEmail"
+	updateResultKey contextKey = "updateResult"
 )
 
 // comp holds the hidden completion flags added by clib.NewCompletion.
@@ -78,6 +81,14 @@ var rootCmd = &cobra.Command{
 		}
 		cmd.SetContext(ctx)
 
+		// Check for updates (cached for 24h, 3s timeout).
+		isTTY := terminal.Is(os.Stdout)
+		if update.ShouldCheck(state.det.Active, isTTY) {
+			result := update.CheckForUpdate(cmd.Context())
+			update.NotifyCLI(result)
+			cmd.SetContext(context.WithValue(cmd.Context(), updateResultKey, result))
+		}
+
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, _ []string) error {
@@ -85,7 +96,24 @@ var rootCmd = &cobra.Command{
 		cfg := ConfigFromContext(cmd)
 		isTTY := terminal.Is(os.Stdout)
 
+		// Retrieve cached update check result from PersistentPreRunE.
+		updateResult := UpdateResultFromContext(cmd)
+
 		if !det.Active && isTTY && cfg.Interactive {
+			if updateResult.UpdateAvail && !updateResult.Dismissed {
+				choice, err := tui.RunUpdatePrompt(version.Version, updateResult.LatestVersion)
+				if err != nil {
+					clog.Debug().Err(err).Msg("update prompt error")
+				}
+
+				switch choice {
+				case tui.UpdateNow:
+					return update.Run(cmd.Context())
+				case tui.UpdateDismiss:
+					update.DismissVersion(updateResult.LatestVersion)
+				}
+			}
+
 			client := ClientFromContext(cmd)
 			email := UserEmailFromContext(cmd)
 			app := tui.New(cmd.Context(), client, cfg, email)
@@ -329,6 +357,14 @@ func AgentFromContext(cmd *cobra.Command) agent.DetectionResult {
 // Returns an empty string if the email was not resolved (e.g. no token or lookup failed).
 func UserEmailFromContext(cmd *cobra.Command) string {
 	v, _ := cmd.Context().Value(userEmailKey).(string)
+	return v
+}
+
+// UpdateResultFromContext retrieves the cached update check result
+// stored by PersistentPreRunE. Returns a zero-value CheckResult if
+// the check was skipped or not yet run.
+func UpdateResultFromContext(cmd *cobra.Command) update.CheckResult {
+	v, _ := cmd.Context().Value(updateResultKey).(update.CheckResult)
 	return v
 }
 

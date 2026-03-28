@@ -1,0 +1,240 @@
+package update
+
+import (
+	"archive/tar"
+	"archive/zip"
+	"bytes"
+	"compress/gzip"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+)
+
+const (
+	releaseURLBase  = "https://github.com/matcra587/pagerduty-client/releases/download"
+	projectName     = "pagerduty-client"
+	binaryName      = "pdc"
+	downloadTimeout = 60 * time.Second
+	maxBinarySize   = 100 << 20 // 100 MiB
+)
+
+// AssetName returns the archive filename matching the goreleaser template
+// for the given version, OS and architecture.
+func AssetName(version, goos, goarch string) string {
+	ext := "tar.gz"
+	if goos == "windows" {
+		ext = "zip"
+	}
+	return fmt.Sprintf("%s_%s_%s_%s.%s", projectName, version, goos, goarch, ext)
+}
+
+// VerifyChecksum computes the SHA-256 hash of data and compares it
+// against the hash in checksumLine for the given assetName. The
+// checksumLine format is "<hex>  <filename>" (two spaces, matching
+// sha256sum output).
+func VerifyChecksum(data []byte, checksumLine, assetName string) bool {
+	parts := strings.Fields(checksumLine)
+	if len(parts) != 2 {
+		return false
+	}
+
+	if parts[1] != assetName {
+		return false
+	}
+
+	got := sha256.Sum256(data)
+	return hex.EncodeToString(got[:]) == parts[0]
+}
+
+// AtomicReplace writes data to a temporary file in the same directory
+// as target, then renames it into place. This avoids partial writes.
+func AtomicReplace(target string, data []byte) error {
+	dir := filepath.Dir(target)
+
+	tmp, err := os.CreateTemp(dir, ".pdc-update-*.tmp")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+
+	tmpName := tmp.Name()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+
+	if err := tmp.Chmod(0o755); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("setting permissions: %w", err)
+	}
+
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("closing temp file: %w", err)
+	}
+
+	if err := os.Rename(tmpName, target); err != nil {
+		_ = os.Remove(tmpName)
+		return fmt.Errorf("renaming temp file: %w", err)
+	}
+
+	return nil
+}
+
+// selfReplace downloads the latest release archive, verifies its
+// checksum, extracts the binary and atomically replaces the current
+// executable.
+func selfReplace(ctx context.Context, latest string) error {
+	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
+	defer cancel()
+
+	asset := AssetName(latest, runtime.GOOS, runtime.GOARCH)
+	archiveURL := fmt.Sprintf("%s/v%s/%s", releaseURLBase, latest, asset)
+	checksumURL := fmt.Sprintf("%s/v%s/checksums.txt", releaseURLBase, latest)
+
+	archiveData, err := httpGet(ctx, archiveURL)
+	if err != nil {
+		return fmt.Errorf("downloading archive: %w", err)
+	}
+
+	checksumData, err := httpGet(ctx, checksumURL)
+	if err != nil {
+		return fmt.Errorf("downloading checksums: %w", err)
+	}
+
+	// Find the matching checksum line.
+	var matched string
+	for line := range strings.SplitSeq(string(checksumData), "\n") {
+		if strings.HasSuffix(strings.TrimSpace(line), asset) {
+			matched = strings.TrimSpace(line)
+			break
+		}
+	}
+
+	if matched == "" {
+		return fmt.Errorf("no checksum found for %s", asset)
+	}
+
+	if !VerifyChecksum(archiveData, matched, asset) {
+		return errors.New("checksum verification failed")
+	}
+
+	// Extract the binary from the archive.
+	binName := binaryName
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
+	}
+
+	var binData []byte
+	if runtime.GOOS == "windows" {
+		binData, err = extractFromZip(archiveData, binName)
+	} else {
+		binData, err = extractFromTarGz(archiveData, binName)
+	}
+
+	if err != nil {
+		return fmt.Errorf("extracting binary: %w", err)
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locating current executable: %w", err)
+	}
+
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		return fmt.Errorf("resolving executable path: %w", err)
+	}
+
+	return AtomicReplace(exe, binData)
+}
+
+// httpGet performs a simple HTTP GET with a timeout and returns the
+// response body. It follows redirects normally (required for GitHub
+// Releases CDN multi-hop redirects) and caps the response at 100 MiB.
+func httpGet(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d for %s", resp.StatusCode, url)
+	}
+
+	return io.ReadAll(io.LimitReader(resp.Body, maxBinarySize))
+}
+
+// extractFromTarGz finds and returns the named file from a tar.gz
+// archive.
+func extractFromTarGz(data []byte, name string) ([]byte, error) {
+	gr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("opening gzip reader: %w", err)
+	}
+	defer func() { _ = gr.Close() }()
+
+	tr := tar.NewReader(gr)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		if err != nil {
+			return nil, fmt.Errorf("reading tar entry: %w", err)
+		}
+
+		// Match on the base name to handle archives that include a
+		// directory prefix.
+		if filepath.Base(hdr.Name) == name && hdr.Typeflag == tar.TypeReg {
+			return io.ReadAll(io.LimitReader(tr, maxBinarySize))
+		}
+	}
+
+	return nil, fmt.Errorf("%s not found in archive", name)
+}
+
+// extractFromZip finds and returns the named file from a zip archive.
+func extractFromZip(data []byte, name string) ([]byte, error) {
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, fmt.Errorf("opening zip reader: %w", err)
+	}
+
+	for _, f := range zr.File {
+		if filepath.Base(f.Name) == name {
+			return readZipFile(f, name)
+		}
+	}
+
+	return nil, fmt.Errorf("%s not found in archive", name)
+}
+
+func readZipFile(f *zip.File, name string) ([]byte, error) {
+	rc, err := f.Open()
+	if err != nil {
+		return nil, fmt.Errorf("opening %s in zip: %w", name, err)
+	}
+	defer func() { _ = rc.Close() }()
+
+	return io.ReadAll(io.LimitReader(rc, maxBinarySize))
+}

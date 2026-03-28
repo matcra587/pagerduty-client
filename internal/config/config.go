@@ -13,6 +13,7 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
 	"github.com/matcra587/pagerduty-client/internal/credential"
+	"github.com/matcra587/pagerduty-client/internal/dirs"
 )
 
 // TUI holds dashboard display preferences.
@@ -99,17 +100,14 @@ func WithTeam(team string) Option {
 	return func(o *loadOptions) { o.team = team }
 }
 
-// DefaultConfigPath returns the path to the config file. It checks
-// $XDG_CONFIG_HOME first, falling back to $HOME/.config.
+// DefaultConfigPath returns the path to the config file, using the
+// platform-aware directory from dirs.PdcConfigDir.
 func DefaultConfigPath() string {
-	if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
-		return filepath.Join(xdg, "pagerduty-client", "config.toml")
-	}
-	home, err := os.UserHomeDir()
+	dir, err := dirs.PdcConfigDir()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(home, ".config", "pagerduty-client", "config.toml")
+	return filepath.Join(dir, "config.toml")
 }
 
 // Load reads configuration from file, environment and options.

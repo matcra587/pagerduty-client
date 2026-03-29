@@ -17,6 +17,8 @@ const (
 	ResourceTeam     Resource = "team"
 	ResourceSchedule Resource = "schedule"
 	ResourceOnCall   Resource = "oncall"
+	ResourceLogEntry Resource = "log_entry"
+	ResourceNote     Resource = "note"
 	ResourceNone     Resource = ""
 )
 
@@ -144,6 +146,30 @@ var resourceWeights = map[Resource]ResourceWeights{
 			"schedule":          0.8,
 			"start":             0.7,
 			"end":               0.7,
+		},
+	},
+	ResourceLogEntry: {
+		Budget:        200,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"created_at":    1.0,
+			"agent":         0.8,
+			"channel":       0.7,
+			"event_details": 0.6,
+			"contexts":      0.4,
+			"incident":      0.2,
+			"service":       0.2,
+			"user":          0.2,
+		},
+	},
+	ResourceNote: {
+		Budget:        80,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":         1.0,
+			"content":    1.0,
+			"user":       0.8,
+			"created_at": 0.7,
 		},
 	},
 }

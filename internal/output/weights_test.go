@@ -81,6 +81,37 @@ func TestResourceWeights_ForField(t *testing.T) {
 	assert.InDelta(t, 0.1, w.ForField("nonexistent_field"), 1e-9)
 }
 
+func TestWeightsForResource_LogEntry(t *testing.T) {
+	t.Parallel()
+
+	w, ok := WeightsForResource(ResourceLogEntry)
+	require.True(t, ok)
+
+	assert.Equal(t, 200, w.Budget)
+	assert.InDelta(t, 0.1, w.DefaultWeight, 1e-9)
+	assert.InDelta(t, 1.0, w.Fields["created_at"], 1e-9)
+	assert.InDelta(t, 0.8, w.Fields["agent"], 1e-9)
+	assert.InDelta(t, 0.7, w.Fields["channel"], 1e-9)
+	assert.InDelta(t, 0.6, w.Fields["event_details"], 1e-9)
+	assert.InDelta(t, 0.2, w.Fields["incident"], 1e-9)
+	assert.InDelta(t, 0.2, w.Fields["service"], 1e-9)
+	assert.InDelta(t, 0.2, w.Fields["user"], 1e-9)
+}
+
+func TestWeightsForResource_Note(t *testing.T) {
+	t.Parallel()
+
+	w, ok := WeightsForResource(ResourceNote)
+	require.True(t, ok)
+
+	assert.Equal(t, 80, w.Budget)
+	assert.InDelta(t, 0.1, w.DefaultWeight, 1e-9)
+	assert.InDelta(t, 1.0, w.Fields["id"], 1e-9)
+	assert.InDelta(t, 1.0, w.Fields["content"], 1e-9)
+	assert.InDelta(t, 0.8, w.Fields["user"], 1e-9)
+	assert.InDelta(t, 0.7, w.Fields["created_at"], 1e-9)
+}
+
 func TestBudgetOverride(t *testing.T) {
 	t.Run("unset returns zero", func(t *testing.T) {
 		t.Parallel()

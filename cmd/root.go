@@ -116,6 +116,14 @@ var rootCmd = &cobra.Command{
 
 			client := ClientFromContext(cmd)
 			email := UserEmailFromContext(cmd)
+			if email == "" && cfg.Email != "" {
+				email = cfg.Email
+			}
+			if email == "" && client != nil {
+				if u, err := client.GetCurrentUser(cmd.Context()); err == nil {
+					email = u.Email
+				}
+			}
 			app := tui.New(cmd.Context(), client, cfg, email)
 			p := tea.NewProgram(app, tea.WithContext(cmd.Context()))
 			_, err := p.Run()
@@ -426,7 +434,7 @@ func tokenSource(flagToken, tokenFile string, cfg *config.Config) string {
 // It queries the PagerDuty API for resources matching the requested completion
 // kind (e.g. "team", "service") and prints matching names to stdout.
 func completionHandler(token string, opts ...api.Option) complete.Handler {
-	return func(_, kind string, _ []string) {
+	return func(_, kind string, args []string) {
 		if token == "" {
 			return
 		}
@@ -452,6 +460,21 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 			for _, s := range services {
 				names = append(names, s.Name)
 			}
+		case "alert":
+			if len(args) == 0 {
+				return
+			}
+			alerts, err := client.ListIncidentAlerts(ctx, args[0])
+			if err != nil {
+				return
+			}
+			for _, a := range alerts {
+				if a.Status != "resolved" {
+					names = append(names, a.ID)
+				}
+			}
+		case "urgency":
+			names = append(names, "high", "low")
 		default:
 			return
 		}

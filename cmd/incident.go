@@ -140,7 +140,37 @@ var incidentShowCmd = &cobra.Command{
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched incident")
 
+		alerts, _ := cmd.Flags().GetBool("alerts")
 		payload, _ := cmd.Flags().GetBool("payload")
+		if alerts && payload {
+			return errors.New("--alerts and --payload are mutually exclusive")
+		}
+		if alerts {
+			alertList, err := client.ListIncidentAlerts(ctx, args[0])
+			if err != nil {
+				return fmt.Errorf("listing alerts: %w", err)
+			}
+			clog.Debug().Elapsed("duration").Int("count", len(alertList)).Msg("listed alerts")
+
+			headers, rows := alertRows(alertList)
+
+			isTTY := terminal.Is(os.Stdout)
+			format := output.DetectFormat(output.FormatOpts{
+				AgentMode: det.Active,
+				Format:    cfg.Format,
+				IsTTY:     isTTY,
+			})
+
+			switch format {
+			case output.FormatAgentJSON:
+				meta := agent.Metadata{Total: len(alertList)}
+				return output.RenderAgentJSON(os.Stdout, "incident show --alerts", output.ResourceAlert, alertList, &meta, nil)
+			case output.FormatJSON:
+				return output.RenderJSON(os.Stdout, alertList, isTTY)
+			default:
+				return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			}
+		}
 		if payload {
 			return showIncidentPayload(cmd.Context(), client, det, cfg, incident)
 		}
@@ -460,6 +490,97 @@ var incidentLogCmd = &cobra.Command{
 	},
 }
 
+var incidentUrgencyCmd = &cobra.Command{
+	Use:   "urgency <id> <high|low>",
+	Short: "Set incident urgency",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		level := args[1]
+		if level != "high" && level != "low" {
+			return fmt.Errorf("urgency must be high or low, got %q", level)
+		}
+
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		from, err := resolveFromEmail(cmd)
+		if err != nil {
+			return err
+		}
+
+		if err := client.SetUrgency(ctx, args[0], from, level); err != nil {
+			return fmt.Errorf("setting urgency: %w", err)
+		}
+
+		if det.Active {
+			return output.RenderAgentJSON(os.Stdout, "incident urgency", output.ResourceNone, map[string]string{"id": args[0], "urgency": level}, nil, nil)
+		}
+		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident urgency set to " + level)
+		return nil
+	},
+}
+
+var incidentTitleCmd = &cobra.Command{
+	Use:   "title <id> <new-title>",
+	Short: "Set incident title",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		title := args[1]
+		if title == "" {
+			return errors.New("title must not be empty")
+		}
+
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		from, err := resolveFromEmail(cmd)
+		if err != nil {
+			return err
+		}
+
+		if err := client.SetTitle(ctx, args[0], from, title); err != nil {
+			return fmt.Errorf("setting title: %w", err)
+		}
+
+		if det.Active {
+			return output.RenderAgentJSON(os.Stdout, "incident title", output.ResourceNone, map[string]string{"id": args[0], "title": title}, nil, nil)
+		}
+		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident title updated")
+		return nil
+	},
+}
+
+var incidentResolveAlertCmd = &cobra.Command{
+	Use:   "resolve-alert <incident-id> <alert-id>...",
+	Short: "Resolve one or more alerts within an incident",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		from, err := resolveFromEmail(cmd)
+		if err != nil {
+			return err
+		}
+
+		incidentID := args[0]
+		alertIDs := args[1:]
+
+		if err := client.ResolveAlerts(ctx, incidentID, from, alertIDs); err != nil {
+			return fmt.Errorf("resolving alerts: %w", err)
+		}
+
+		if det.Active {
+			return output.RenderAgentJSON(os.Stdout, "incident resolve-alert", output.ResourceNone, map[string]any{"incident_id": incidentID, "resolved": alertIDs}, nil, nil)
+		}
+		clog.Info().Link("incident", incidentURL(incidentID), incidentID).Int("count", len(alertIDs)).Msg(fmt.Sprintf("%d alerts resolved", len(alertIDs)))
+		return nil
+	},
+}
+
 // resolveFromEmail determines the acting user's email for PagerDuty write operations.
 // Precedence: --from flag > cached context email > config email > API lookup.
 func resolveFromEmail(cmd *cobra.Command) (string, error) {
@@ -641,6 +762,21 @@ func incidentURL(id string) string {
 	return "https://app.pagerduty.com/incidents/" + id
 }
 
+func alertRows(alerts []pagerduty.IncidentAlert) ([]string, [][]string) {
+	headers := []string{"ID", "Status", "Severity", "Summary", "Created"}
+	rows := make([][]string, len(alerts))
+	for i, a := range alerts {
+		rows[i] = []string{
+			a.ID,
+			a.Status,
+			a.Severity,
+			a.Summary,
+			a.CreatedAt,
+		}
+	}
+	return headers, rows
+}
+
 func noteRows(notes []pagerduty.IncidentNote) ([]string, [][]string) {
 	headers := []string{"ID", "User", "Content", "Created"}
 	rows := make([][]string, len(notes))
@@ -707,6 +843,9 @@ func init() {
 	incidentNoteCmd.AddCommand(incidentNoteListCmd)
 	incidentNoteCmd.AddCommand(incidentNoteAddCmd)
 	incidentCmd.AddCommand(incidentLogCmd)
+	incidentCmd.AddCommand(incidentUrgencyCmd)
+	incidentCmd.AddCommand(incidentTitleCmd)
+	incidentCmd.AddCommand(incidentResolveAlertCmd)
 
 	logF := incidentLogCmd.Flags()
 	logF.String("since", "", "Show entries since this time (e.g. 7d, 30d or ISO 8601)")
@@ -795,6 +934,11 @@ func init() {
 
 	// incident show flags
 	sf := incidentShowCmd.Flags()
+	sf.Bool("alerts", false, "List alerts grouped under the incident")
+	clib.Extend(sf.Lookup("alerts"), clib.FlagExtra{
+		Group: "Output",
+		Terse: "show grouped alerts",
+	})
 	sf.Bool("payload", false, "Include raw alert event payload with integration detection")
 	clib.Extend(sf.Lookup("payload"), clib.FlagExtra{
 		Group: "Output",
@@ -805,6 +949,7 @@ func init() {
 	for _, sub := range []*cobra.Command{
 		incidentAckCmd, incidentResolveCmd, incidentSnoozeCmd,
 		incidentReassignCmd, incidentMergeCmd, incidentNoteAddCmd,
+		incidentUrgencyCmd, incidentTitleCmd, incidentResolveAlertCmd,
 	} {
 		sub.Flags().String("from", "", "Email of the acting user (defaults to current API token user)")
 		clib.Extend(sub.Flags().Lookup("from"), clib.FlagExtra{

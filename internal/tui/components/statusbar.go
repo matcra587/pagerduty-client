@@ -151,14 +151,14 @@ func (s StatusBar) hintBindings() []key.Binding {
 		return []key.Binding{
 			bind("a", "ack"),
 			bind("r", "resolve"),
+			bind("e", "edit"),
+			bind("x", "escalate"),
 			bind("esc", "back"),
 			bind("↑↓", "scroll"),
 			bind("n", "note"),
 			bind("p", "priority"),
 			bind("o", "open"),
 			bind("y", "copy URL"),
-			bind("alt+r", "resolve now"),
-			bind("alt+o", "external"),
 		}
 
 	default:
@@ -168,7 +168,8 @@ func (s StatusBar) hintBindings() []key.Binding {
 			bind("enter", "show"),
 			bind("/", "filter"),
 			bind("space", "select"),
-			bind("e", "escalate"),
+			bind("e", "edit"),
+			bind("x", "escalate"),
 			bind("n", "note"),
 			bind("o", "open"),
 			bind("O", "options"),

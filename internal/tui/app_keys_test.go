@@ -32,8 +32,9 @@ func TestAppKeyMap_BindingsMatch(t *testing.T) {
 		{"ack", km.Ack, []string{"a"}},
 		{"resolve", km.Resolve, []string{"r"}},
 		{"resolve now", km.ResolveNow, []string{"alt+r"}},
-		{"escalate", km.Escalate, []string{"e"}},
-		{"escalate now", km.EscalateNow, []string{"alt+e"}},
+		{"edit", km.Edit, []string{"e"}},
+		{"escalate", km.Escalate, []string{"x"}},
+		{"escalate now", km.EscalateNow, []string{"alt+x"}},
 		{"merge", km.Merge, []string{"m"}},
 		{"merge now", km.MergeNow, []string{"alt+m"}},
 	}

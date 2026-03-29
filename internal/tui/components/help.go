@@ -28,7 +28,8 @@ var listSections = []section{
 		bindings: []binding{
 			{"a", "acknowledge"},
 			{"r *", "resolve"},
-			{"e *", "escalate"},
+			{"e", "edit"},
+			{"x *", "escalate"},
 			{"m *", "merge selected"},
 			{"s", "snooze"},
 			{"n", "add note"},
@@ -73,7 +74,8 @@ var detailSections = []section{
 		bindings: []binding{
 			{"a", "acknowledge"},
 			{"r *", "resolve"},
-			{"e *", "escalate"},
+			{"e", "edit"},
+			{"x *", "escalate"},
 			{"n", "add note"},
 			{"p", "set priority"},
 		},

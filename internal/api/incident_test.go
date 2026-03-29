@@ -614,6 +614,206 @@ func TestListPriorities(t *testing.T) {
 	assert.Equal(t, "P1", priorities[0].Name)
 }
 
+func TestUpdateIncident_Urgency(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("PUT /incidents", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "user@example.com", r.Header.Get("From"))
+
+		var body map[string]json.RawMessage
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+
+		var incidents []map[string]any
+		if !assert.NoError(t, json.Unmarshal(body["incidents"], &incidents)) {
+			return
+		}
+		if !assert.Len(t, incidents, 1) {
+			return
+		}
+		assert.Equal(t, "P1", incidents[0]["id"])
+		assert.Equal(t, "incident_reference", incidents[0]["type"])
+		assert.Equal(t, "high", incidents[0]["urgency"])
+
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1", "urgency": "high"}]}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	inc, err := c.UpdateIncident(context.Background(), "P1", "user@example.com", UpdateOpts{
+		Urgency: new("high"),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, inc)
+	assert.Equal(t, "P1", inc.ID)
+	assert.Equal(t, "high", inc.Urgency)
+}
+
+func TestUpdateIncident_Title(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("PUT /incidents", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "user@example.com", r.Header.Get("From"))
+
+		var body map[string]json.RawMessage
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+
+		var incidents []map[string]any
+		if !assert.NoError(t, json.Unmarshal(body["incidents"], &incidents)) {
+			return
+		}
+		if !assert.Len(t, incidents, 1) {
+			return
+		}
+		assert.Equal(t, "P1", incidents[0]["id"])
+		assert.Equal(t, "New title", incidents[0]["title"])
+
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1", "title": "New title"}]}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	inc, err := c.UpdateIncident(context.Background(), "P1", "user@example.com", UpdateOpts{
+		Title: new("New title"),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, inc)
+	assert.Equal(t, "New title", inc.Title)
+}
+
+func TestUpdateIncident_MultipleFields(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("PUT /incidents", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]json.RawMessage
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+
+		var incidents []map[string]any
+		if !assert.NoError(t, json.Unmarshal(body["incidents"], &incidents)) {
+			return
+		}
+		if !assert.Len(t, incidents, 1) {
+			return
+		}
+		assert.Equal(t, "Updated title", incidents[0]["title"])
+		assert.Equal(t, "low", incidents[0]["urgency"])
+
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1", "title": "Updated title", "urgency": "low"}]}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	inc, err := c.UpdateIncident(context.Background(), "P1", "user@example.com", UpdateOpts{
+		Title:   new("Updated title"),
+		Urgency: new("low"),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, inc)
+	assert.Equal(t, "Updated title", inc.Title)
+	assert.Equal(t, "low", inc.Urgency)
+}
+
+func TestUpdateIncident_ClearPriority(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("PUT /incidents", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]json.RawMessage
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+
+		var incidents []map[string]json.RawMessage
+		if !assert.NoError(t, json.Unmarshal(body["incidents"], &incidents)) {
+			return
+		}
+		if !assert.Len(t, incidents, 1) {
+			return
+		}
+		// priority should be JSON null
+		assert.JSONEq(t, "null", string(incidents[0]["priority"]))
+
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1"}]}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	_, err := c.UpdateIncident(context.Background(), "P1", "user@example.com", UpdateOpts{
+		Priority: new(""),
+	})
+	require.NoError(t, err)
+}
+
+func TestSetUrgency(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("PUT /incidents", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]json.RawMessage
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+
+		var incidents []map[string]any
+		if !assert.NoError(t, json.Unmarshal(body["incidents"], &incidents)) {
+			return
+		}
+		if !assert.Len(t, incidents, 1) {
+			return
+		}
+		assert.Equal(t, "low", incidents[0]["urgency"])
+
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1", "urgency": "low"}]}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	err := c.SetUrgency(context.Background(), "P1", "user@example.com", "low")
+	require.NoError(t, err)
+}
+
+func TestSetTitle(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("PUT /incidents", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]json.RawMessage
+		if !assert.NoError(t, json.NewDecoder(r.Body).Decode(&body)) {
+			return
+		}
+
+		var incidents []map[string]any
+		if !assert.NoError(t, json.Unmarshal(body["incidents"], &incidents)) {
+			return
+		}
+		if !assert.Len(t, incidents, 1) {
+			return
+		}
+		assert.Equal(t, "Fixed title", incidents[0]["title"])
+
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1", "title": "Fixed title"}]}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+	err := c.SetTitle(context.Background(), "P1", "user@example.com", "Fixed title")
+	require.NoError(t, err)
+}
+
 func TestUpdatePriority(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()

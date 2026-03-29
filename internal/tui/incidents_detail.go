@@ -31,6 +31,13 @@ type notesLoadedMsg struct {
 	err        error
 }
 
+// logEntriesLoadedMsg carries the fetched log entries for the current incident.
+type logEntriesLoadedMsg struct {
+	incidentID string
+	entries    []pagerduty.LogEntry
+	err        error
+}
+
 // detailTab identifies which tab is active in the detail view.
 type detailTab int
 
@@ -38,27 +45,31 @@ const (
 	tabSummary detailTab = iota
 	tabAlerts
 	tabNotes
+	tabTimeline
 	tabCount
 )
 
 // incidentDetail is a Bubble Tea model rendering full incident information
-// split across three tabs: Summary, Alerts and Notes.
+// split across five tabs: Summary, Alerts, Notes, Timeline and Related.
 type incidentDetail struct {
-	ctx          context.Context //nolint:containedctx // Bubble Tea models are value-typed; context must travel with the model.
-	incident     pagerduty.Incident
-	alerts       []pagerduty.IncidentAlert
-	notes        []pagerduty.IncidentNote
-	loading      bool
-	notesLoading bool
-	err          error
-	notesErr     error
-	width        int
-	height       int
-	client       *api.Client
-	cfg          *config.Config
-	ansi         *ansi.ANSI
-	activeTab    detailTab
-	viewports    [tabCount]viewport.Model
+	ctx             context.Context //nolint:containedctx // Bubble Tea models are value-typed; context must travel with the model.
+	incident        pagerduty.Incident
+	alerts          []pagerduty.IncidentAlert
+	notes           []pagerduty.IncidentNote
+	logEntries      []pagerduty.LogEntry
+	loading         bool
+	notesLoading    bool
+	timelineLoading bool
+	err             error
+	notesErr        error
+	timelineErr     error
+	width           int
+	height          int
+	client          *api.Client
+	cfg             *config.Config
+	ansi            *ansi.ANSI
+	activeTab       detailTab
+	viewports       [tabCount]viewport.Model
 }
 
 func newIncidentDetail(ctx context.Context, client *api.Client, cfg *config.Config, a *ansi.ANSI, inc pagerduty.Incident) incidentDetail {
@@ -68,20 +79,21 @@ func newIncidentDetail(ctx context.Context, client *api.Client, cfg *config.Conf
 		vps[i].SoftWrap = true
 	}
 	return incidentDetail{
-		ctx:          ctx,
-		client:       client,
-		cfg:          cfg,
-		ansi:         a,
-		incident:     inc,
-		loading:      true,
-		notesLoading: true,
-		viewports:    vps,
+		ctx:             ctx,
+		client:          client,
+		cfg:             cfg,
+		ansi:            a,
+		incident:        inc,
+		loading:         true,
+		notesLoading:    true,
+		timelineLoading: true,
+		viewports:       vps,
 	}
 }
 
 // Init implements tea.Model.
 func (m incidentDetail) Init() tea.Cmd {
-	return tea.Batch(m.fetchAlertsCmd(), m.fetchNotesCmd())
+	return tea.Batch(m.fetchAlertsCmd(), m.fetchNotesCmd(), m.fetchLogEntriesCmd())
 }
 
 // Update implements tea.Model.
@@ -150,6 +162,14 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.notesErr = msg.err
 			m.syncContent()
 		}
+
+	case logEntriesLoadedMsg:
+		if msg.incidentID == m.incident.ID {
+			m.timelineLoading = false
+			m.logEntries = msg.entries
+			m.timelineErr = msg.err
+			m.syncContent()
+		}
 	}
 	return m, nil
 }
@@ -158,6 +178,7 @@ func (m *incidentDetail) syncContent() {
 	m.viewports[tabSummary].SetContent(m.summaryView())
 	m.viewports[tabAlerts].SetContent(m.alertsSection())
 	m.viewports[tabNotes].SetContent(m.notesSection())
+	m.viewports[tabTimeline].SetContent(m.timelineSection())
 }
 
 // View implements tea.Model.
@@ -187,6 +208,7 @@ func (m incidentDetail) tabBar() string {
 		{"Summary", 0},
 		{"Alerts", len(m.alerts)},
 		{"Notes", len(m.notes)},
+		{"Timeline", len(m.logEntries)},
 	}
 
 	active := lipgloss.NewStyle().
@@ -484,6 +506,54 @@ func (m incidentDetail) fetchNotesCmd() tea.Cmd {
 	}
 }
 
+func (m incidentDetail) timelineSection() string {
+	if m.timelineLoading {
+		return "\n" + theme.DetailDim.Render("  Loading timeline...") + "\n"
+	}
+	if m.timelineErr != nil {
+		return "\n" + theme.DetailDim.Render(fmt.Sprintf("  Error loading timeline: %v", m.timelineErr)) + "\n"
+	}
+	if len(m.logEntries) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString(theme.DetailHeader.Render("Timeline"))
+	sb.WriteString("\n\n")
+
+	for _, e := range m.logEntries {
+		entryType := strings.TrimSuffix(e.Type, "_log_entry")
+		when := theme.DetailDim.Render(renderTimeAgo(e.CreatedAt))
+		typeLabel := theme.HelpKey.Render(entryType)
+		agentName := e.Agent.Summary
+		if agentName == "" {
+			agentName = "system"
+		}
+		agent := theme.DetailValue.Render(agentName)
+
+		sb.WriteString(fmt.Sprintf("  %s  %s  %s", when, typeLabel, agent))
+
+		if summary := logEntryChannelSummary(e); summary != "" {
+			sb.WriteString("\n")
+			sb.WriteString("    " + theme.DetailDim.Render(truncate(summary, m.width-6)))
+		}
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+func logEntryChannelSummary(e pagerduty.LogEntry) string {
+	if s, ok := e.Channel.Raw["summary"].(string); ok && s != "" {
+		return s
+	}
+	for _, v := range e.EventDetails {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func (m incidentDetail) fetchAlertsCmd() tea.Cmd {
 	incID := m.incident.ID
 	client := m.client
@@ -493,5 +563,17 @@ func (m incidentDetail) fetchAlertsCmd() tea.Cmd {
 		defer cancel()
 		alerts, err := client.ListIncidentAlerts(ctx, incID)
 		return alertsLoadedMsg{incidentID: incID, alerts: alerts, err: err}
+	}
+}
+
+func (m incidentDetail) fetchLogEntriesCmd() tea.Cmd {
+	incID := m.incident.ID
+	client := m.client
+	detailCtx := m.ctx
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(detailCtx, 15*time.Second)
+		defer cancel()
+		entries, err := client.ListIncidentLogEntries(ctx, incID, api.LogEntryOpts{})
+		return logEntriesLoadedMsg{incidentID: incID, entries: entries, err: err}
 	}
 }

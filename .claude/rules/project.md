@@ -192,10 +192,29 @@ func setup() {
 // In PersistentPreRunE:
 gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 gen.Subs = clib.Subcommands(cmd.Root())
+setDynamicArgs(gen.Subs)
 handled, err := comp.Handle(gen, completionHandler(token, opts...))
 if handled {
     os.Exit(0)
 }
+```
+
+All completion logic lives in `cmd/completion.go`:
+
+- `completionHandler` - runtime handler that queries the PD API
+  for resource IDs matching a completion kind.
+- `setDynamicArgs` - workaround for clib's Cobra bridge not
+  parsing DynamicArgs from annotations. Sets positional arg
+  completion kinds on the SubSpec tree after
+  `clib.Subcommands()` builds it.
+
+When adding a new subcommand with positional args:
+
+1. Add a `DynamicArgs` entry in `setDynamicArgs` for the command.
+2. Add a handler `case` in `completionHandler` if the kind is new.
+3. Add `Complete: "predictor=<kind>"` on any flag that takes a
+   resource ID (via `clib.FlagExtra`).
+4. Reinstall completions: `pdc --install-completion`.
 ```
 
 ### Terminal Detection

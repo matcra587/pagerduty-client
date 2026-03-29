@@ -116,11 +116,13 @@ func init() {
 	clib.Extend(f.Lookup("team"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=team",
 		Terse:       "team filter",
 	})
 	clib.Extend(f.Lookup("schedule"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=schedule",
 		Terse:       "schedule filter",
 	})
 	clib.Extend(f.Lookup("escalation-policy"), clib.FlagExtra{

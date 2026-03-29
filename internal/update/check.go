@@ -146,6 +146,12 @@ func FetchLatestVersion(ctx context.Context, baseURL string) (string, error) {
 // IsNewer returns true if latest is a newer semver than current.
 // Returns false if either version is unparseable (e.g. "dev").
 func IsNewer(current, latest string) bool {
+	// Strip build metadata and dirty suffixes so local builds
+	// (e.g. "v0.6.3-dirty", "v0.6.3-2-gabcdef-dirty") are not
+	// considered older than the release they are based on.
+	current = stripBuildSuffix(current)
+	latest = stripBuildSuffix(latest)
+
 	if !strings.HasPrefix(current, "v") {
 		current = "v" + current
 	}
@@ -158,6 +164,20 @@ func IsNewer(current, latest string) bool {
 	}
 
 	return semver.Compare(current, latest) < 0
+}
+
+// stripBuildSuffix removes git-describe noise (commit count, hash,
+// dirty flag) from a version string. "0.6.3-2-gabcdef-dirty" becomes
+// "0.6.3", "0.6.3-dirty" becomes "0.6.3".
+func stripBuildSuffix(v string) string {
+	v = strings.TrimSuffix(v, "-dirty")
+	// git describe: "v0.6.3-2-gabcdef" - strip "-N-gHASH"
+	if i := strings.LastIndex(v, "-g"); i > 0 {
+		if j := strings.LastIndex(v[:i], "-"); j > 0 {
+			v = v[:j]
+		}
+	}
+	return v
 }
 
 // setGitHubAuth sets the Authorization header from GH_TOKEN or GITHUB_TOKEN.

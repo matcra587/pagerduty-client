@@ -3,7 +3,6 @@ package update
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 
@@ -18,7 +17,7 @@ func Run(ctx context.Context) error {
 
 	latest, err := FetchLatestVersion(ctx, "")
 	if err != nil {
-		return fmt.Errorf("checking latest version: %w", err)
+		return err
 	}
 
 	if !IsNewer(version.Version, latest) {
@@ -26,45 +25,53 @@ func Run(ctx context.Context) error {
 		return nil
 	}
 
-	clog.Info().
-		Str("current", version.Version).
-		Str("latest", latest).
-		Msg("updating")
-
 	switch method {
 	case Homebrew:
-		return runBrewUpgrade(ctx)
+		return runBrewUpgrade(ctx, latest)
 	case GoInstall:
-		return runGoInstall(ctx)
+		return runGoInstall(ctx, latest)
 	case Binary:
 		return runSelfReplace(ctx, latest)
 	}
 	return nil
 }
 
-func runBrewUpgrade(ctx context.Context) error {
+func runBrewUpgrade(ctx context.Context, latest string) error {
 	brewPath, err := exec.LookPath("brew")
 	if err != nil {
 		return errors.New("brew not found on PATH: install manually from https://github.com/matcra587/pagerduty-client/releases")
 	}
-	clog.Info().Msg("running: brew upgrade matcra587/tap/pagerduty-client")
-	cmd := exec.CommandContext(ctx, brewPath, "upgrade", "matcra587/tap/pagerduty-client") //nolint:gosec // brewPath validated by LookPath above
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	return clog.Spinner("Updating via Homebrew").
+		Str("version", latest).
+		Elapsed("elapsed").
+		Wait(ctx, func(ctx context.Context) error {
+			cmd := exec.CommandContext(ctx, brewPath, "upgrade", "matcra587/tap/pagerduty-client") //nolint:gosec // brewPath validated by LookPath above
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		}).
+		Msg("Updated")
 }
 
-func runGoInstall(ctx context.Context) error {
+func runGoInstall(ctx context.Context, latest string) error {
 	goPath, err := exec.LookPath("go")
 	if err != nil {
 		return errors.New("go not found on PATH: install manually from https://github.com/matcra587/pagerduty-client/releases")
 	}
+
 	target := modulePath + "/cmd/pdc@latest"
-	clog.Info().Msg("running: go install " + target)
-	cmd := exec.CommandContext(ctx, goPath, "install", target) //nolint:gosec // goPath validated by LookPath above
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+
+	return clog.Spinner("Updating via go install").
+		Str("version", latest).
+		Elapsed("elapsed").
+		Wait(ctx, func(ctx context.Context) error {
+			cmd := exec.CommandContext(ctx, goPath, "install", target) //nolint:gosec // goPath validated by LookPath above
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			return cmd.Run()
+		}).
+		Msg("Updated")
 }
 
 func runSelfReplace(ctx context.Context, latest string) error {

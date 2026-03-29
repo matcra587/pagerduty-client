@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/mail"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -338,7 +339,13 @@ var incidentMergeCmd = &cobra.Command{
 }
 
 var incidentNoteCmd = &cobra.Command{
-	Use:   "note <id>",
+	Use:   "note",
+	Short: "Manage incident notes",
+	Long:  "List and add notes on PagerDuty incidents.",
+}
+
+var incidentNoteAddCmd = &cobra.Command{
+	Use:   "add <id>",
 	Short: "Add a note to an incident",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -361,10 +368,95 @@ var incidentNoteCmd = &cobra.Command{
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident note", output.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
+			return output.RenderAgentJSON(os.Stdout, "incident note add", output.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Note added")
 		return nil
+	},
+}
+
+var incidentNoteListCmd = &cobra.Command{
+	Use:   "list <id>",
+	Short: "List notes for an incident",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		cfg := ConfigFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		notes, err := client.ListIncidentNotes(ctx, args[0])
+		if err != nil {
+			return fmt.Errorf("listing notes: %w", err)
+		}
+		clog.Debug().Elapsed("duration").Int("count", len(notes)).Msg("listed notes")
+
+		headers, rows := noteRows(notes)
+
+		isTTY := terminal.Is(os.Stdout)
+		format := output.DetectFormat(output.FormatOpts{
+			AgentMode: det.Active,
+			Format:    cfg.Format,
+			IsTTY:     isTTY,
+		})
+
+		switch format {
+		case output.FormatAgentJSON:
+			meta := agent.Metadata{Total: len(notes)}
+			return output.RenderAgentJSON(os.Stdout, "incident note list", output.ResourceNote, notes, &meta, nil)
+		case output.FormatJSON:
+			return output.RenderJSON(os.Stdout, notes, isTTY)
+		default:
+			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+		}
+	},
+}
+
+var incidentLogCmd = &cobra.Command{
+	Use:   "log <id>",
+	Short: "Show incident timeline",
+	Long:  "List log entries for an incident, showing the timeline of actions.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		cfg := ConfigFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		since, _ := cmd.Flags().GetString("since")
+		until, _ := cmd.Flags().GetString("until")
+		overview, _ := cmd.Flags().GetBool("overview")
+
+		since = expandSinceShorthand(since)
+
+		entries, err := client.ListIncidentLogEntries(ctx, args[0], api.LogEntryOpts{
+			Since:      since,
+			Until:      until,
+			IsOverview: overview,
+		})
+		if err != nil {
+			return fmt.Errorf("listing log entries: %w", err)
+		}
+		clog.Debug().Elapsed("duration").Int("count", len(entries)).Msg("listed log entries")
+
+		headers, rows := logEntryRows(entries)
+
+		isTTY := terminal.Is(os.Stdout)
+		format := output.DetectFormat(output.FormatOpts{
+			AgentMode: det.Active,
+			Format:    cfg.Format,
+			IsTTY:     isTTY,
+		})
+
+		switch format {
+		case output.FormatAgentJSON:
+			meta := agent.Metadata{Total: len(entries)}
+			return output.RenderAgentJSON(os.Stdout, "incident log", output.ResourceLogEntry, entries, &meta, nil)
+		case output.FormatJSON:
+			return output.RenderJSON(os.Stdout, entries, isTTY)
+		default:
+			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+		}
 	},
 }
 
@@ -549,6 +641,53 @@ func incidentURL(id string) string {
 	return "https://app.pagerduty.com/incidents/" + id
 }
 
+func noteRows(notes []pagerduty.IncidentNote) ([]string, [][]string) {
+	headers := []string{"ID", "User", "Content", "Created"}
+	rows := make([][]string, len(notes))
+	for i, n := range notes {
+		rows[i] = []string{
+			n.ID,
+			n.User.Summary,
+			n.Content,
+			n.CreatedAt,
+		}
+	}
+	return headers, rows
+}
+
+func logEntryRows(entries []pagerduty.LogEntry) ([]string, [][]string) {
+	headers := []string{"Time", "Type", "Agent", "Summary"}
+	rows := make([][]string, len(entries))
+	for i, e := range entries {
+		entryType := strings.TrimSuffix(e.Type, "_log_entry")
+		rows[i] = []string{
+			e.CreatedAt,
+			entryType,
+			e.Agent.Summary,
+			logEntrySummary(e),
+		}
+	}
+	return headers, rows
+}
+
+func logEntrySummary(e pagerduty.LogEntry) string {
+	if s, ok := e.Channel.Raw["summary"].(string); ok && s != "" {
+		return s
+	}
+	// EventDetails is a map; sort keys for deterministic output.
+	keys := make([]string, 0, len(e.EventDetails))
+	for k := range e.EventDetails {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	for _, k := range keys {
+		if v := e.EventDetails[k]; v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func init() {
 	rootCmd.AddCommand(incidentCmd)
 	incidentCmd.AddCommand(incidentListCmd)
@@ -565,6 +704,30 @@ func init() {
 	incidentCmd.AddCommand(incidentReassignCmd)
 	incidentCmd.AddCommand(incidentMergeCmd)
 	incidentCmd.AddCommand(incidentNoteCmd)
+	incidentNoteCmd.AddCommand(incidentNoteListCmd)
+	incidentNoteCmd.AddCommand(incidentNoteAddCmd)
+	incidentCmd.AddCommand(incidentLogCmd)
+
+	logF := incidentLogCmd.Flags()
+	logF.String("since", "", "Show entries since this time (e.g. 7d, 30d or ISO 8601)")
+	logF.String("until", "", "Show entries until this time (ISO 8601)")
+	logF.Bool("overview", false, "Show overview entries only")
+
+	clib.Extend(logF.Lookup("since"), clib.FlagExtra{
+		Group:       "Filters",
+		Placeholder: "TIME",
+		Enum:        []string{"7d", "30d", "60d", "90d"},
+		Terse:       "start time (shorthand or ISO 8601)",
+	})
+	clib.Extend(logF.Lookup("until"), clib.FlagExtra{
+		Group:       "Filters",
+		Placeholder: "TIME",
+		Terse:       "end time",
+	})
+	clib.Extend(logF.Lookup("overview"), clib.FlagExtra{
+		Group: "Filters",
+		Terse: "overview entries only",
+	})
 
 	// incident list flags
 	lf := incidentListCmd.Flags()
@@ -641,7 +804,7 @@ func init() {
 	// shared --from flag
 	for _, sub := range []*cobra.Command{
 		incidentAckCmd, incidentResolveCmd, incidentSnoozeCmd,
-		incidentReassignCmd, incidentMergeCmd, incidentNoteCmd,
+		incidentReassignCmd, incidentMergeCmd, incidentNoteAddCmd,
 	} {
 		sub.Flags().String("from", "", "Email of the acting user (defaults to current API token user)")
 		clib.Extend(sub.Flags().Lookup("from"), clib.FlagExtra{
@@ -672,8 +835,8 @@ func init() {
 		Terse:       "source incident",
 	})
 
-	incidentNoteCmd.Flags().String("content", "", "Note content")
-	clib.Extend(incidentNoteCmd.Flags().Lookup("content"), clib.FlagExtra{
+	incidentNoteAddCmd.Flags().String("content", "", "Note content")
+	clib.Extend(incidentNoteAddCmd.Flags().Lookup("content"), clib.FlagExtra{
 		Group:       "Action",
 		Placeholder: "TEXT",
 		Terse:       "note content",

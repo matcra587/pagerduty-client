@@ -117,6 +117,14 @@ func FetchLatestVersion(ctx context.Context, baseURL string) (string, error) {
 		return "", fmt.Errorf("building request: %w", err)
 	}
 
+	// Authenticate for private repos. GH_TOKEN is the gh CLI convention;
+	// GITHUB_TOKEN is the GitHub Actions convention.
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
 	client := &http.Client{}
 
 	resp, err := client.Do(req) //nolint:gosec // URL constructed from trusted constant

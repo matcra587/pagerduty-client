@@ -117,15 +117,11 @@ func FetchLatestVersion(ctx context.Context, baseURL string) (string, error) {
 		return "", fmt.Errorf("building request: %w", err)
 	}
 
-	// Authenticate for private repos. GH_TOKEN is the gh CLI convention;
-	// GITHUB_TOKEN is the GitHub Actions convention.
-	if token := os.Getenv("GH_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
+	setGitHubAuth(req)
 
-	client := &http.Client{}
+	client := &http.Client{
+		CheckRedirect: stripAuthOnRedirect,
+	}
 
 	resp, err := client.Do(req) //nolint:gosec // URL constructed from trusted constant
 	if err != nil {
@@ -162,4 +158,25 @@ func IsNewer(current, latest string) bool {
 	}
 
 	return semver.Compare(current, latest) < 0
+}
+
+// setGitHubAuth sets the Authorization header from GH_TOKEN or GITHUB_TOKEN.
+// GH_TOKEN takes precedence (gh CLI convention); GITHUB_TOKEN is the
+// GitHub Actions convention.
+func setGitHubAuth(req *http.Request) {
+	if token := os.Getenv("GH_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+}
+
+// stripAuthOnRedirect removes the Authorization header when a redirect
+// targets a different host. GitHub Releases redirects to a CDN; without
+// this the token leaks to the CDN host.
+func stripAuthOnRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+		req.Header.Del("Authorization")
+	}
+	return nil
 }

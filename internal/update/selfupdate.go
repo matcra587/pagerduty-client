@@ -7,6 +7,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -52,7 +53,8 @@ func VerifyChecksum(data []byte, checksumLine, assetName string) bool {
 	}
 
 	got := sha256.Sum256(data)
-	return hex.EncodeToString(got[:]) == parts[0]
+	actual := []byte(hex.EncodeToString(got[:]))
+	return subtle.ConstantTimeCompare(actual, []byte(parts[0])) == 1
 }
 
 // AtomicReplace writes data to a temporary file in the same directory
@@ -160,16 +162,21 @@ func selfReplace(ctx context.Context, latest string) error {
 	return AtomicReplace(exe, binData)
 }
 
-// httpGet performs a simple HTTP GET with a timeout and returns the
-// response body. It follows redirects normally (required for GitHub
-// Releases CDN multi-hop redirects) and caps the response at 100 MiB.
+// httpGet performs a simple HTTP GET and returns the response body.
+// It follows redirects but strips the Authorization header on
+// cross-host hops (GitHub Releases redirects to CDN). Response
+// capped at 100 MiB.
 func httpGet(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	client := &http.Client{}
+	setGitHubAuth(req)
+
+	client := &http.Client{
+		CheckRedirect: stripAuthOnRedirect,
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

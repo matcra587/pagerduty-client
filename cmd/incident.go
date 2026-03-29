@@ -42,6 +42,9 @@ var incidentListCmd = &cobra.Command{
 		det := AgentFromContext(cmd)
 
 		statuses, _ := cmd.Flags().GetStringSlice("status")
+		if len(statuses) == 0 {
+			statuses = []string{"triggered", "acknowledged"}
+		}
 		urgencies, _ := cmd.Flags().GetStringSlice("urgency")
 		teams, _ := cmd.Flags().GetStringSlice("team")
 		services, _ := cmd.Flags().GetStringSlice("service")
@@ -55,10 +58,11 @@ var incidentListCmd = &cobra.Command{
 		until, _ := cmd.Flags().GetString("until")
 		sortBy, _ := cmd.Flags().GetString("sort")
 
-		// --all overrides --since/--until to fetch all incidents.
+		// --all overrides --since/--until and status defaults.
 		if all {
 			since = ""
 			until = ""
+			statuses = nil
 		} else {
 			since = expandSinceShorthand(since)
 		}
@@ -870,7 +874,7 @@ func init() {
 
 	// incident list flags
 	lf := incidentListCmd.Flags()
-	lf.StringSlice("status", nil, "Filter by status (triggered, acknowledged, resolved)")
+	lf.StringSlice("status", nil, "Filter by status (default: triggered,acknowledged)")
 	lf.StringSlice("urgency", nil, "Filter by urgency (high, low)")
 	lf.StringSlice("team", nil, "Filter by team IDs")
 	lf.StringSlice("service", nil, "Filter by service IDs")

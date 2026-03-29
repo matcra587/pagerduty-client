@@ -379,7 +379,7 @@ The `--agent` flag also activates it.
 j/k or arrows = navigate, g/G = jump top/bottom, enter = detail,
 space = toggle selection, ctrl+a = select all, esc = back/deselect,
 a = ack, r = resolve (confirm), alt+r = resolve (immediate),
-e = escalate (confirm), alt+e = escalate (immediate),
+e = edit, x = escalate (confirm), alt+x = escalate (immediate),
 m = merge selected (confirm), alt+m = merge (immediate),
 s = snooze, n = note, y = copy URL, o = open in browser,
 alt+o = open external link,
@@ -391,7 +391,7 @@ t = team switcher, ? = help, ctrl+c/q = quit
 tab/shift+tab or left/right = switch tabs,
 up/down = scroll, a = ack, r = resolve (confirm),
 alt+r = resolve (immediate),
-e = escalate (confirm), alt+e = escalate (immediate),
+e = edit, x = escalate (confirm), alt+x = escalate (immediate),
 p = set priority (picker),
 y = copy URL, o = open in browser, alt+o = open external link,
 ? = help, esc = back, ctrl+c/q = quit

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	pagerduty "github.com/PagerDuty/go-pagerduty"
@@ -38,4 +39,30 @@ func (c *Client) GetIncidentAlert(ctx context.Context, incidentID, alertID strin
 		return nil, fmt.Errorf("decoding alert: %w", err)
 	}
 	return &resp.Alert, nil
+}
+
+// ResolveAlerts resolves one or more alerts within an incident.
+func (c *Client) ResolveAlerts(ctx context.Context, incidentID, from string, alertIDs []string) error {
+	if len(alertIDs) == 0 {
+		return errors.New("at least one alert ID is required")
+	}
+
+	type alertUpdate struct {
+		ID     string `json:"id"`
+		Type   string `json:"type"`
+		Status string `json:"status"`
+	}
+
+	alerts := make([]alertUpdate, len(alertIDs))
+	for i, id := range alertIDs {
+		alerts[i] = alertUpdate{ID: id, Type: "alert", Status: "resolved"}
+	}
+
+	payload := map[string][]alertUpdate{
+		"alerts": alerts,
+	}
+
+	path := fmt.Sprintf("/incidents/%s/alerts", incidentID)
+	_, err := c.putFrom(ctx, path, payload, from)
+	return err
 }

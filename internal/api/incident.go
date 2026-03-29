@@ -311,6 +311,70 @@ func (c *Client) UpdatePriority(ctx context.Context, id, from, priorityID string
 	return err
 }
 
+// UpdateOpts holds optional fields for incident update.
+// Nil pointer = field not changed, non-nil = set to value.
+type UpdateOpts struct {
+	Title    *string
+	Urgency  *string
+	Priority *string // priority ID; nil = no change, empty string = clear
+}
+
+// UpdateIncident updates one or more fields on an incident.
+// Uses the bulk PUT /incidents endpoint. Only non-nil fields in opts
+// are included in the request.
+func (c *Client) UpdateIncident(ctx context.Context, id, from string, opts UpdateOpts) (*pagerduty.Incident, error) {
+	inc := map[string]any{
+		"id":   id,
+		"type": "incident_reference",
+	}
+	if opts.Title != nil {
+		inc["title"] = *opts.Title
+	}
+	if opts.Urgency != nil {
+		inc["urgency"] = *opts.Urgency
+	}
+	if opts.Priority != nil {
+		if *opts.Priority == "" {
+			inc["priority"] = nil
+		} else {
+			inc["priority"] = map[string]string{
+				"id":   *opts.Priority,
+				"type": "priority_reference",
+			}
+		}
+	}
+	payload := map[string][]map[string]any{
+		"incidents": {inc},
+	}
+	body, err := c.putFrom(ctx, "/incidents", payload, from)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp struct {
+		Incidents []pagerduty.Incident `json:"incidents"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("decoding incident update response: %w", err)
+	}
+	if len(resp.Incidents) == 0 {
+		return nil, fmt.Errorf("incident %s not found in update response", id)
+	}
+	return &resp.Incidents[0], nil
+}
+
+// SetUrgency changes an incident's urgency level.
+func (c *Client) SetUrgency(ctx context.Context, id, from, level string) error {
+	_, err := c.UpdateIncident(ctx, id, from, UpdateOpts{Urgency: &level})
+	return err
+}
+
+// SetTitle changes an incident's title.
+func (c *Client) SetTitle(ctx context.Context, id, from, title string) error {
+	_, err := c.UpdateIncident(ctx, id, from, UpdateOpts{Title: &title})
+	return err
+}
+
 // AddIncidentNote adds a note to an incident.
 func (c *Client) AddIncidentNote(ctx context.Context, id, from, content string) error {
 	payload := map[string]map[string]string{

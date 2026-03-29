@@ -21,6 +21,7 @@ type appKeyMap struct {
 	Ack         key.Binding
 	Resolve     key.Binding
 	ResolveNow  key.Binding
+	Edit        key.Binding
 	Escalate    key.Binding
 	EscalateNow key.Binding
 	Merge       key.Binding
@@ -43,8 +44,9 @@ func newAppKeyMap() appKeyMap {
 		Ack:         key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "acknowledge")),
 		Resolve:     key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "resolve")),
 		ResolveNow:  key.NewBinding(key.WithKeys("alt+r"), key.WithHelp("alt+r", "resolve immediately")),
-		Escalate:    key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "escalate")),
-		EscalateNow: key.NewBinding(key.WithKeys("alt+e"), key.WithHelp("alt+e", "escalate immediately")),
+		Edit:        key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit")),
+		Escalate:    key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "escalate")),
+		EscalateNow: key.NewBinding(key.WithKeys("alt+x"), key.WithHelp("alt+x", "escalate immediately")),
 		Merge:       key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "merge selected")),
 		MergeNow:    key.NewBinding(key.WithKeys("alt+m"), key.WithHelp("alt+m", "merge immediately")),
 	}

@@ -131,9 +131,13 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "e":
 			return m, func() tea.Msg {
+				return detailEditMsg{incident: m.incident}
+			}
+		case "x":
+			return m, func() tea.Msg {
 				return detailEscalateMsg{id: m.incident.ID, confirm: true}
 			}
-		case "alt+e":
+		case "alt+x":
 			return m, func() tea.Msg {
 				return detailEscalateMsg{id: m.incident.ID, confirm: false}
 			}

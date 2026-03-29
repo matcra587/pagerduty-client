@@ -17,6 +17,9 @@ type IncidentMerged struct{ TargetID string }
 // IncidentPriorityUpdated is sent when a priority update completes.
 type IncidentPriorityUpdated struct{ ID string }
 
+// IncidentUpdated is sent when a multi-field edit completes.
+type IncidentUpdated struct{ ID string }
+
 // IncidentNoteAdded is sent after a note is successfully added.
 type IncidentNoteAdded struct{ ID string }
 
@@ -66,7 +69,12 @@ type detailResolveMsg struct {
 	confirm bool
 }
 
-// detailEscalateMsg is sent from the detail view when the user presses e or alt+e.
+// detailEditMsg is sent from the detail view when the user presses e.
+type detailEditMsg struct {
+	incident pagerduty.Incident
+}
+
+// detailEscalateMsg is sent from the detail view when the user presses E or alt+e.
 type detailEscalateMsg struct {
 	id      string
 	confirm bool

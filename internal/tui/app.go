@@ -54,6 +54,13 @@ type incidentsLoadedMsg struct {
 // clearStatusMsg is sent after a delay to clear the status bar feedback.
 type clearStatusMsg struct{ id int }
 
+// prioritiesLoadedMsg carries fetched priorities for the edit overlay.
+type prioritiesLoadedMsg struct {
+	priorities []pagerduty.Priority
+	incident   pagerduty.Incident
+	err        error
+}
+
 // incidentActionPendingMsg is sent when an incident action starts, before
 // the API call completes.
 type incidentActionPendingMsg struct {
@@ -80,6 +87,8 @@ type App struct {
 	filterOpts     components.FilterOptions
 	textInput      components.TextInput
 	priorityPicker components.PriorityPicker
+	editOverlay    components.EditOverlay
+	priorities     []pagerduty.Priority
 	spinner        spinner.Model
 	loading        bool
 	width          int
@@ -308,6 +317,42 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case detailAckMsg:
 		return a, a.detailAckCmd(msg.id)
 
+	case detailEditMsg:
+		if len(a.priorities) > 0 {
+			a.editOverlay = a.editOverlay.Show(msg.incident, a.priorities)
+			return a, a.editOverlay.Init()
+		}
+		// Lazy-fetch priorities, then open overlay.
+		inc := msg.incident
+		client := a.client
+		appCtx := a.ctx
+		return a, func() tea.Msg {
+			ctx, cancel := context.WithTimeout(appCtx, 5*time.Second)
+			defer cancel()
+			priorities, err := client.ListPriorities(ctx)
+			return prioritiesLoadedMsg{priorities: priorities, incident: inc, err: err}
+		}
+
+	case prioritiesLoadedMsg:
+		if msg.err != nil {
+			// Open overlay without priorities if fetch fails.
+			a.editOverlay = a.editOverlay.Show(msg.incident, nil)
+		} else {
+			a.priorities = msg.priorities
+			a.editOverlay = a.editOverlay.Show(msg.incident, msg.priorities)
+		}
+		return a, a.editOverlay.Init()
+
+	case components.EditSubmittedMsg:
+		if msg.Diff.IsEmpty() {
+			a, cmd := a.flashResult("No changes", false)
+			return a, cmd
+		}
+		return a, a.updateIncidentCmd(msg.IncidentID, msg.Diff)
+
+	case components.EditCancelledMsg:
+		return a, nil
+
 	case detailEscalateMsg:
 		escalateCmd := a.escalateCmd(msg.id)
 		if msg.confirm {
@@ -332,6 +377,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case IncidentPriorityUpdated:
 		return a.reloadAfterAction("Priority updated for " + msg.ID)
+
+	case IncidentUpdated:
+		return a.reloadAfterAction("Updated " + msg.ID)
 
 	case IncidentMerged:
 		return a.reloadAfterAction("Merged into " + msg.TargetID)
@@ -376,6 +424,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 
+	// Forward non-key messages to the edit overlay when visible.
+	// huh.Form sends internal messages (nextFieldMsg, nextGroupMsg, etc.)
+	// via commands that must reach the form's Update to function.
+	if a.editOverlay.Visible {
+		em, cmd := a.editOverlay.Update(msg)
+		a.editOverlay = em.(components.EditOverlay)
+		return a, cmd
+	}
+
 	// Non-key messages for the active view.
 	switch a.current {
 	case viewDashboard:
@@ -395,6 +452,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // overlays first, then global keys, then view-specific handlers.
 func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Overlay routing cascade - active overlay consumes the key.
+	if a.editOverlay.Visible {
+		em, cmd := a.editOverlay.Update(msg)
+		a.editOverlay = em.(components.EditOverlay)
+		return a, cmd
+	}
 	if a.textInput.Visible {
 		tm, cmd := a.textInput.Update(msg)
 		a.textInput = tm.(components.TextInput)
@@ -602,6 +664,16 @@ func (a App) updateDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return a, a.dashboard.incidents.resolveCmd()
 
+	case key.Matches(msg, km.Edit):
+		vis := a.dashboard.incidents.visibleIncidents()
+		if len(vis) > 0 {
+			inc := vis[a.dashboard.incidents.cursor]
+			return a, func() tea.Msg {
+				return detailEditMsg{incident: inc}
+			}
+		}
+		return a, nil
+
 	case key.Matches(msg, km.Escalate):
 		vis := a.dashboard.incidents.visibleIncidents()
 		if len(vis) > 0 {
@@ -705,7 +777,9 @@ func (a App) View() tea.View {
 	}
 
 	// Layer overlays on the body zone.
-	if a.textInput.Visible {
+	if a.editOverlay.Visible {
+		body = overlayCenter(body, a.editOverlay.View().Content, a.width, a.bodyH)
+	} else if a.textInput.Visible {
 		body = overlayCenter(body, a.textInput.View().Content, a.width, a.bodyH)
 	} else if a.confirm.Visible {
 		body = overlayCenter(body, a.confirm.View().Content, a.width, a.bodyH)
@@ -1020,6 +1094,32 @@ func (a App) updatePriorityCmd(incidentID, priorityName string) tea.Cmd {
 			return incidentErrMsg{op: "priority", err: err}
 		}
 		return IncidentPriorityUpdated{ID: incidentID}
+	}
+	return tea.Batch(pending, action)
+}
+
+func (a App) updateIncidentCmd(incidentID string, diff components.EditDiff) tea.Cmd {
+	if a.readOnly() {
+		return func() tea.Msg { return statusMsg("read-only in test mode") }
+	}
+	client := a.client
+	appCtx := a.ctx
+	from := a.fromEmail
+	pending := func() tea.Msg {
+		return incidentActionPendingMsg{op: "edit", id: incidentID}
+	}
+	action := func() tea.Msg {
+		ctx, cancel := context.WithTimeout(appCtx, 15*time.Second)
+		defer cancel()
+		opts := api.UpdateOpts{
+			Title:    diff.Title,
+			Urgency:  diff.Urgency,
+			Priority: diff.Priority,
+		}
+		if _, err := client.UpdateIncident(ctx, incidentID, from, opts); err != nil {
+			return incidentErrMsg{op: "edit", err: err}
+		}
+		return IncidentUpdated{ID: incidentID}
 	}
 	return tea.Batch(pending, action)
 }

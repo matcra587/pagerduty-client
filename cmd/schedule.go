@@ -187,6 +187,7 @@ func init() {
 	clib.Extend(of.Lookup("user"), clib.FlagExtra{
 		Group:       "Action",
 		Placeholder: "ID",
+		Complete:    "predictor=user",
 		Terse:       "on-call user",
 	})
 	clib.Extend(of.Lookup("start"), clib.FlagExtra{

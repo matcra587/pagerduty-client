@@ -894,21 +894,25 @@ func init() {
 	clib.Extend(lf.Lookup("team"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=team",
 		Terse:       "team filter",
 	})
 	clib.Extend(lf.Lookup("service"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=service",
 		Terse:       "service filter",
 	})
 	clib.Extend(lf.Lookup("user"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=user",
 		Terse:       "user filter",
 	})
 	clib.Extend(lf.Lookup("schedule"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=schedule",
 		Terse:       "schedule filter",
 	})
 	clib.Extend(lf.Lookup("all"), clib.FlagExtra{
@@ -970,6 +974,7 @@ func init() {
 	clib.Extend(incidentReassignCmd.Flags().Lookup("user"), clib.FlagExtra{
 		Group:       "Action",
 		Placeholder: "ID",
+		Complete:    "predictor=user",
 		Terse:       "target user",
 	})
 
@@ -977,6 +982,7 @@ func init() {
 	clib.Extend(incidentMergeCmd.Flags().Lookup("source"), clib.FlagExtra{
 		Group:       "Action",
 		Placeholder: "ID",
+		Complete:    "predictor=incident",
 		Terse:       "source incident",
 	})
 

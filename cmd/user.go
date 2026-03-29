@@ -170,6 +170,7 @@ func init() {
 	clib.Extend(f.Lookup("team"), clib.FlagExtra{
 		Group:       "Filters",
 		Placeholder: "ID",
+		Complete:    "predictor=team",
 		Terse:       "team filter",
 	})
 	clib.Extend(f.Lookup("query"), clib.FlagExtra{

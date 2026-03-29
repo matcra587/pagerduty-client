@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	clib "github.com/gechr/clib/cli/cobra"
@@ -57,11 +56,16 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		// Handle shell completion before token resolution so
+		// Handle shell completion before full token resolution so
 		// --install-completion and --print-completion work without a token.
+		// For dynamic completions, fall back to PDC_TOKEN env var.
 		flagToken, _ := pf.GetString("token")
+		if flagToken == "" {
+			flagToken = os.Getenv("PDC_TOKEN")
+		}
 		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 		gen.Subs = clib.Subcommands(cmd.Root())
+		setDynamicArgs(gen.Subs)
 		handled, err := comp.Handle(gen, completionHandler(flagToken, state.apiOpts...))
 		if err != nil {
 			return err
@@ -428,58 +432,4 @@ func tokenSource(flagToken, tokenFile string, cfg *config.Config) string {
 		return string(cfg.CredentialSource)
 	}
 	return "none"
-}
-
-// completionHandler returns a handler for dynamic shell completion requests.
-// It queries the PagerDuty API for resources matching the requested completion
-// kind (e.g. "team", "service") and prints matching names to stdout.
-func completionHandler(token string, opts ...api.Option) complete.Handler {
-	return func(_, kind string, args []string) {
-		if token == "" {
-			return
-		}
-		client := api.NewClient(token, opts...)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		var names []string
-		switch kind {
-		case "team":
-			teams, err := client.ListTeams(ctx, api.ListTeamsOpts{})
-			if err != nil {
-				return
-			}
-			for _, t := range teams {
-				names = append(names, t.Name)
-			}
-		case "service":
-			services, err := client.ListServices(ctx, api.ListServicesOpts{})
-			if err != nil {
-				return
-			}
-			for _, s := range services {
-				names = append(names, s.Name)
-			}
-		case "alert":
-			if len(args) == 0 {
-				return
-			}
-			alerts, err := client.ListIncidentAlerts(ctx, args[0])
-			if err != nil {
-				return
-			}
-			for _, a := range alerts {
-				if a.Status != "resolved" {
-					names = append(names, a.ID)
-				}
-			}
-		case "urgency":
-			names = append(names, "high", "low")
-		default:
-			return
-		}
-		for _, n := range names {
-			_, _ = fmt.Println(n)
-		}
-	}
 }

@@ -58,10 +58,26 @@ func UnwrapAlert(body map[string]any) AlertEnvelope {
 	return env
 }
 
+// FieldType controls how the TUI renderer styles a field.
+// The zero value (FieldText) preserves current behaviour - normalisers
+// opt into richer rendering by setting a non-zero type.
+type FieldType int
+
+const (
+	FieldText     FieldType = iota // label: value inline (default, backward compatible)
+	FieldBadge                     // coloured pill in header row
+	FieldCode                      // left-bordered highlighted block
+	FieldMarkdown                  // glamour-rendered, label ignored
+	FieldTags                      // comma-separated -> individual background-coloured pills
+)
+
 // Field is a single key-value pair extracted from an alert payload.
+// Set Type to opt into richer TUI rendering; the zero value (FieldText)
+// preserves the existing inline label: value display.
 type Field struct {
 	Label string
 	Value string
+	Type  FieldType
 }
 
 // Link is a URL back to the source monitoring tool.

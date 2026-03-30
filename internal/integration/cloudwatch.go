@@ -30,7 +30,7 @@ func (CloudWatch) Normalise(env AlertEnvelope) (Summary, bool) {
 		s.Fields = append(s.Fields, Field{Label: "Description", Value: v})
 	}
 	if v, ok := cd["NewStateValue"].(string); ok {
-		s.Fields = append(s.Fields, Field{Label: "State", Value: v})
+		s.Fields = append(s.Fields, Field{Label: "State", Value: v, Type: FieldBadge})
 	}
 	if v, ok := cd["Region"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Region", Value: v})

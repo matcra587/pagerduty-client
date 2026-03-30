@@ -322,6 +322,8 @@ func (m incidentDetail) alertBody() map[string]any {
 func (m incidentDetail) bodySection() string {
 	var sb strings.Builder
 
+	// Incident body details (always rendered when present - normalisers
+	// are best-effort and may miss data in Body.Details).
 	if m.incident.Body.Details != "" {
 		sb.WriteString(theme.DetailHeader.Render("Details"))
 		sb.WriteString("\n")
@@ -345,57 +347,107 @@ func (m incidentDetail) bodySection() string {
 		return sb.String()
 	}
 
-	if summary.Source != "Unknown" {
-		sb.WriteString(theme.DetailHeader.Render(summary.Source))
-	} else {
-		sb.WriteString(theme.DetailLabel.Render("Body:"))
-	}
-	sb.WriteString("\n")
-
-	// Links first - the primary action when triaging.
-	linkStyle := lipgloss.NewStyle().Foreground(theme.Theme.Blue.GetForeground()).Underline(true)
-	for _, l := range summary.Links {
-		label := l.Label
-		if label == "" {
-			label = "Link"
-		}
-		// Style the label text, then wrap in OSC 8 hyperlink.
-		// Applying lipgloss inside the hyperlink breaks the escape sequence.
-		styled := linkStyle.Render(label)
-		if m.ansi != nil {
-			styled = m.ansi.Hyperlink(l.URL, styled)
-		}
-		sb.WriteString("    " + styled + "\n")
-	}
-	if len(summary.Links) > 0 {
-		sb.WriteString("\n")
-	}
-
-	maxLabel := 0
-	for _, f := range summary.Fields {
-		if w := len(f.Label) + 1; w > maxLabel {
-			maxLabel = w
-		}
-	}
-
+	// Title dedup: drop integration title when it matches the incident
+	// title. Promote differing titles to code blocks for visibility.
+	incTitle := m.incident.Title
+	var filtered []integration.Field
 	for _, f := range summary.Fields {
 		if f.Value == "" {
 			continue
 		}
-		label := fmt.Sprintf("%-*s", maxLabel, f.Label+":")
-		if strings.Contains(f.Value, "\n") {
-			fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
-			sb.WriteString(renderMarkdown(f.Value, m.width-4))
+		if f.Label == "Title" {
+			if strings.EqualFold(strings.TrimSpace(f.Value), strings.TrimSpace(incTitle)) {
+				continue
+			}
+			f.Type = integration.FieldCode
+		}
+		filtered = append(filtered, f)
+	}
+
+	groups := groupFieldsByType(filtered)
+
+	// 1. Header row: source + badges + links.
+	badges := groups[integration.FieldBadge]
+	if len(badges) > 0 {
+		sb.WriteString(renderHeaderRow(summary.Source, badges, summary.Links, m.ansi))
+		sb.WriteString("\n\n")
+	} else if summary.Source != "Unknown" {
+		sb.WriteString(theme.DetailHeader.Render(summary.Source))
+		sb.WriteString("\n\n")
+	} else {
+		sb.WriteString(theme.DetailLabel.Render("Body:"))
+		sb.WriteString("\n\n")
+	}
+
+	// 2. Text fields: standard label-value pairs.
+	// When badges are absent, links render inline below text fields.
+	textFields := groups[integration.FieldText]
+	inlineLinks := len(badges) == 0
+	if len(textFields) > 0 || inlineLinks {
+		maxLabel := 0
+		for _, f := range textFields {
+			if w := len(f.Label) + 1; w > maxLabel {
+				maxLabel = w
+			}
+		}
+		if inlineLinks {
+			for _, l := range summary.Links {
+				if w := len(l.Label) + 1; w > maxLabel {
+					maxLabel = w
+				}
+			}
+		}
+		for _, f := range textFields {
+			label := fmt.Sprintf("%-*s", maxLabel, f.Label+":")
+			if strings.Contains(f.Value, "\n") {
+				fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
+				sb.WriteString(renderMarkdown(f.Value, m.width-4))
+				sb.WriteString("\n")
+			} else if len(f.Value) > 80 {
+				fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
+				sb.WriteString(theme.DetailDim.Render(wordWrap(f.Value, m.width-6, "      ")) + "\n")
+			} else {
+				fmt.Fprintf(&sb, "    %s %s\n",
+					theme.DetailLabel.Render(label),
+					theme.DetailValue.Render(f.Value),
+				)
+			}
+		}
+		if inlineLinks {
+			for _, l := range summary.Links {
+				label := fmt.Sprintf("%-*s", maxLabel, l.Label+":")
+				linkLabel := l.URL
+				if m.ansi != nil {
+					linkLabel = m.ansi.Hyperlink(l.URL, l.URL)
+				}
+				fmt.Fprintf(&sb, "    %s %s\n",
+					theme.DetailLabel.Render(label),
+					theme.DetailValue.Render(linkLabel),
+				)
+			}
+		}
+	}
+
+	// 3. Code blocks.
+	for _, f := range groups[integration.FieldCode] {
+		sb.WriteString(renderCodeBlock(f, m.width))
+		sb.WriteString("\n")
+	}
+
+	// 4. Markdown fields.
+	for _, f := range groups[integration.FieldMarkdown] {
+		sb.WriteString(renderMarkdownField(f, m.width))
+		sb.WriteString("\n")
+	}
+
+	// 5. Tags (after separator).
+	tagFields := groups[integration.FieldTags]
+	if len(tagFields) > 0 {
+		sb.WriteString(theme.DetailDim.Render(strings.Repeat("─", m.width)))
+		sb.WriteString("\n")
+		for _, f := range tagFields {
+			sb.WriteString(renderTagPills(f, m.width))
 			sb.WriteString("\n")
-		} else if len(f.Value) > 80 {
-			// Long single-line value: show on next line, indented and dimmed.
-			fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
-			sb.WriteString(theme.DetailDim.Render(wordWrap(f.Value, m.width-6, "      ")) + "\n")
-		} else {
-			fmt.Fprintf(&sb, "    %s %s\n",
-				theme.DetailLabel.Render(label),
-				theme.DetailValue.Render(f.Value),
-			)
 		}
 	}
 

@@ -196,7 +196,10 @@ func (m incidentDetail) View() tea.View {
 // headerContent returns the detail tab bar with incident ID on the right.
 func (m incidentDetail) headerContent() string {
 	tabs := m.tabBar()
-	id := m.ansi.Hyperlink(m.incident.HTMLURL, m.incident.ID)
+	id := m.incident.ID
+	if m.ansi != nil {
+		id = m.ansi.Hyperlink(m.incident.HTMLURL, id)
+	}
 	idW := lipgloss.Width(id)
 	tabsW := lipgloss.Width(tabs)
 	gap := max(m.width-tabsW-idW, 1)
@@ -279,8 +282,6 @@ func (m incidentDetail) summaryView() string {
 	timeline := indent + lbl("Timeline") + " created " + created + " " + theme.DetailDim.Render("-") + " updated " + updated
 	sb.WriteString(timeline + "\n")
 
-	sb.WriteString(indent + lbl("ID") + " " + theme.DetailDim.Render(m.ansi.Hyperlink(inc.HTMLURL, inc.ID)) + "\n")
-
 	if inc.IncidentKey != "" {
 		sb.WriteString(field("Event key", inc.IncidentKey))
 	}
@@ -349,7 +350,26 @@ func (m incidentDetail) bodySection() string {
 	} else {
 		sb.WriteString(theme.DetailLabel.Render("Body:"))
 	}
-	sb.WriteString("\n\n")
+	sb.WriteString("\n")
+
+	// Links first - the primary action when triaging.
+	linkStyle := lipgloss.NewStyle().Foreground(theme.Theme.Blue.GetForeground()).Underline(true)
+	for _, l := range summary.Links {
+		label := l.Label
+		if label == "" {
+			label = "Link"
+		}
+		// Style the label text, then wrap in OSC 8 hyperlink.
+		// Applying lipgloss inside the hyperlink breaks the escape sequence.
+		styled := linkStyle.Render(label)
+		if m.ansi != nil {
+			styled = m.ansi.Hyperlink(l.URL, styled)
+		}
+		sb.WriteString("    " + styled + "\n")
+	}
+	if len(summary.Links) > 0 {
+		sb.WriteString("\n")
+	}
 
 	maxLabel := 0
 	for _, f := range summary.Fields {
@@ -357,31 +377,24 @@ func (m incidentDetail) bodySection() string {
 			maxLabel = w
 		}
 	}
-	for _, l := range summary.Links {
-		if w := len(l.Label) + 1; w > maxLabel {
-			maxLabel = w
-		}
-	}
+
 	for _, f := range summary.Fields {
+		if f.Value == "" {
+			continue
+		}
 		label := fmt.Sprintf("%-*s", maxLabel, f.Label+":")
-		if strings.Contains(f.Value, "\n") || len(f.Value) > 80 {
+		if strings.Contains(f.Value, "\n") {
 			fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
 			sb.WriteString(renderMarkdown(f.Value, m.width-4))
 			sb.WriteString("\n")
+		} else if len(f.Value) > 80 {
+			// Long single-line value: show on next line, indented and dimmed.
+			fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
+			sb.WriteString(theme.DetailDim.Render(wordWrap(f.Value, m.width-6, "      ")) + "\n")
 		} else {
 			fmt.Fprintf(&sb, "    %s %s\n",
 				theme.DetailLabel.Render(label),
 				theme.DetailValue.Render(f.Value),
-			)
-		}
-	}
-	if len(summary.Links) > 0 {
-		sb.WriteString("\n")
-		for _, l := range summary.Links {
-			label := fmt.Sprintf("%-*s", maxLabel, l.Label+":")
-			fmt.Fprintf(&sb, "    %s %s\n",
-				theme.DetailLabel.Render(label),
-				theme.DetailValue.Render(l.URL),
 			)
 		}
 	}

@@ -258,12 +258,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case IncidentSelected:
 		a.detail = newIncidentDetail(a.ctx, a.client, a.cfg, a.ansi, msg.Incident)
 		a.detail.width = a.width
-		a.detail.height = a.bodyH
-		vpHeight := max(a.bodyH, 1)
-		for i := range a.detail.viewports {
-			a.detail.viewports[i].SetWidth(a.width)
-			a.detail.viewports[i].SetHeight(vpHeight)
-		}
+		a.detail.height = max(a.bodyH, 1)
 		a.detail.syncContent()
 		a.current = viewDetail
 		return a, a.detail.Init()
@@ -767,7 +762,15 @@ func (a App) View() tea.View {
 	default:
 		bodyContent = a.dashboard.View().Content
 	}
-	body := lipgloss.NewStyle().Width(a.width).Height(a.bodyH).MaxHeight(a.bodyH).Render(bodyContent)
+	// The detail view's View() outputs exactly bodyH lines (padded with
+	// newlines), so we skip the expensive lipgloss render for that path.
+	// Other views still need it for dimension enforcement.
+	var body string
+	if a.current == viewDetail {
+		body = bodyContent
+	} else {
+		body = lipgloss.NewStyle().Width(a.width).Height(a.bodyH).MaxHeight(a.bodyH).Render(bodyContent)
+	}
 
 	// Dim the body and show a centred spinner while loading.
 	if a.loading {

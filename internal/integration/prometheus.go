@@ -30,7 +30,7 @@ func (Prometheus) Normalise(env AlertEnvelope) (Summary, bool) {
 		s.Fields = append(s.Fields, Field{Label: "Alert", Value: v})
 	}
 	if v, ok := cd["severity"].(string); ok {
-		s.Fields = append(s.Fields, Field{Label: "Severity", Value: v})
+		s.Fields = append(s.Fields, Field{Label: "Severity", Value: v, Type: FieldBadge})
 	}
 	if v, ok := cd["description"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Description", Value: v})

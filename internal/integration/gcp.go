@@ -60,7 +60,7 @@ func (GCP) Normalise(env AlertEnvelope) (Summary, bool) {
 		s.Fields = append(s.Fields, Field{Label: "Severity", Value: v})
 	}
 	if v, ok := inc["state"].(string); ok {
-		s.Fields = append(s.Fields, Field{Label: "State", Value: v})
+		s.Fields = append(s.Fields, Field{Label: "State", Value: v, Type: FieldBadge})
 	}
 	if v, ok := inc["summary"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Summary", Value: v})

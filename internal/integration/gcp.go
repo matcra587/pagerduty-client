@@ -23,11 +23,29 @@ func (GCP) Normalise(env AlertEnvelope) (Summary, bool) {
 
 	s := Summary{Source: "Google Cloud Monitoring"}
 
+	// Badge: state in header row.
+	if v, ok := inc["state"].(string); ok {
+		s.Fields = append(s.Fields, Field{Label: "State", Value: v, Type: FieldBadge})
+	}
+
+	// Text fields: ordered for triage (condition + triggered value together).
 	if v, ok := inc["policy_name"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Policy", Value: v})
 	}
 	if v, ok := inc["condition_name"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Condition", Value: v})
+	}
+	if obs, ok := inc["observed_value"].(string); ok {
+		val := obs
+		if thr, ok := inc["threshold_value"].(string); ok {
+			val = fmt.Sprintf("%s (threshold: %s)", obs, thr)
+		}
+		s.Fields = append(s.Fields, Field{Label: "Observed", Value: val})
+	}
+	if m, ok := inc["metric"].(map[string]any); ok {
+		if name, ok := m["displayName"].(string); ok {
+			s.Fields = append(s.Fields, Field{Label: "Metric", Value: name})
+		}
 	}
 	if res, ok := inc["resource"].(map[string]any); ok {
 		resDisplay, _ := inc["resource_type_display_name"].(string)
@@ -44,23 +62,8 @@ func (GCP) Normalise(env AlertEnvelope) (Summary, bool) {
 			s.Fields = append(s.Fields, Field{Label: "Resource", Value: resDisplay})
 		}
 	}
-	if m, ok := inc["metric"].(map[string]any); ok {
-		if name, ok := m["displayName"].(string); ok {
-			s.Fields = append(s.Fields, Field{Label: "Metric", Value: name})
-		}
-	}
-	if obs, ok := inc["observed_value"].(string); ok {
-		val := obs
-		if thr, ok := inc["threshold_value"].(string); ok {
-			val = fmt.Sprintf("%s (threshold: %s)", obs, thr)
-		}
-		s.Fields = append(s.Fields, Field{Label: "Observed", Value: val})
-	}
 	if v, ok := inc["severity"].(string); ok && v != "No severity" {
 		s.Fields = append(s.Fields, Field{Label: "Severity", Value: v})
-	}
-	if v, ok := inc["state"].(string); ok {
-		s.Fields = append(s.Fields, Field{Label: "State", Value: v, Type: FieldBadge})
 	}
 	if v, ok := inc["summary"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Summary", Value: v})

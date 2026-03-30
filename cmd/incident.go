@@ -58,11 +58,14 @@ var incidentListCmd = &cobra.Command{
 		until, _ := cmd.Flags().GetString("until")
 		sortBy, _ := cmd.Flags().GetString("sort")
 
-		// --all overrides --since/--until and status defaults.
+		// --all overrides --since/--until and status defaults,
+		// but preserves an explicit --status from the user.
 		if all {
 			since = ""
 			until = ""
-			statuses = nil
+			if !cmd.Flags().Changed("status") {
+				statuses = nil
+			}
 		} else {
 			since = expandSinceShorthand(since)
 		}

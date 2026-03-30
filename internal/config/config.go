@@ -80,9 +80,10 @@ func Default() *Config {
 type Option func(*loadOptions)
 
 type loadOptions struct {
-	path  string
-	token string
-	team  string
+	path    string
+	token   string
+	team    string
+	service string
 }
 
 // WithPath overrides the config file path.
@@ -98,6 +99,11 @@ func WithToken(token string) Option {
 // WithTeam sets the team filter.
 func WithTeam(team string) Option {
 	return func(o *loadOptions) { o.team = team }
+}
+
+// WithService sets the service filter.
+func WithService(service string) Option {
+	return func(o *loadOptions) { o.service = service }
 }
 
 // DefaultConfigPath returns the path to the config file, using the
@@ -174,6 +180,9 @@ func Load(opts ...Option) (*Config, error) {
 	}
 	if lo.team != "" {
 		cfg.Team = lo.team
+	}
+	if lo.service != "" {
+		cfg.Service = lo.service
 	}
 
 	return cfg, nil

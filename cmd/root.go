@@ -170,6 +170,9 @@ func loadConfigAndFlags(pf *pflag.FlagSet) (preRunState, error) {
 	if team, _ := pf.GetString("team"); team != "" {
 		opts = append(opts, config.WithTeam(team))
 	}
+	if service, _ := pf.GetString("service"); service != "" {
+		opts = append(opts, config.WithService(service))
+	}
 
 	cfg, err := config.Load(opts...)
 	if err != nil {
@@ -257,6 +260,7 @@ func init() {
 	pf.StringP("token", "t", "", "PagerDuty API token (not recommended - visible in process list)")
 	pf.String("token-file", "", "Read API token from file (preferred over --token)")
 	pf.StringP("team", "T", "", "Team name or ID filter (overrides PDC_TEAM)")
+	pf.StringP("service", "S", "", "Service name or ID filter (overrides config)")
 	pf.StringP("format", "f", "table", `Output format: "table" or "json"`)
 	pf.BoolP("interactive", "i", false, "Launch interactive TUI dashboard")
 	pf.Bool("agent", false, "Force agent mode (structured JSON output)")
@@ -281,6 +285,12 @@ func init() {
 		Placeholder: "NAME|ID",
 		Complete:    "predictor=team",
 		Terse:       "team filter",
+	})
+	clib.Extend(pf.Lookup("service"), clib.FlagExtra{
+		Group:       "Filters",
+		Placeholder: "NAME|ID",
+		Complete:    "predictor=service",
+		Terse:       "service filter",
 	})
 	clib.Extend(pf.Lookup("format"), clib.FlagExtra{
 		Group:       "Output",

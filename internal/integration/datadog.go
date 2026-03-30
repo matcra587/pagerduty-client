@@ -1,6 +1,9 @@
 package integration
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 // Datadog normalises Datadog alert payloads (best-effort).
 type Datadog struct{}
@@ -37,9 +40,15 @@ func (Datadog) Normalise(env AlertEnvelope) (Summary, bool) {
 	if v, ok := cd["query"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Query", Value: v, Type: FieldCode})
 	}
-	// Markdown.
+	// Markdown body: extract trailing "Metric value: <val>" into its own field.
 	if v, ok := cd["body"].(string); ok {
-		s.Fields = append(s.Fields, Field{Label: "Body", Value: v, Type: FieldMarkdown})
+		body, metric := extractMetricValue(v)
+		if metric != "" {
+			s.Fields = append(s.Fields, Field{Label: "Observed", Value: metric})
+		}
+		if body != "" {
+			s.Fields = append(s.Fields, Field{Label: "Body", Value: body, Type: FieldMarkdown})
+		}
 	}
 	// Tags: handle both string and []any formats.
 	switch tags := cd["tags"].(type) {
@@ -60,4 +69,19 @@ func (Datadog) Normalise(env AlertEnvelope) (Summary, bool) {
 		s.Links = append(s.Links, Link{Label: "Datadog", URL: env.ClientURL})
 	}
 	return s, true
+}
+
+var metricValueRe = regexp.MustCompile(`(?m)\n\n?Metric value: (.+)$`)
+
+// extractMetricValue strips a trailing "Metric value: <val>" from a
+// Datadog body string, returning the cleaned body and the extracted
+// value. Returns the original body and empty string if not found.
+func extractMetricValue(body string) (cleaned, metric string) {
+	m := metricValueRe.FindStringSubmatchIndex(body)
+	if m == nil {
+		return body, ""
+	}
+	metric = strings.TrimSpace(body[m[2]:m[3]])
+	cleaned = strings.TrimSpace(body[:m[0]])
+	return cleaned, metric
 }

@@ -40,7 +40,7 @@ func (GCP) Normalise(env AlertEnvelope) (Summary, bool) {
 		if thr, ok := inc["threshold_value"].(string); ok {
 			val = fmt.Sprintf("%s (threshold: %s)", obs, thr)
 		}
-		s.Fields = append(s.Fields, Field{Label: "Observed", Value: val})
+		s.Fields = append(s.Fields, Field{Label: "Observed", Value: val, Type: FieldCode})
 	}
 	if m, ok := inc["metric"].(map[string]any); ok {
 		if name, ok := m["displayName"].(string); ok {

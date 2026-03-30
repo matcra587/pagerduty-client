@@ -44,7 +44,7 @@ func (Datadog) Normalise(env AlertEnvelope) (Summary, bool) {
 	if v, ok := cd["body"].(string); ok {
 		body, metric := extractMetricValue(v)
 		if metric != "" {
-			s.Fields = append(s.Fields, Field{Label: "Observed", Value: metric})
+			s.Fields = append(s.Fields, Field{Label: "Observed", Value: metric, Type: FieldCode})
 		}
 		if body != "" {
 			s.Fields = append(s.Fields, Field{Label: "Body", Value: body, Type: FieldMarkdown})

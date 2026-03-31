@@ -134,6 +134,14 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg {
 				return detailAckMsg{id: m.incident.ID}
 			}
+		case "n":
+			return m, func() tea.Msg {
+				return detailNoteMsg{id: m.incident.ID}
+			}
+		case "s":
+			return m, func() tea.Msg {
+				return detailSnoozeMsg{id: m.incident.ID}
+			}
 		case "up", "k":
 			if m.scrolls[m.activeTab] > 0 {
 				m.scrolls[m.activeTab]--

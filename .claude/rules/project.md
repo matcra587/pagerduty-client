@@ -416,7 +416,7 @@ tab/shift+tab or left/right = switch tabs,
 up/down = scroll, a = ack, r = resolve (confirm),
 alt+r = resolve (immediate),
 e = edit, x = escalate (confirm), alt+x = escalate (immediate),
-p = set priority (picker),
+s = snooze, n = add note, p = set priority (picker),
 y = copy URL, o = open in browser, alt+o = open external link,
 ? = help, esc = back, ctrl+c/q = quit
 

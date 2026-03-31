@@ -312,6 +312,25 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case detailAckMsg:
 		return a, a.detailAckCmd(msg.id)
 
+	case detailNoteMsg:
+		return a, func() tea.Msg {
+			return showInputMsg{
+				action:     "note",
+				incidentID: msg.id,
+				prompt:     "Add note:",
+			}
+		}
+
+	case detailSnoozeMsg:
+		return a, func() tea.Msg {
+			return showInputMsg{
+				action:      "snooze",
+				incidentID:  msg.id,
+				prompt:      "Snooze duration (e.g. 4h, 30m):",
+				placeholder: "4h",
+			}
+		}
+
 	case detailEditMsg:
 		if len(a.priorities) > 0 {
 			a.editOverlay = a.editOverlay.Show(msg.incident, a.priorities)

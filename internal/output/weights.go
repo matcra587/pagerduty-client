@@ -27,6 +27,8 @@ const (
 	ResourceLogEntry Resource = "log_entry"
 	// ResourceNote is an incident note.
 	ResourceNote Resource = "note"
+	// ResourceEscalationPolicy is an escalation policy.
+	ResourceEscalationPolicy Resource = "escalation_policy"
 	// ResourceNone is the default when no resource context applies.
 	ResourceNone Resource = ""
 )
@@ -179,6 +181,19 @@ var resourceWeights = map[Resource]ResourceWeights{
 			"content":    1.0,
 			"user":       0.8,
 			"created_at": 0.7,
+		},
+	},
+	ResourceEscalationPolicy: {
+		Budget:        120,
+		DefaultWeight: 0.1,
+		Fields: map[string]float64{
+			"id":               1.0,
+			"name":             1.0,
+			"escalation_rules": 0.9,
+			"num_loops":        0.8,
+			"teams":            0.7,
+			"description":      0.5,
+			"html_url":         0.3,
 		},
 	},
 }

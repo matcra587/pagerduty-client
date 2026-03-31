@@ -91,6 +91,14 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 					printCompletion(a.ID, a.Summary)
 				}
 			}
+		case "escalation_policy":
+			policies, err := client.ListEscalationPolicies(ctx, api.ListEscalationPoliciesOpts{})
+			if err != nil {
+				return
+			}
+			for _, p := range policies {
+				printCompletion(p.ID, p.Name)
+			}
 		case "urgency":
 			_, _ = fmt.Println("high")
 			_, _ = fmt.Println("low")

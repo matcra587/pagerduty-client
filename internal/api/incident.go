@@ -223,7 +223,7 @@ func (c *Client) EscalateIncident(ctx context.Context, id, from string) error {
 	}
 	currentLevel := incResp.Incident.EscalationLevel
 
-	ep, err := c.getEscalationPolicy(ctx, epID)
+	ep, err := c.GetEscalationPolicy(ctx, epID)
 	if err != nil {
 		return fmt.Errorf("fetching escalation policy: %w", err)
 	}
@@ -250,24 +250,6 @@ func (c *Client) EscalateIncident(ctx context.Context, id, from string) error {
 	}
 
 	return c.ReassignIncident(ctx, id, from, targetIDs)
-}
-
-// getEscalationPolicy fetches an escalation policy by ID. This is a private
-// helper for EscalateIncident; the full public method will live in
-// escalation_policy.go.
-func (c *Client) getEscalationPolicy(ctx context.Context, id string) (*pagerduty.EscalationPolicy, error) {
-	body, err := c.get(ctx, "/escalation_policies/"+id, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp struct {
-		EscalationPolicy pagerduty.EscalationPolicy `json:"escalation_policy"`
-	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("decoding escalation policy: %w", err)
-	}
-	return &resp.EscalationPolicy, nil
 }
 
 // ListPriorities fetches all configured priorities.

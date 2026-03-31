@@ -132,9 +132,10 @@ var incidentListCmd = &cobra.Command{
 }
 
 var incidentShowCmd = &cobra.Command{
-	Use:   "show <id>",
-	Short: "Show incident details",
-	Args:  cobra.ExactArgs(1),
+	Use:         "show <id>",
+	Short:       "Show incident details",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -210,9 +211,10 @@ var incidentShowCmd = &cobra.Command{
 }
 
 var incidentAckCmd = &cobra.Command{
-	Use:   "ack <id>",
-	Short: "Acknowledge an incident",
-	Args:  cobra.ExactArgs(1),
+	Use:         "ack <id>",
+	Short:       "Acknowledge an incident",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -236,9 +238,10 @@ var incidentAckCmd = &cobra.Command{
 }
 
 var incidentResolveCmd = &cobra.Command{
-	Use:   "resolve <id>",
-	Short: "Resolve an incident",
-	Args:  cobra.ExactArgs(1),
+	Use:         "resolve <id>",
+	Short:       "Resolve an incident",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -282,9 +285,10 @@ var incidentResolveCmd = &cobra.Command{
 }
 
 var incidentSnoozeCmd = &cobra.Command{
-	Use:   "snooze <id>",
-	Short: "Snooze an incident",
-	Args:  cobra.ExactArgs(1),
+	Use:         "snooze <id>",
+	Short:       "Snooze an incident",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -314,9 +318,10 @@ var incidentSnoozeCmd = &cobra.Command{
 }
 
 var incidentReassignCmd = &cobra.Command{
-	Use:   "reassign <id>",
-	Short: "Reassign an incident to one or more users",
-	Args:  cobra.ExactArgs(1),
+	Use:         "reassign <id>",
+	Short:       "Reassign an incident to one or more users",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -345,9 +350,10 @@ var incidentReassignCmd = &cobra.Command{
 }
 
 var incidentMergeCmd = &cobra.Command{
-	Use:   "merge <target-id>",
-	Short: "Merge source incidents into a target incident",
-	Args:  cobra.ExactArgs(1),
+	Use:         "merge <target-id>",
+	Short:       "Merge source incidents into a target incident",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -382,9 +388,10 @@ var incidentNoteCmd = &cobra.Command{
 }
 
 var incidentNoteAddCmd = &cobra.Command{
-	Use:   "add <id>",
-	Short: "Add a note to an incident",
-	Args:  cobra.ExactArgs(1),
+	Use:         "add <id>",
+	Short:       "Add a note to an incident",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -413,9 +420,10 @@ var incidentNoteAddCmd = &cobra.Command{
 }
 
 var incidentNoteListCmd = &cobra.Command{
-	Use:   "list <id>",
-	Short: "List notes for an incident",
-	Args:  cobra.ExactArgs(1),
+	Use:         "list <id>",
+	Short:       "List notes for an incident",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -450,10 +458,11 @@ var incidentNoteListCmd = &cobra.Command{
 }
 
 var incidentLogCmd = &cobra.Command{
-	Use:   "log <id>",
-	Short: "Show incident timeline",
-	Long:  "List log entries for an incident, showing the timeline of actions.",
-	Args:  cobra.ExactArgs(1),
+	Use:         "log <id>",
+	Short:       "Show incident timeline",
+	Long:        "List log entries for an incident, showing the timeline of actions.",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -498,9 +507,10 @@ var incidentLogCmd = &cobra.Command{
 }
 
 var incidentUrgencyCmd = &cobra.Command{
-	Use:   "urgency <id> <high|low>",
-	Short: "Set incident urgency",
-	Args:  cobra.ExactArgs(2),
+	Use:         "urgency <id> <high|low>",
+	Short:       "Set incident urgency",
+	Args:        cobra.ExactArgs(2),
+	Annotations: map[string]string{"clib": "dynamic-args='incident,urgency'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		level := args[1]
 		if level != "high" && level != "low" {
@@ -529,9 +539,10 @@ var incidentUrgencyCmd = &cobra.Command{
 }
 
 var incidentTitleCmd = &cobra.Command{
-	Use:   "title <id> <new-title>",
-	Short: "Set incident title",
-	Args:  cobra.ExactArgs(2),
+	Use:         "title <id> <new-title>",
+	Short:       "Set incident title",
+	Args:        cobra.ExactArgs(2),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[1]
 		if title == "" {
@@ -560,9 +571,10 @@ var incidentTitleCmd = &cobra.Command{
 }
 
 var incidentResolveAlertCmd = &cobra.Command{
-	Use:   "resolve-alert <incident-id> <alert-id>...",
-	Short: "Resolve one or more alerts within an incident",
-	Args:  cobra.MinimumNArgs(2),
+	Use:         "resolve-alert <incident-id> <alert-id>...",
+	Short:       "Resolve one or more alerts within an incident",
+	Args:        cobra.MinimumNArgs(2),
+	Annotations: map[string]string{"clib": "dynamic-args='incident,alert'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

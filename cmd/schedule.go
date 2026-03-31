@@ -62,9 +62,10 @@ var scheduleListCmd = &cobra.Command{
 }
 
 var scheduleShowCmd = &cobra.Command{
-	Use:   "show <id>",
-	Short: "Show schedule details",
-	Args:  cobra.ExactArgs(1),
+	Use:         "show <id>",
+	Short:       "Show schedule details",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='schedule'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -103,9 +104,10 @@ var scheduleShowCmd = &cobra.Command{
 }
 
 var scheduleOverrideCmd = &cobra.Command{
-	Use:   "override <schedule-id>",
-	Short: "Create a schedule override",
-	Args:  cobra.ExactArgs(1),
+	Use:         "override <schedule-id>",
+	Short:       "Create a schedule override",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='schedule'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

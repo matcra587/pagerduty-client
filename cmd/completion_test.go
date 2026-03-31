@@ -59,6 +59,9 @@ func TestCompletionHandler(t *testing.T) {
 	mux.HandleFunc("GET /schedules", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"schedules": [{"id": "SCH1", "name": "Primary"}], "limit": 100, "offset": 0, "more": false}`))
 	})
+	mux.HandleFunc("GET /escalation_policies", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"escalation_policies": [{"id": "EP1", "name": "Platform"}, {"id": "EP2", "name": "Mobile"}], "limit": 100, "offset": 0, "more": false}`))
+	})
 
 	handler := completionHandler("test-token", api.WithBaseURL(server.URL))
 
@@ -76,6 +79,7 @@ func TestCompletionHandler(t *testing.T) {
 		{name: "service IDs", shell: "zsh", kind: "service", expected: []string{"S1"}},
 		{name: "user IDs", shell: "zsh", kind: "user", expected: []string{"U1", "U2"}},
 		{name: "schedule IDs", shell: "zsh", kind: "schedule", expected: []string{"SCH1"}},
+		{name: "escalation policy IDs", shell: "zsh", kind: "escalation_policy", expected: []string{"EP1", "EP2"}},
 		{name: "urgency static", shell: "zsh", kind: "urgency", expected: []string{"high", "low"}},
 		{name: "unknown kind", shell: "zsh", kind: "bogus"},
 
@@ -86,6 +90,7 @@ func TestCompletionHandler(t *testing.T) {
 		{name: "fish user descriptions", shell: "fish", kind: "user", expected: []string{"U1\tAlice", "U2\tBob"}},
 		{name: "fish schedule descriptions", shell: "fish", kind: "schedule", expected: []string{"SCH1\tPrimary"}},
 		{name: "fish alert descriptions", shell: "fish", kind: "alert", args: []string{"P1"}, expected: []string{"A1\tHost unreachable"}},
+		{name: "fish escalation policy descriptions", shell: "fish", kind: "escalation_policy", expected: []string{"EP1\tPlatform", "EP2\tMobile"}},
 		{name: "fish urgency no descriptions", shell: "fish", kind: "urgency", expected: []string{"high", "low"}},
 	}
 

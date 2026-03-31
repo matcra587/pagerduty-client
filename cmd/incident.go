@@ -35,6 +35,14 @@ var incidentListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List incidents",
 	Args:  cobra.NoArgs,
+	Example: `# List triggered and acknowledged incidents
+$ pdc incident list
+
+# List all resolved incidents
+$ pdc incident list --all --status resolved
+
+# Filter by team
+$ pdc incident list --team PTEAM01`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -136,6 +144,11 @@ var incidentShowCmd = &cobra.Command{
 	Short:       "Show incident details",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Show incident details
+$ pdc incident show P000001
+
+# Include alert payloads
+$ pdc incident show --alerts --payload P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -215,6 +228,8 @@ var incidentAckCmd = &cobra.Command{
 	Short:       "Acknowledge an incident",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Acknowledge an incident
+$ pdc incident ack P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -242,6 +257,11 @@ var incidentResolveCmd = &cobra.Command{
 	Short:       "Resolve an incident",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Resolve an incident
+$ pdc incident resolve P000001
+
+# Resolve with a closing note
+$ pdc incident resolve --note "Root cause identified and fixed" P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -289,6 +309,8 @@ var incidentSnoozeCmd = &cobra.Command{
 	Short:       "Snooze an incident",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Snooze for 2 hours
+$ pdc incident snooze --duration 2h P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -322,6 +344,11 @@ var incidentReassignCmd = &cobra.Command{
 	Short:       "Reassign an incident to one or more users",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Reassign to another user
+$ pdc incident reassign --user PUSER01 P000001
+
+# Reassign to multiple users
+$ pdc incident reassign --user PUSER01 --user PUSER02 P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -354,6 +381,8 @@ var incidentMergeCmd = &cobra.Command{
 	Short:       "Merge source incidents into a target incident",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Merge two incidents into a target
+$ pdc incident merge --source P000002 --source P000003 P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -392,6 +421,8 @@ var incidentNoteAddCmd = &cobra.Command{
 	Short:       "Add a note to an incident",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Add a note to an incident
+$ pdc incident note add --content "Investigating the issue" P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -424,6 +455,8 @@ var incidentNoteListCmd = &cobra.Command{
 	Short:       "List notes for an incident",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# List notes for an incident
+$ pdc incident note list P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -463,6 +496,11 @@ var incidentLogCmd = &cobra.Command{
 	Long:        "List log entries for an incident, showing the timeline of actions.",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Show incident timeline
+$ pdc incident log P000001
+
+# Show last 7 days of entries
+$ pdc incident log --since 7d P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -511,6 +549,8 @@ var incidentUrgencyCmd = &cobra.Command{
 	Short:       "Set incident urgency",
 	Args:        cobra.ExactArgs(2),
 	Annotations: map[string]string{"clib": "dynamic-args='incident,urgency'"},
+	Example: `# Set urgency to high
+$ pdc incident urgency P000001 high`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		level := args[1]
 		if level != "high" && level != "low" {
@@ -543,6 +583,8 @@ var incidentTitleCmd = &cobra.Command{
 	Short:       "Set incident title",
 	Args:        cobra.ExactArgs(2),
 	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Example: `# Update the incident title
+$ pdc incident title P000001 "Database connection pool exhausted"`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := args[1]
 		if title == "" {
@@ -575,6 +617,11 @@ var incidentResolveAlertCmd = &cobra.Command{
 	Short:       "Resolve one or more alerts within an incident",
 	Args:        cobra.MinimumNArgs(2),
 	Annotations: map[string]string{"clib": "dynamic-args='incident,alert'"},
+	Example: `# Resolve a specific alert within an incident
+$ pdc incident resolve-alert P000001 A000001
+
+# Resolve multiple alerts
+$ pdc incident resolve-alert P000001 A000001 A000002`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -1009,7 +1056,7 @@ func init() {
 		Terse:       "source incident",
 	})
 
-	incidentNoteAddCmd.Flags().String("content", "", "Note content")
+	incidentNoteAddCmd.Flags().String("content", "", "Note content (required)")
 	clib.Extend(incidentNoteAddCmd.Flags().Lookup("content"), clib.FlagExtra{
 		Group:       "Action",
 		Placeholder: "TEXT",

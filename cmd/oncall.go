@@ -16,9 +16,14 @@ import (
 )
 
 var oncallCmd = &cobra.Command{
-	Use:     "oncall",
-	Short:   "List on-call entries",
-	Long:    "Show who is currently on call, optionally filtered by team, schedule or escalation policy.",
+	Use:   "oncall",
+	Short: "List on-call entries",
+	Long:  "Show who is currently on call, optionally filtered by team, schedule or escalation policy.",
+	Example: `# List current on-call entries
+$ pdc oncall
+
+# Filter by schedule
+$ pdc oncall --schedule PSCHED01`,
 	Args:    cobra.NoArgs,
 	GroupID: "resources",
 	RunE: func(cmd *cobra.Command, _ []string) error {

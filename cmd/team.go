@@ -23,7 +23,9 @@ var teamCmd = &cobra.Command{
 var teamListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List teams",
-	Args:  cobra.NoArgs,
+	Example: `# List all teams
+$ pdc team list`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -64,8 +66,10 @@ var teamListCmd = &cobra.Command{
 }
 
 var teamShowCmd = &cobra.Command{
-	Use:         "show <id>",
-	Short:       "Show team details",
+	Use:   "show <id>",
+	Short: "Show team details",
+	Example: `# Show team details
+$ pdc team show PTEAM01`,
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='team'"},
 	RunE: func(cmd *cobra.Command, args []string) error {

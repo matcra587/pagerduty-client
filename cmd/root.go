@@ -43,9 +43,20 @@ var comp *clib.Completion
 
 // rootCmd is the base command for pdc.
 var rootCmd = &cobra.Command{
-	Use:           "pdc",
-	Short:         "PagerDuty CLI",
-	Long:          "AI-agent-ready CLI for PagerDuty. Every command produces structured, self-describing output.",
+	Use:   "pdc",
+	Short: "PagerDuty CLI",
+	Long:  "AI-agent-ready CLI for PagerDuty. Every command produces structured, self-describing output.",
+	Example: `# Launch the TUI dashboard
+$ pdc -i
+
+# List triggered incidents as JSON
+$ pdc incident list --format json
+
+# Acknowledge an incident
+$ pdc incident ack P000001
+
+# Show who is on call
+$ pdc oncall`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -340,22 +351,7 @@ func init() {
 	renderer := help.NewRenderer(th)
 	rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.Sections,
 		help.WithHelpFlags("Print help", "Print help with examples"),
-		help.WithLongHelp(os.Args, buildExamplesSection()),
 	))
-}
-
-func buildExamplesSection() help.Section {
-	return help.Section{
-		Title: "Examples",
-		Content: []help.Content{
-			help.Examples{
-				{Comment: "Launch the TUI dashboard", Command: "pdc -i"},
-				{Comment: "List triggered incidents as JSON", Command: "pdc incident list --format json"},
-				{Comment: "Acknowledge an incident", Command: "pdc incident ack P000001"},
-				{Comment: "Show who is on call", Command: "pdc oncall"},
-			},
-		},
-	}
 }
 
 // ConfigFromContext retrieves the loaded Config from the command context.

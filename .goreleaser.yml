@@ -49,6 +49,18 @@ archives:
 checksum:
   name_template: checksums.txt
 
+# ── Signing ──────────────────────────────────────────────
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
 # ── Distribute ───────────────────────────────────────────
 
 homebrew_casks:

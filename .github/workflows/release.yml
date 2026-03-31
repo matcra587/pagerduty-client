@@ -16,13 +16,17 @@ jobs:
     name: GoReleaser
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required to create GitHub releases and upload assets.
+      contents: write  # Required to create GitHub releases and upload assets.
+      id-token: write  # Required for cosign keyless signing via OIDC.
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
 
       - name: Install mise
         uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4

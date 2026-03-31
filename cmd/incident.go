@@ -875,6 +875,7 @@ func init() {
 		Group:       "Filters",
 		Placeholder: "TIME",
 		Enum:        []string{"7d", "30d", "60d", "90d"},
+		EnumTerse:   []string{"last 7 days", "last 30 days", "last 60 days", "last 90 days"},
 		Terse:       "start time (shorthand or ISO 8601)",
 	})
 	clib.Extend(logF.Lookup("until"), clib.FlagExtra{
@@ -901,14 +902,16 @@ func init() {
 	lf.String("sort", "", "Sort order (e.g. created_at:asc)")
 
 	clib.Extend(lf.Lookup("status"), clib.FlagExtra{
-		Group: "Filters",
-		Enum:  []string{"triggered", "acknowledged", "resolved"},
-		Terse: "status filter",
+		Group:     "Filters",
+		Enum:      []string{"triggered", "acknowledged", "resolved"},
+		EnumTerse: []string{"awaiting response", "responder engaged", "incident closed"},
+		Terse:     "status filter",
 	})
 	clib.Extend(lf.Lookup("urgency"), clib.FlagExtra{
-		Group: "Filters",
-		Enum:  []string{"high", "low"},
-		Terse: "urgency filter",
+		Group:     "Filters",
+		Enum:      []string{"high", "low"},
+		EnumTerse: []string{"high-urgency notifications", "low-urgency notifications"},
+		Terse:     "urgency filter",
 	})
 	clib.Extend(lf.Lookup("team"), clib.FlagExtra{
 		Group:       "Filters",
@@ -942,6 +945,7 @@ func init() {
 		Group:       "Filters",
 		Placeholder: "TIME",
 		Enum:        []string{"7d", "30d", "60d", "90d"},
+		EnumTerse:   []string{"last 7 days", "last 30 days", "last 60 days", "last 90 days"},
 		Terse:       "start time (shorthand or ISO 8601)",
 	})
 	clib.Extend(lf.Lookup("until"), clib.FlagExtra{

@@ -1,23 +1,31 @@
 # Incident Triage
 
-Step-by-step workflow for handling PagerDuty incidents. Designed for
-AI agents performing on-call response.
+Decision tree for triaging PagerDuty incidents.
 
-## 1. Assess
-
-List open incidents and check who is on call:
+## 1. List open incidents
 
 ```text
-pdc incident list --status triggered,acknowledged --team <team>
-pdc oncall --team <team>
+pdc incident list --status triggered --status acknowledged
 ```
 
-## 2. Inspect
-
-Get full detail on a specific incident:
+If you know the team, scope the query:
 
 ```text
-pdc incident show <id>
+pdc incident list --status triggered --status acknowledged --team PTEAMID
+```
+
+Sort the results by urgency. Handle high-urgency incidents first.
+
+## 2. Check who is on call
+
+```text
+pdc oncall --team PTEAMID
+```
+
+If the incident belongs to a specific escalation policy:
+
+```text
+pdc oncall --escalation-policy PPOLICYID
 ```
 
 ## 3. Acknowledge
@@ -25,52 +33,122 @@ pdc incident show <id>
 Stop escalation while you investigate:
 
 ```text
-pdc incident ack <id>
+pdc incident ack PINCID
 ```
 
-## 4. Check alerts
+## 4. Inspect the incident
 
-List the alerts attached to the incident:
+Get full details and attached alerts:
 
 ```text
-pdc alert list --incident <incident-id>
+pdc incident show PINCID --alerts
 ```
 
-## 5. Escalate or reassign
-
-Find team members, then reassign:
+If alert payloads contain useful diagnostic data:
 
 ```text
-pdc user list --team <team>
-pdc incident reassign <id> --user <user-id>
+pdc incident show PINCID --alerts --payload
 ```
 
-## 6. Document
-
-Add a note with your findings:
+## 5. Check the timeline
 
 ```text
-pdc incident note <id> --content "Root cause: connection pool exhaustion"
+pdc incident log PINCID
 ```
 
-## 7. Resolve
-
-Once the problem is mitigated:
+Filter to recent entries if the timeline is long:
 
 ```text
-pdc incident resolve <id>
+pdc incident log PINCID --since 2026-03-30T00:00:00Z
+```
+
+## 6. Decide on action
+
+Choose one:
+
+*   **Resolve** if the problem is mitigated:
+
+  ```text
+  pdc incident resolve PINCID
+  ```
+
+*   **Escalate/reassign** if someone else should handle it:
+
+  ```text
+  pdc user list --team PTEAMID
+  pdc incident reassign PINCID --user PUSERID
+  ```
+
+*   **Snooze** if action is needed later:
+
+  ```text
+  pdc incident snooze PINCID --duration 2h
+  ```
+
+*   **Change urgency** if severity was set incorrectly:
+
+  ```text
+  pdc incident urgency PINCID low
+  ```
+
+*   **Resolve specific alerts** if only some alerts within the incident are resolved:
+
+  ```text
+  pdc incident resolve-alert PINCID PALERTID1 PALERTID2
+  ```
+
+## 7. Document findings
+
+Add a note with your analysis:
+
+```text
+pdc incident note add PINCID --content "Root cause: connection pool exhaustion"
+```
+
+Review existing notes:
+
+```text
+pdc incident note list PINCID
 ```
 
 ## 8. Merge duplicates
 
-If several incidents describe the same problem:
+If multiple incidents describe the same problem, merge them into one:
 
 ```text
-pdc incident merge <target-id> --source <dup1> --source <dup2>
+pdc incident merge PTARGETID --source PDUPID1 --source PDUPID2
 ```
 
-## Tips
+## 9. Resolve
 
-- Address high-urgency incidents before low-urgency ones.
-- Snoozed incidents re-trigger when the snooze expires.
-- All list commands auto-paginate and return every result.
+Once the problem is mitigated:
+
+```text
+pdc incident resolve PINCID
+```
+
+Optionally attach a resolution note:
+
+```text
+pdc incident resolve PINCID --note "Restarted worker pool, alerts cleared"
+```
+
+## Rules
+
+*   Always acknowledge before investigating. Unacknowledged incidents
+  continue to escalate.
+*   High-urgency incidents page the on-call user. Low-urgency incidents
+  do not. Address high-urgency first.
+*   Snoozed incidents re-trigger when the duration expires. Snooze is
+  not a resolution.
+*   `--all` overrides `--since`/`--until` and default status filters.
+  If you combine `--all` with `--status`, the explicit status is
+  preserved.
+*   `--from` is auto-detected from the API token. Only set it when
+  acting on behalf of a different user.
+*   Merge is irreversible. The source incidents are folded into the
+  target and cannot be separated.
+*   There is no `pdc alert list` command. Alerts are sub-resources of
+  incidents. Use `pdc incident show --alerts` to view them.
+*   `--status` accepts one value per flag. Pass it multiple times for
+  multiple statuses: `--status triggered --status acknowledged`.

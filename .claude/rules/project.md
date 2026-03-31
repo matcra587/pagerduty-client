@@ -97,6 +97,7 @@ clib.Extend(pf.Lookup("token"), clib.FlagExtra{
 | Placeholder | string | Value placeholder (TOKEN, NAME\|ID, PATH, DURATION) |
 | Terse | string | One-line description |
 | Enum | []string | Allowed values |
+| EnumTerse | []string | Short descriptions for enum values (parallel to Enum) |
 | EnumDefault | string | Default for display |
 | Complete | string | Completion predicate (e.g. `"predictor=team"`) |
 | Hint | string | Input hint (e.g. `"file"`) |
@@ -192,7 +193,6 @@ func setup() {
 // In PersistentPreRunE:
 gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 gen.Subs = clib.Subcommands(cmd.Root())
-setDynamicArgs(gen.Subs)
 handled, err := comp.Handle(gen, completionHandler(token, opts...))
 if handled {
     os.Exit(0)
@@ -203,19 +203,24 @@ All completion logic lives in `cmd/completion.go`:
 
 - `completionHandler` - runtime handler that queries the PD API
   for resource IDs matching a completion kind.
-- `setDynamicArgs` - workaround for clib's Cobra bridge not
-  parsing DynamicArgs from annotations. Sets positional arg
-  completion kinds on the SubSpec tree after
-  `clib.Subcommands()` builds it.
+
+Positional arg completion uses Cobra annotations. clib parses
+`dynamic-args` from the `clib` annotation key on each command:
+
+```go
+var myCmd = &cobra.Command{
+    Use:         "show <id>",
+    Annotations: map[string]string{"clib": "dynamic-args='service'"},
+}
+```
 
 When adding a new subcommand with positional args:
 
-1. Add a `DynamicArgs` entry in `setDynamicArgs` for the command.
+1. Add `Annotations: map[string]string{"clib": "dynamic-args='<kind>'"}`.
 2. Add a handler `case` in `completionHandler` if the kind is new.
 3. Add `Complete: "predictor=<kind>"` on any flag that takes a
    resource ID (via `clib.FlagExtra`).
 4. Reinstall completions: `pdc --install-completion`.
-```
 
 ### Terminal Detection
 

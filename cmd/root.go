@@ -355,9 +355,7 @@ func init() {
 		theme.WithHelpRepeatEllipsisEnabled(true),
 	)
 	renderer := help.NewRenderer(th)
-	rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.SectionsWithOptions(clib.WithSubcommandOptional()),
-		help.WithHelpFlags("Print help", "Print help with examples"),
-	))
+	rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.SectionsWithOptions(clib.WithSubcommandOptional())))
 }
 
 // ConfigFromContext retrieves the loaded Config from the command context.

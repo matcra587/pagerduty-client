@@ -8,6 +8,8 @@ import (
 var (
 	// ErrNotFound indicates the requested resource does not exist (HTTP 404).
 	ErrNotFound = &APIError{StatusCode: http.StatusNotFound}
+	// ErrPaymentRequired indicates the account lacks a required ability (HTTP 402).
+	ErrPaymentRequired = &APIError{StatusCode: http.StatusPaymentRequired}
 	// ErrRateLimited indicates the API rate limit was exceeded (HTTP 429).
 	ErrRateLimited = &APIError{StatusCode: http.StatusTooManyRequests}
 )

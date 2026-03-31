@@ -33,6 +33,7 @@ func TestAPIError_Sentinels(t *testing.T) {
 		want     bool
 	}{
 		{"404 matches ErrNotFound", &APIError{StatusCode: 404}, ErrNotFound, true},
+		{"402 matches ErrPaymentRequired", &APIError{StatusCode: 402}, ErrPaymentRequired, true},
 		{"429 matches ErrRateLimited", &APIError{StatusCode: 429}, ErrRateLimited, true},
 		{"500 does not match ErrNotFound", &APIError{StatusCode: 500}, ErrNotFound, false},
 		{"404 does not match ErrRateLimited", &APIError{StatusCode: 404}, ErrRateLimited, false},

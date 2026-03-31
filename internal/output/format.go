@@ -7,9 +7,13 @@ package output
 type FormatType string
 
 const (
-	FormatAgentJSON  FormatType = "agent-json"
-	FormatJSON       FormatType = "json"
-	FormatTable      FormatType = "table"
+	// FormatAgentJSON outputs JSON wrapped in an agent envelope.
+	FormatAgentJSON FormatType = "agent-json"
+	// FormatJSON outputs syntax-highlighted JSON on a TTY, plain JSON otherwise.
+	FormatJSON FormatType = "json"
+	// FormatTable outputs a styled table on a TTY.
+	FormatTable FormatType = "table"
+	// FormatPlainTable outputs an unstyled table without colour.
 	FormatPlainTable FormatType = "plain-table"
 )
 

@@ -6,6 +6,7 @@ import "fmt"
 // Ref: https://docs.cloud.google.com/monitoring/support/notification-options
 type GCP struct{}
 
+// Normalise extracts Google Cloud Monitoring fields from the alert envelope.
 func (GCP) Normalise(env AlertEnvelope) (Summary, bool) {
 	if env.CustomDetails == nil {
 		return Summary{}, false

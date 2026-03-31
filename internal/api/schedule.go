@@ -17,6 +17,7 @@ type ListSchedulesOpts struct {
 }
 
 // CreateOverrideOpts configures the CreateOverride request.
+// Start and End must be ISO 8601 timestamps.
 type CreateOverrideOpts struct {
 	UserID string
 	Start  string

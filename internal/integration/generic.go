@@ -11,6 +11,7 @@ import (
 // called explicitly as the fallback.
 type Generic struct{}
 
+// Normalise emits all custom detail fields as plain text. Returns false if no custom details exist.
 func (Generic) Normalise(env AlertEnvelope) (Summary, bool) {
 	if env.CustomDetails == nil {
 		return Summary{Source: "Unknown"}, false

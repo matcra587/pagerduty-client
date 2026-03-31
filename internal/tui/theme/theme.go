@@ -78,7 +78,9 @@ func PriorityStyle(name string) (lipgloss.Style, bool) {
 
 // Status flash styles - for action feedback in the status bar.
 var (
-	StatusOK  = lipgloss.NewStyle().Foreground(Theme.Green.GetForeground()).Bold(true)
+	// StatusOK styles success feedback in the status bar.
+	StatusOK = lipgloss.NewStyle().Foreground(Theme.Green.GetForeground()).Bold(true)
+	// StatusErr styles error feedback in the status bar.
 	StatusErr = lipgloss.NewStyle().Foreground(Theme.Red.GetForeground()).Bold(true)
 )
 
@@ -97,14 +99,22 @@ var PillDim = Pill.Faint(true)
 
 // UI chrome colours - project-specific, no clib equivalent.
 var (
-	ColorStatusBarFg   = lipgloss.Color("#E0E0E0")
-	ColorTitleFg       = lipgloss.Color("#FFFFFF")
-	ColorHighlightBg   = lipgloss.Color("#2D2D44")
-	ColorHighlightFg   = lipgloss.Color("#FFFFFF")
-	ColorHeaderFg      = lipgloss.Color("#A0A0C0")
-	ColorOverlayBg     = lipgloss.Color("#222233")
+	// ColorStatusBarFg is the status bar foreground colour.
+	ColorStatusBarFg = lipgloss.Color("#E0E0E0")
+	// ColorTitleFg is the title text foreground colour.
+	ColorTitleFg = lipgloss.Color("#FFFFFF")
+	// ColorHighlightBg is the background colour for highlighted items.
+	ColorHighlightBg = lipgloss.Color("#2D2D44")
+	// ColorHighlightFg is the foreground colour for highlighted items.
+	ColorHighlightFg = lipgloss.Color("#FFFFFF")
+	// ColorHeaderFg is the header text foreground colour.
+	ColorHeaderFg = lipgloss.Color("#A0A0C0")
+	// ColorOverlayBg is the overlay background colour.
+	ColorOverlayBg = lipgloss.Color("#222233")
+	// ColorOverlayBorder is the overlay border colour.
 	ColorOverlayBorder = lipgloss.Color("#7F849C")
-	ColorSelectedBg    = lipgloss.Color("#313244")
+	// ColorSelectedBg is the background colour for selected items.
+	ColorSelectedBg = lipgloss.Color("#313244")
 )
 
 // TableHeader is the style for table column headers.
@@ -141,10 +151,14 @@ var HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg).Faint(true)
 
 // Detail view styles - derived from clib theme colours.
 var (
+	// DetailHeader styles section headers in the detail view.
 	DetailHeader = lipgloss.NewStyle().Bold(true).Foreground(Theme.Magenta.GetForeground())
-	DetailLabel  = lipgloss.NewStyle().Bold(true).Foreground(Theme.Green.GetForeground())
-	DetailValue  = lipgloss.NewStyle().Foreground(Theme.MarkdownText.GetForeground())
-	DetailDim    = lipgloss.NewStyle().Faint(true)
+	// DetailLabel styles field labels in the detail view.
+	DetailLabel = lipgloss.NewStyle().Bold(true).Foreground(Theme.Green.GetForeground())
+	// DetailValue styles field values in the detail view.
+	DetailValue = lipgloss.NewStyle().Foreground(Theme.MarkdownText.GetForeground())
+	// DetailDim styles de-emphasised text in the detail view.
+	DetailDim = lipgloss.NewStyle().Faint(true)
 )
 
 // Paused is the style for the "paused" refresh indicator.

@@ -9,6 +9,7 @@ import (
 )
 
 // ListIncidentNotes returns all notes for the given incident.
+// This endpoint is not paginated; all notes are returned in a single response.
 func (c *Client) ListIncidentNotes(ctx context.Context, incidentID string) ([]pagerduty.IncidentNote, error) {
 	path := fmt.Sprintf("/incidents/%s/notes", incidentID)
 	body, err := c.get(ctx, path, nil)

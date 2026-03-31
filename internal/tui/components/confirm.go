@@ -12,7 +12,7 @@ type ConfirmResult struct {
 	OnYes     tea.Cmd
 }
 
-// Confirm is a modal confirmation overlay.
+// Confirm is a modal dialogue that asks the user to approve or cancel an action.
 type Confirm struct {
 	Visible bool
 	title   string

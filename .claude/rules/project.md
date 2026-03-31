@@ -165,20 +165,12 @@ Follow this pattern for: config, API client, agent detection, user email.
 ### Help Rendering
 
 ```go
-th := theme.New(theme.WithEnumStyle(theme.EnumStyleHighlightBoth))
+th := theme.New(
+    theme.WithEnumStyle(theme.EnumStyleHighlightBoth),
+    theme.WithHelpRepeatEllipsisEnabled(true),
+)
 renderer := help.NewRenderer(th)
-rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.Sections,
-    help.WithHelpFlags("Print help", "Print help with examples"),
-    help.WithLongHelp(os.Args, help.Section{
-        Title: "Examples",
-        Content: []help.Content{
-            help.Examples{
-                {Comment: "Launch the TUI", Command: "pdc --interactive"},
-                {Comment: "List incidents as JSON", Command: "pdc incident list -f json"},
-            },
-        },
-    }),
-))
+rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.SectionsWithOptions(clib.WithSubcommandOptional())))
 ```
 
 ### Shell Completion

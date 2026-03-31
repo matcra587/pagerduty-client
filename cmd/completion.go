@@ -12,8 +12,12 @@ import (
 // completionHandler returns a handler for dynamic shell completion requests.
 // It queries the PagerDuty API for resources matching the requested completion
 // kind (e.g. "team", "service") and prints matching IDs to stdout.
+//
+// Fish shell natively parses tab-separated "ID\tDescription" lines, so the
+// handler includes descriptions when the requesting shell is fish. Other
+// shells receive bare IDs until clib's generators learn to handle the format.
 func completionHandler(token string, opts ...api.Option) complete.Handler {
-	return func(_, kind string, args []string) {
+	return func(shell, kind string, args []string) {
 		if token == "" {
 			return
 		}
@@ -21,7 +25,16 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		var names []string
+		// printCompletion prints a completion candidate. Fish receives
+		// "ID\tDescription"; other shells receive bare IDs.
+		printCompletion := func(id, desc string) {
+			if shell == "fish" && desc != "" {
+				_, _ = fmt.Printf("%s\t%s\n", id, desc)
+			} else {
+				_, _ = fmt.Println(id)
+			}
+		}
+
 		switch kind {
 		case "team":
 			teams, err := client.ListTeams(ctx, api.ListTeamsOpts{})
@@ -29,7 +42,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				return
 			}
 			for _, t := range teams {
-				names = append(names, t.ID)
+				printCompletion(t.ID, t.Name)
 			}
 		case "service":
 			services, err := client.ListServices(ctx, api.ListServicesOpts{})
@@ -37,7 +50,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				return
 			}
 			for _, s := range services {
-				names = append(names, s.ID)
+				printCompletion(s.ID, s.Name)
 			}
 		case "user":
 			users, err := client.ListUsers(ctx, api.ListUsersOpts{})
@@ -45,7 +58,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				return
 			}
 			for _, u := range users {
-				names = append(names, u.ID)
+				printCompletion(u.ID, u.Name)
 			}
 		case "schedule":
 			schedules, err := client.ListSchedules(ctx, api.ListSchedulesOpts{})
@@ -53,7 +66,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				return
 			}
 			for _, s := range schedules {
-				names = append(names, s.ID)
+				printCompletion(s.ID, s.Name)
 			}
 		case "incident":
 			incidents, err := client.ListIncidents(ctx, api.ListIncidentsOpts{
@@ -63,7 +76,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				return
 			}
 			for _, inc := range incidents {
-				names = append(names, inc.ID)
+				printCompletion(inc.ID, inc.Title)
 			}
 		case "alert":
 			if len(args) == 0 {
@@ -75,16 +88,14 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 			}
 			for _, a := range alerts {
 				if a.Status != "resolved" {
-					names = append(names, a.ID)
+					printCompletion(a.ID, a.Summary)
 				}
 			}
 		case "urgency":
-			names = append(names, "high", "low")
+			_, _ = fmt.Println("high")
+			_, _ = fmt.Println("low")
 		default:
 			return
-		}
-		for _, n := range names {
-			_, _ = fmt.Println(n)
 		}
 	}
 }

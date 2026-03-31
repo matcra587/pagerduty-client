@@ -294,6 +294,7 @@ func init() {
 	clib.Extend(pf.Lookup("format"), clib.FlagExtra{
 		Group:       "Output",
 		Enum:        []string{"table", "json"},
+		EnumTerse:   []string{"table output", "JSON output"},
 		EnumDefault: "table",
 		Terse:       "output format",
 	})
@@ -318,6 +319,7 @@ func init() {
 	clib.Extend(pf.Lookup("color"), clib.FlagExtra{
 		Group:       "Output",
 		Enum:        []string{"auto", "always", "never"},
+		EnumTerse:   []string{"detect terminal", "force colour", "no colour"},
 		EnumDefault: "auto",
 		Terse:       "colour mode",
 	})

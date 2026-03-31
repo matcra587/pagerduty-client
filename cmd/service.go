@@ -67,9 +67,10 @@ var serviceListCmd = &cobra.Command{
 }
 
 var serviceShowCmd = &cobra.Command{
-	Use:   "show <id>",
-	Short: "Show service details",
-	Args:  cobra.ExactArgs(1),
+	Use:         "show <id>",
+	Short:       "Show service details",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='service'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

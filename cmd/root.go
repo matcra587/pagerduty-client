@@ -65,7 +65,6 @@ var rootCmd = &cobra.Command{
 		}
 		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 		gen.Subs = clib.Subcommands(cmd.Root())
-		setDynamicArgs(gen.Subs)
 		handled, err := comp.Handle(gen, completionHandler(flagToken, state.apiOpts...))
 		if err != nil {
 			return err

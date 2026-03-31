@@ -25,7 +25,12 @@ var scheduleCmd = &cobra.Command{
 var scheduleListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List schedules",
-	Args:  cobra.NoArgs,
+	Example: `# List all schedules
+$ pdc schedule list
+
+# Filter by name
+$ pdc schedule list --query primary`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -62,8 +67,10 @@ var scheduleListCmd = &cobra.Command{
 }
 
 var scheduleShowCmd = &cobra.Command{
-	Use:         "show <id>",
-	Short:       "Show schedule details",
+	Use:   "show <id>",
+	Short: "Show schedule details",
+	Example: `# Show schedule details
+$ pdc schedule show PSCHED01`,
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='schedule'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -104,8 +111,10 @@ var scheduleShowCmd = &cobra.Command{
 }
 
 var scheduleOverrideCmd = &cobra.Command{
-	Use:         "override <schedule-id>",
-	Short:       "Create a schedule override",
+	Use:   "override <schedule-id>",
+	Short: "Create a schedule override",
+	Example: `# Create a schedule override
+$ pdc schedule override --user PUSER01 --start 2024-01-15T09:00:00Z --end 2024-01-15T17:00:00Z PSCHED01`,
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='schedule'"},
 	RunE: func(cmd *cobra.Command, args []string) error {

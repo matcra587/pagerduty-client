@@ -47,6 +47,8 @@ If the PDC_TOKEN environment variable is already set, init validates the
 token and skips keyring setup.
 
 The token is never written to config.toml.`,
+	Example: `# Run the setup wizard
+$ pdc init`,
 	// Suppress the root PersistentPreRunE, which requires a valid token.
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return nil },
 	RunE:              runInit,

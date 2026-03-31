@@ -79,6 +79,11 @@ of every command, its flags and subcommands. AI agents can use this for
 capability discovery without reading external documentation.
 
 Use --compact to strip descriptions and examples for smaller context windows.`,
+	Example: `# Print full command schema
+$ pdc agent schema
+
+# Print compact schema without descriptions
+$ pdc agent schema --compact`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		compact, _ := cmd.Flags().GetBool("compact")
@@ -96,9 +101,14 @@ Use --compact to strip descriptions and examples for smaller context windows.`,
 }
 
 var agentGuideCmd = &cobra.Command{
-	Use:       "guide <name>",
-	Short:     "Print a domain-specific markdown guide for AI agents",
-	Long:      "Print an embedded markdown guide covering workflows and best practices for a PagerDuty domain.\nAvailable guides: " + joinGuideNames(),
+	Use:   "guide <name>",
+	Short: "Print a domain-specific markdown guide for AI agents",
+	Long:  "Print an embedded markdown guide covering workflows and best practices for a PagerDuty domain.\nAvailable guides: " + joinGuideNames(),
+	Example: `# Print the incident triage guide
+$ pdc agent guide triage
+
+# Print the on-call guide
+$ pdc agent guide oncall`,
 	Args:      cobra.ExactArgs(1),
 	ValidArgs: agent.GuideNames,
 	RunE: func(cmd *cobra.Command, args []string) error {

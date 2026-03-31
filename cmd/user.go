@@ -25,6 +25,8 @@ var userListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List users",
 	Args:  cobra.NoArgs,
+	Example: `# List all users
+$ pdc user list`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -69,6 +71,8 @@ var userShowCmd = &cobra.Command{
 	Short:       "Show user details",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='user'"},
+	Example: `# Show user details
+$ pdc user show PUSER01`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -111,6 +115,8 @@ var userMeCmd = &cobra.Command{
 	Use:   "me",
 	Short: "Show the current API token user",
 	Args:  cobra.NoArgs,
+	Example: `# Show the current API token owner
+$ pdc user me`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

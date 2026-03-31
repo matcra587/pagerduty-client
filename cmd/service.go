@@ -25,6 +25,11 @@ var serviceListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List services",
 	Args:  cobra.NoArgs,
+	Example: `# List all services
+$ pdc service list
+
+# Filter by team
+$ pdc service list --team PTEAM01`,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -71,6 +76,8 @@ var serviceShowCmd = &cobra.Command{
 	Short:       "Show service details",
 	Args:        cobra.ExactArgs(1),
 	Annotations: map[string]string{"clib": "dynamic-args='service'"},
+	Example: `# Show service details
+$ pdc service show PSVC001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

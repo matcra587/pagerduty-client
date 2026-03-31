@@ -10,7 +10,9 @@ var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update pdc to the latest version",
 	Long:  "Detect the install method and update pdc to the latest tagged release.",
-	Args:  cobra.NoArgs,
+	Example: `# Update pdc to the latest version
+$ pdc update`,
+	Args: cobra.NoArgs,
 	// Bypass token resolution: update does not need PagerDuty credentials.
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 		pf := cmd.Root().PersistentFlags()

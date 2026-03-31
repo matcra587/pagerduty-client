@@ -60,55 +60,59 @@ pdc init                         # First-run setup (token, defaults)
 pdc incident list                # List incidents (table on TTY, JSON for agents)
 pdc incident ack P000001         # Acknowledge an incident
 pdc oncall                       # Who is on call
-pdc --interactive                # TUI dashboard
+pdc -i                           # TUI dashboard
 ```
+
+## Configuration
+
+`pdc init` creates `~/.config/pagerduty-client/config.toml` and
+stores your API token in the OS keyring. Tokens never go in the
+config file.
+
+See [docs/configuration.md](docs/configuration.md) for the full
+reference: config file fields, environment variables, credential
+resolution and custom field mapping.
+
+## Agent Mode
+
+pdc detects AI agents automatically and switches to structured JSON
+output. No flags needed - it recognises Claude Code, Cursor, Copilot
+and a dozen other agents out of the box.
+
+See [docs/agent-mode.md](docs/agent-mode.md) for the envelope format,
+schema discovery and embedded operational guides.
 
 ## API Coverage
 
-| Resource | List | Get | Create | Update |
-|----------|------|-----|--------|--------|
-| Incidents | yes | yes | - | ack, resolve, snooze, merge, reassign, note |
-| Services | yes | - | - | - |
-| Users | yes | - | - | - |
-| Teams | yes | - | - | - |
-| Schedules | yes | - | - | overrides |
-| On-call | yes | - | - | - |
-| Alerts | yes | - | - | - |
-| Escalation policies | - | - | - | - |
+| Resource | List | Get | Update |
+|----------|------|-----|--------|
+| Incidents | yes | yes | ack, resolve, snooze, merge, reassign, note, urgency, title, resolve-alert |
+| Services | yes | yes | - |
+| Users | yes | yes | - |
+| Teams | yes | yes | - |
+| Schedules | yes | yes | overrides |
+| On-call | yes | - | - |
 
-## Contributing
+## TUI
 
-1.  Fork and branch.
-1.  Set up tooling and build:
+Launch with `pdc -i` or set `interactive = true` in config.
 
-    ```bash
-    mise install && task deps && task build
-    ```
+The dashboard polls for incidents and supports keyboard-driven
+actions: acknowledge, resolve, snooze, escalate, reassign, merge,
+add notes, edit fields and set priority. Switch teams with `t`,
+filter with `/` and toggle refresh with `R`.
 
-1.  Write a failing test, then the implementation.
-1.  `task lint && task test` before pushing.
-1.  Open a pull request.
+Press `?` for the full keybinding reference.
 
-```bash
-task test                        # Run tests
-task lint                        # Lint with golangci-lint
-task fmt                         # Format with gofumpt
-task vet                         # Run go vet
-task security                    # Run govulncheck
-```
+## Documentation
 
-> [!TIP]
-> mise manages platform tools (Go, task, actionlint, rumdl, zizmor).
-> `go.mod` [tool directives][tools] manage Go project tools
-> (golangci-lint, gofumpt, govulncheck).
-
-[tools]: https://go.dev/doc/modules/managing-dependencies#tools
+*   [Configuration](docs/configuration.md) - config file, env vars, credentials
+*   [Agent mode](docs/agent-mode.md) - detection, envelope format, guides
+*   [Project layout](docs/project-layout.md) - package structure and design decisions
+*   [Releasing](docs/releasing.md) - version scheme, tagging, GoReleaser
+*   [Contributing](CONTRIBUTING.md) - setup, workflow, commit conventions
 
 ## Acknowledgements
 
 Agent-first CLI design inspired by
 [pup](https://github.com/datadog-labs/pup).
-
-## Licence
-
-[MIT](LICENSE)

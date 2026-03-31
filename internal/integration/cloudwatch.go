@@ -6,6 +6,7 @@ import "fmt"
 // Ref: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Notify_Users_Alarm_Changes.html
 type CloudWatch struct{}
 
+// Normalise extracts CloudWatch alarm fields from the alert envelope.
 func (CloudWatch) Normalise(env AlertEnvelope) (Summary, bool) {
 	cd := env.CustomDetails
 	if cd == nil {

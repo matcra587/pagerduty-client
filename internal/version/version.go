@@ -5,11 +5,16 @@ import "fmt"
 
 //nolint:gochecknoglobals
 var (
-	Version   = "dev"
-	Commit    = "unknown"
-	Branch    = "unknown"
+	// Version is the release version, set via ldflags at build time.
+	Version = "dev"
+	// Commit is the git commit hash, set via ldflags at build time.
+	Commit = "unknown"
+	// Branch is the git branch, set via ldflags at build time.
+	Branch = "unknown"
+	// BuildTime is the build timestamp, set via ldflags at build time.
 	BuildTime = "unknown"
-	BuildBy   = "unknown"
+	// BuildBy is the build system identifier, set via ldflags at build time.
+	BuildBy = "unknown"
 )
 
 // BuildInfo holds version metadata populated at build time.

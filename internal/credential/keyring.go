@@ -23,6 +23,7 @@ type KeyringProvider struct{}
 
 var _ CredentialProvider = KeyringProvider{}
 
+// Provide retrieves the API token from the OS keyring.
 func (p KeyringProvider) Provide(_ context.Context) (string, error) {
 	token, err := keyring.Get(ServiceName, AccountName)
 	if err != nil {

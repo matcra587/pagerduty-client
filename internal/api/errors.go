@@ -6,7 +6,9 @@ import (
 )
 
 var (
-	ErrNotFound    = &APIError{StatusCode: http.StatusNotFound}
+	// ErrNotFound indicates the requested resource does not exist (HTTP 404).
+	ErrNotFound = &APIError{StatusCode: http.StatusNotFound}
+	// ErrRateLimited indicates the API rate limit was exceeded (HTTP 429).
 	ErrRateLimited = &APIError{StatusCode: http.StatusTooManyRequests}
 )
 
@@ -17,6 +19,7 @@ type APIError struct {
 	Message    string `json:"message"`
 }
 
+// Error returns the status code and message as a formatted string.
 func (e *APIError) Error() string {
 	return fmt.Sprintf("pagerduty API error (status %d, code %d): %s", e.StatusCode, e.Code, e.Message)
 }

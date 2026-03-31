@@ -15,7 +15,7 @@ const modulePath = "github.com/matcra587/pagerduty-client"
 type InstallMethod int
 
 const (
-	// Binary is a standalone binary (GitHub release, manual copy, etc.).
+	// Binary is a standalone binary from a GitHub release or manual build.
 	Binary InstallMethod = iota
 	// Homebrew was installed via Homebrew.
 	Homebrew

@@ -6,6 +6,7 @@ import "strings"
 // Ref: https://www.pagerduty.com/docs/guides/prometheus-integration-guide/
 type Prometheus struct{}
 
+// Normalise extracts Prometheus alertmanager fields from the alert envelope.
 func (Prometheus) Normalise(env AlertEnvelope) (Summary, bool) {
 	detected := strings.Contains(env.Client, "Alertmanager")
 

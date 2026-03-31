@@ -5,21 +5,30 @@ import (
 	"strconv"
 )
 
-// Resource identifies a PagerDuty resource type for weight-based
-// field selection during compact output.
+// Resource identifies a PagerDuty resource type for column budget allocation.
 type Resource string
 
 const (
+	// ResourceIncident is an incident.
 	ResourceIncident Resource = "incident"
-	ResourceAlert    Resource = "alert"
-	ResourceService  Resource = "service"
-	ResourceUser     Resource = "user"
-	ResourceTeam     Resource = "team"
+	// ResourceAlert is an alert within an incident.
+	ResourceAlert Resource = "alert"
+	// ResourceService is a PagerDuty service.
+	ResourceService Resource = "service"
+	// ResourceUser is a PagerDuty user.
+	ResourceUser Resource = "user"
+	// ResourceTeam is a PagerDuty team.
+	ResourceTeam Resource = "team"
+	// ResourceSchedule is an on-call schedule.
 	ResourceSchedule Resource = "schedule"
-	ResourceOnCall   Resource = "oncall"
+	// ResourceOnCall is an on-call entry.
+	ResourceOnCall Resource = "oncall"
+	// ResourceLogEntry is an incident timeline entry.
 	ResourceLogEntry Resource = "log_entry"
-	ResourceNote     Resource = "note"
-	ResourceNone     Resource = ""
+	// ResourceNote is an incident note.
+	ResourceNote Resource = "note"
+	// ResourceNone is the default when no resource context applies.
+	ResourceNone Resource = ""
 )
 
 // ResourceWeights defines per-field importance weights and a token

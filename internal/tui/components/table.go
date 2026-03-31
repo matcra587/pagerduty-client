@@ -9,7 +9,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
-// Column defines a single table column.
+// Column defines a table column with a header label and a width weight.
 type Column struct {
 	Header string
 	Width  int

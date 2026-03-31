@@ -8,6 +8,7 @@ import (
 // Datadog normalises Datadog alert payloads (best-effort).
 type Datadog struct{}
 
+// Normalise extracts Datadog monitor fields from the alert envelope.
 func (Datadog) Normalise(env AlertEnvelope) (Summary, bool) {
 	isDatadog := strings.EqualFold(env.Client, "Datadog")
 	if !isDatadog && env.CustomDetails != nil {

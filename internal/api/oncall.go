@@ -15,7 +15,7 @@ type ListOnCallsOpts struct {
 	EscalationPolicyIDs []string
 	Since               string
 	Until               string
-	Earliest            bool
+	Earliest            bool // Earliest restricts results to only the earliest on-call entry per user/escalation policy/schedule combination.
 }
 
 // ListOnCalls returns all on-call entries matching opts via paginated GET /oncalls.

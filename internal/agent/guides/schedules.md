@@ -1,39 +1,77 @@
 # Schedules
 
-Schedules define on-call rotations. Each schedule contains layers of
-users who take turns being on call.
+Operations for listing, inspecting and overriding PagerDuty schedules.
+Schedules define on-call rotations.
 
 ## List schedules
 
+List all schedules:
+
 ```text
 pdc schedule list
+```
+
+Search by name:
+
+```text
 pdc schedule list --query "primary"
 ```
 
-## Show a schedule
+## Show schedule details
 
 ```text
-pdc schedule show <id>
+pdc schedule show PSCHEDID
 ```
 
 ## Create an override
 
-Overrides replace the scheduled on-call user for a specific time window.
+Replace the scheduled on-call user for a specific time window.
+All flags are required:
 
 ```text
-pdc schedule override <schedule-id> --user <user-id> --start 2026-01-15T09:00:00Z --end 2026-01-15T17:00:00Z
+pdc schedule override PSCHEDID --user PUSERID --start 2026-04-01T09:00:00Z --end 2026-04-01T17:00:00Z
 ```
 
-## Reference
+## Common patterns
+
+**Cover for a colleague going on leave** - find the schedule, look up
+the covering user, then create overrides for each day:
+
+```text
+pdc schedule list --query "primary"
+pdc user list --team PTEAMID
+pdc schedule override PSCHEDID --user PCOVERID --start 2026-04-07T09:00:00Z --end 2026-04-11T09:00:00Z
+```
+
+For multi-day coverage, set `--start` to the beginning of the first
+day and `--end` to the beginning of the day after the last day.
+
+**Check who is currently on call for a schedule** - use the oncall
+command filtered to the schedule:
+
+```text
+pdc oncall --schedule PSCHEDID
+```
+
+## Flag reference
 
 | Flag | Commands | Purpose |
 |------|----------|---------|
-| `--query` | list | Filter by schedule name |
-| `--user` | override | User ID to put on call |
+| `--query` | list | Search by schedule name |
+| `--user` | override | User ID to put on call (required) |
 | `--start` | override | Override start time (ISO 8601, required) |
 | `--end` | override | Override end time (ISO 8601, required) |
+| `--from` | override | Acting user email |
 
-## Tips
+## Rules
 
-- Schedule IDs start with `P` followed by alphanumeric characters.
-- All times must include a timezone offset (RFC 3339).
+*   `--user`, `--start` and `--end` are all required for overrides.
+  Omitting any of them produces an error.
+*   Times must be ISO 8601 with a timezone offset (e.g.
+  `2026-04-01T09:00:00Z`). Bare dates are rejected.
+*   Schedules are read-only apart from overrides. You cannot create,
+  modify or delete schedules through pdc.
+*   `--from` is auto-detected from the API token. Only set it when
+  acting on behalf of a different user.
+*   To check who is on call for a schedule, use `pdc oncall --schedule`
+  rather than `pdc schedule show`.

@@ -84,3 +84,13 @@ type detailEscalateMsg struct {
 type detailSetPriorityMsg struct {
 	id string
 }
+
+// detailNoteMsg is sent from the detail view when the user presses n.
+type detailNoteMsg struct {
+	id string
+}
+
+// detailSnoozeMsg is sent from the detail view when the user presses s.
+type detailSnoozeMsg struct {
+	id string
+}

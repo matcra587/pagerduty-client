@@ -69,10 +69,16 @@ $ pdc oncall`,
 
 		// Handle shell completion before full token resolution so
 		// --install-completion and --print-completion work without a token.
-		// For dynamic completions, fall back to PDC_TOKEN env var.
+		// For dynamic completions, fall back to PDC_TOKEN env var then keyring.
 		flagToken, _ := pf.GetString("token")
 		if flagToken == "" {
 			flagToken = os.Getenv("PDC_TOKEN")
+		}
+		if flagToken == "" && state.cfg.CredentialSource == credential.SourceKeyring {
+			p := credential.KeyringProvider{}
+			if t, err := p.Provide(cmd.Context()); err == nil {
+				flagToken = t
+			}
 		}
 		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
 		gen.Subs = clib.Subcommands(cmd.Root())
@@ -349,7 +355,7 @@ func init() {
 		theme.WithHelpRepeatEllipsisEnabled(true),
 	)
 	renderer := help.NewRenderer(th)
-	rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.Sections,
+	rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.SectionsWithOptions(clib.WithSubcommandOptional()),
 		help.WithHelpFlags("Print help", "Print help with examples"),
 	))
 }

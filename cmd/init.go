@@ -64,6 +64,11 @@ $ pdc config init`,
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configInitCmd)
+	configCmd.AddCommand(configListCmd())
+	configCmd.AddCommand(configGetCmd())
+	configCmd.AddCommand(configSetCmd())
+	configCmd.AddCommand(configUnsetCmd())
+	configCmd.AddCommand(configPathCmd())
 }
 
 func runInit(cmd *cobra.Command, _ []string) error {

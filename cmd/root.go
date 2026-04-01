@@ -419,7 +419,7 @@ func resolveToken(ctx context.Context, cfg *config.Config, flagToken, tokenFile 
 		p := credential.KeyringProvider{}
 		token, err := p.Provide(ctx)
 		if errors.Is(err, credential.ErrNotFound) {
-			return "", errors.New("no token found in OS keyring; run \"pdc init\" to configure credentials")
+			return "", errors.New("no token found in OS keyring; run \"pdc config init\" to configure credentials")
 		}
 		return token, err
 	case "":

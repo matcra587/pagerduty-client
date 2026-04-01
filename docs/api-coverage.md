@@ -74,7 +74,7 @@ Covers the core incident lifecycle: list, view, acknowledge, resolve, snooze, re
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/services` | Implemented | `pdc service list`, `pdc init` |
+| GET | `/services` | Implemented | `pdc service list`, `pdc config init` |
 | POST | `/services` | Not implemented | - |
 | DELETE | `/services/{id}` | Not implemented | - |
 | GET | `/services/{id}` | Implemented | `pdc service show` |
@@ -103,7 +103,7 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 |---|---|---|---|
 | GET | `/users` | Implemented | `pdc user list` |
 | POST | `/users` | Not implemented | - |
-| GET | `/users/me` | Implemented | `pdc user me`, `pdc init` |
+| GET | `/users/me` | Implemented | `pdc user me`, `pdc config init` |
 | DELETE | `/users/{id}` | Not implemented | - |
 | GET | `/users/{id}` | Implemented | `pdc user show` |
 | PUT | `/users/{id}` | Not implemented | - |
@@ -143,7 +143,7 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/teams` | Implemented | `pdc team list`, `pdc init`, TUI |
+| GET | `/teams` | Implemented | `pdc team list`, `pdc config init`, TUI |
 | POST | `/teams` | Not implemented | - |
 | DELETE | `/teams/{id}` | Not implemented | - |
 | GET | `/teams/{id}` | Implemented | `pdc team show` |
@@ -201,7 +201,7 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/abilities` | Implemented | `pdc init` |
+| GET | `/abilities` | Implemented | `pdc config init` |
 | GET | `/abilities/{id}` | Not implemented | - |
 
 ## Log Entries (top-level)

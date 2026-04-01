@@ -109,7 +109,7 @@ func TestValidate_MissingToken(t *testing.T) {
 	err := cfg.Validate()
 	require.Error(t, err)
 	require.ErrorContains(t, err, "token is required")
-	assert.ErrorContains(t, err, "pdc init")
+	assert.ErrorContains(t, err, "pdc config init")
 }
 
 func TestValidate_BadFormat(t *testing.T) {

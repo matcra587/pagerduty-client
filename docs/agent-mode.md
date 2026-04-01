@@ -33,7 +33,7 @@ Errors use the same envelope:
   "error": {
     "code": 401,
     "message": "invalid token",
-    "suggestion": "Run 'pdc init' to configure your API token"
+    "suggestion": "Run 'pdc config init' to configure your API token"
   }
 }
 ```

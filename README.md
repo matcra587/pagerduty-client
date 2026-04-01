@@ -56,7 +56,7 @@ GOPRIVATE=github.com/matcra587 go install github.com/matcra587/pagerduty-client/
 ## Quick Start
 
 ```bash
-pdc init                         # First-run setup (token, defaults)
+pdc config init                  # First-run setup (token, defaults)
 pdc incident list                # List incidents (table on TTY, JSON for agents)
 pdc incident ack P000001         # Acknowledge an incident
 pdc oncall                       # Who is on call
@@ -65,7 +65,7 @@ pdc -i                           # TUI dashboard
 
 ## Configuration
 
-`pdc init` creates `~/.config/pagerduty-client/config.toml` and
+`pdc config init` creates `~/.config/pagerduty-client/config.toml` and
 stores your API token in the OS keyring. Tokens never go in the
 config file.
 
@@ -92,17 +92,25 @@ schema discovery and embedded operational guides.
 | Teams | yes | yes | - |
 | Schedules | yes | yes | overrides |
 | On-call | yes | - | - |
+| Escalation Policies | yes | yes | - |
+| Maintenance Windows | yes | yes | - |
+| Abilities | yes | test | - |
 
 ## TUI
 
 Launch with `pdc -i` or set `interactive = true` in config.
 
-The dashboard polls for incidents and supports keyboard-driven
-actions: acknowledge, resolve, snooze, escalate, reassign, merge,
-add notes, edit fields and set priority. Switch teams with `t`,
-filter with `/` and toggle refresh with `R`.
+Four tabs: Incidents, Escalation Policies, Services and Teams.
+Tabs are configurable via `[tui] tabs` in config.toml.
 
-Press `?` for the full keybinding reference.
+The Incidents tab polls for live data and supports keyboard-driven
+actions: acknowledge, resolve, snooze, escalate, reassign, merge,
+add notes, edit fields and set priority. The other tabs show
+expandable rows with detail on enter.
+
+Switch teams with `t`, filter with `shift+o`, search with `/`
+and toggle refresh with `R`. Press `?` for the full keybinding
+reference.
 
 ## Documentation
 

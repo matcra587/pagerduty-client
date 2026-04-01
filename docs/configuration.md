@@ -1,6 +1,6 @@
 # Configuration
 
-`pdc init` creates `~/.config/pagerduty-client/config.toml` and
+`pdc config init` creates `~/.config/pagerduty-client/config.toml` and
 stores your API token in the OS keyring.
 
 ## Credential resolution

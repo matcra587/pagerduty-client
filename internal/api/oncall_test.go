@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClient_ListOnCalls(t *testing.T) {
+func TestListOnCalls(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -40,7 +40,7 @@ func TestClient_ListOnCalls(t *testing.T) {
 	assert.Equal(t, uint(1), oncalls[0].EscalationLevel)
 }
 
-func TestClient_ListOnCalls_WithFilters(t *testing.T) {
+func TestListOnCalls_WithFilters(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -59,7 +59,7 @@ func TestClient_ListOnCalls_WithFilters(t *testing.T) {
 	assert.Empty(t, oncalls)
 }
 
-func TestClient_ListOnCalls_WithMultipleFilters(t *testing.T) {
+func TestListOnCalls_WithMultipleFilters(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -86,7 +86,7 @@ func TestClient_ListOnCalls_WithMultipleFilters(t *testing.T) {
 	assert.Empty(t, oncalls)
 }
 
-func TestClient_ListOnCalls_Earliest(t *testing.T) {
+func TestListOnCalls_Earliest(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -105,7 +105,7 @@ func TestClient_ListOnCalls_Earliest(t *testing.T) {
 	assert.Empty(t, oncalls)
 }
 
-func TestClient_ListOnCalls_Pagination(t *testing.T) {
+func TestListOnCalls_Pagination(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)

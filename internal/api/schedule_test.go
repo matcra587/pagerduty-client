@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestClient_ListSchedules(t *testing.T) {
+func TestListSchedules(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -35,7 +35,7 @@ func TestClient_ListSchedules(t *testing.T) {
 	assert.Equal(t, "Primary On-Call", schedules[0].Name)
 }
 
-func TestClient_ListSchedules_WithQuery(t *testing.T) {
+func TestListSchedules_WithQuery(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -55,7 +55,7 @@ func TestClient_ListSchedules_WithQuery(t *testing.T) {
 	assert.Len(t, schedules, 1)
 }
 
-func TestClient_ListSchedules_Pagination(t *testing.T) {
+func TestListSchedules_Pagination(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -81,7 +81,7 @@ func TestClient_ListSchedules_Pagination(t *testing.T) {
 	assert.Equal(t, "S2", schedules[1].ID)
 }
 
-func TestClient_GetSchedule(t *testing.T) {
+func TestGetSchedule(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -104,7 +104,7 @@ func TestClient_GetSchedule(t *testing.T) {
 	assert.Equal(t, "UTC", schedule.TimeZone)
 }
 
-func TestClient_GetSchedule_NotFound(t *testing.T) {
+func TestGetSchedule_NotFound(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -125,7 +125,7 @@ func TestClient_GetSchedule_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
 }
 
-func TestClient_ListOverrides(t *testing.T) {
+func TestListOverrides(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -149,7 +149,7 @@ func TestClient_ListOverrides(t *testing.T) {
 	assert.Equal(t, "U1", overrides[0].User.ID)
 }
 
-func TestClient_CreateOverride(t *testing.T) {
+func TestCreateOverride(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
@@ -199,7 +199,7 @@ func TestClient_CreateOverride(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestClient_CreateOverride_Error(t *testing.T) {
+func TestCreateOverride_Error(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)

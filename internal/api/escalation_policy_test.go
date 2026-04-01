@@ -18,7 +18,6 @@ func TestListEscalationPolicies(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	mux.HandleFunc("GET /escalation_policies", func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "Token token=test-token", r.Header.Get("Authorization"))
 		_, _ = w.Write([]byte(`{"escalation_policies":[{"id":"P1","name":"Platform","num_loops":2,"escalation_rules":[{"id":"R1","escalation_delay_in_minutes":5,"targets":[{"id":"U1","type":"user_reference","summary":"Alice"}]}]}],"limit":100,"offset":0,"more":false}`))
 	})
@@ -103,7 +102,6 @@ func TestGetEscalationPolicy(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	mux.HandleFunc("GET /escalation_policies/P1", func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "Token token=test-token", r.Header.Get("Authorization"))
 		assert.Equal(t, []string{"targets"}, r.URL.Query()["include[]"])
 		_, _ = w.Write([]byte(`{"escalation_policy":{"id":"P1","name":"Platform","description":"Primary platform EP","num_loops":2,"escalation_rules":[{"id":"R1","escalation_delay_in_minutes":5,"targets":[{"id":"U1","type":"user_reference","summary":"Alice Smith"}]},{"id":"R2","escalation_delay_in_minutes":15,"targets":[{"id":"U2","type":"user_reference","summary":"Bob Jones"},{"id":"S1","type":"schedule_reference","summary":"Primary Schedule"}]}],"teams":[{"id":"T1","type":"team_reference"}]}}`))
@@ -141,7 +139,6 @@ func TestGetEscalationPolicy_NotFound(t *testing.T) {
 	client := NewClient("test-token", WithBaseURL(server.URL))
 	ep, err := client.GetEscalationPolicy(context.Background(), "NOTFOUND")
 
-	require.Error(t, err)
 	assert.Nil(t, ep)
 	require.ErrorIs(t, err, ErrNotFound)
 }

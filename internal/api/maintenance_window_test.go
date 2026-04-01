@@ -18,7 +18,6 @@ func TestListMaintenanceWindows(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	mux.HandleFunc("GET /maintenance_windows", func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "Token token=test-token", r.Header.Get("Authorization"))
 		_, _ = w.Write([]byte(`{"maintenance_windows":[{"id":"PW1","description":"Deploy window","start_time":"2026-03-31T20:00:00Z","end_time":"2026-03-31T22:00:00Z","services":[{"id":"S1","type":"service_reference","summary":"Auth API"}]}],"limit":100,"offset":0,"more":false}`))
 	})
@@ -139,7 +138,6 @@ func TestGetMaintenanceWindow(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	mux.HandleFunc("GET /maintenance_windows/PW1", func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "Token token=test-token", r.Header.Get("Authorization"))
 		_, _ = w.Write([]byte(`{"maintenance_window":{"id":"PW1","description":"Deploy window","start_time":"2026-03-31T20:00:00Z","end_time":"2026-03-31T22:00:00Z","services":[{"id":"S1","type":"service_reference","summary":"Auth API"}],"teams":[{"id":"T1","type":"team_reference","summary":"Platform"}],"created_by":{"id":"U1","type":"user_reference","summary":"Alice Smith"}}}`))
 	})
@@ -194,7 +192,6 @@ func TestGetMaintenanceWindow_NotFound(t *testing.T) {
 	client := NewClient("test-token", WithBaseURL(server.URL))
 	mw, err := client.GetMaintenanceWindow(context.Background(), "NOTFOUND")
 
-	require.Error(t, err)
 	assert.Nil(t, mw)
 	require.ErrorIs(t, err, ErrNotFound)
 }

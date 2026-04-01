@@ -19,14 +19,15 @@ type epLoadedMsg struct {
 
 // escalationPolicies is the model for the Escalation Policies tab.
 type escalationPolicies struct {
-	policies []pagerduty.EscalationPolicy
-	cursor   int
-	expanded map[string]bool
-	width    int
-	height   int
-	loading  bool
-	loaded   bool
-	err      error
+	policies     []pagerduty.EscalationPolicy
+	cursor       int
+	expanded     map[string]bool
+	width        int
+	height       int
+	scrollOffset int
+	loading      bool
+	loaded       bool
+	err          error
 }
 
 func newEscalationPolicies() escalationPolicies {
@@ -49,6 +50,7 @@ func (ep escalationPolicies) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case epLoadedMsg:
 		ep.loading = false
 		ep.loaded = true
+		ep.scrollOffset = 0
 		if msg.err != nil {
 			ep.err = msg.err
 			return ep, nil
@@ -90,7 +92,49 @@ func (ep escalationPolicies) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		ep.cursor = len(ep.policies) - 1
 	}
 
+	ep.clampScroll()
 	return ep, nil
+}
+
+// viewportRows returns the number of lines available for data rows.
+func (ep escalationPolicies) viewportRows() int {
+	return max(ep.height-2, 1) // header text + BorderBottom
+}
+
+// linesForItem returns how many rendered lines a policy takes.
+func (ep escalationPolicies) linesForItem(idx int) int {
+	lines := 1 // the policy row itself
+	if ep.expanded[ep.policies[idx].ID] {
+		lines += len(ep.policies[idx].EscalationRules)
+	}
+	return lines
+}
+
+// clampScroll adjusts scrollOffset so the cursor and any expanded
+// content below it remain visible.
+func (ep *escalationPolicies) clampScroll() {
+	maxLines := ep.viewportRows()
+
+	// Scroll up if cursor is above the viewport.
+	if ep.cursor < ep.scrollOffset {
+		ep.scrollOffset = ep.cursor
+	}
+
+	// Scroll down if cursor (plus its expanded content) extends
+	// below the viewport.
+	for {
+		lines := 0
+		for i := ep.scrollOffset; i <= ep.cursor && i < len(ep.policies); i++ {
+			lines += ep.linesForItem(i)
+		}
+		if lines <= maxLines {
+			break
+		}
+		ep.scrollOffset++
+		if ep.scrollOffset >= len(ep.policies) {
+			break
+		}
+	}
 }
 
 // View implements tea.Model.
@@ -130,7 +174,11 @@ func (ep escalationPolicies) renderList() string {
 	sb.WriteString(theme.TableHeader.Render(fmt.Sprintf("%-*s", ep.width, header)))
 	sb.WriteString("\n")
 
-	for i, p := range ep.policies {
+	maxLines := ep.viewportRows()
+	linesRendered := 0
+
+	for i := ep.scrollOffset; i < len(ep.policies) && linesRendered < maxLines; i++ {
+		p := ep.policies[i]
 		prefix := "  "
 		if i == ep.cursor {
 			prefix = cursorStyle.Render("> ")
@@ -149,10 +197,13 @@ func (ep escalationPolicies) renderList() string {
 			sb.WriteString(row)
 		}
 		sb.WriteString("\n")
+		linesRendered++
 
 		// Expanded rules.
 		if ep.expanded[p.ID] {
-			sb.WriteString(ep.renderRules(p.EscalationRules))
+			rules := ep.renderRules(p.EscalationRules)
+			sb.WriteString(rules)
+			linesRendered += len(p.EscalationRules)
 		}
 	}
 

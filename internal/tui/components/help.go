@@ -123,10 +123,53 @@ var epSections = []section{
 	},
 }
 
+var servicesSections = []section{
+	{
+		title: "Navigation",
+		bindings: []binding{
+			{"↑↓", "navigate"},
+			{"enter", "expand / collapse"},
+			{"f", "cycle status filter"},
+			{"g/G", "top / bottom"},
+		},
+	},
+	{
+		title: "Other",
+		bindings: []binding{
+			{"R", "refresh"},
+			{"t", "team switcher"},
+			{"tab", "switch tab"},
+			{"?", "help"},
+			{"q", "quit"},
+		},
+	},
+}
+
+var teamsSections = []section{
+	{
+		title: "Navigation",
+		bindings: []binding{
+			{"↑↓", "navigate"},
+			{"enter", "expand / collapse"},
+			{"g/G", "top / bottom"},
+		},
+	},
+	{
+		title: "Other",
+		bindings: []binding{
+			{"R", "refresh"},
+			{"t", "team switcher"},
+			{"tab", "switch tab"},
+			{"?", "help"},
+			{"q", "quit"},
+		},
+	},
+}
+
 // Help is a Bubble Tea model that renders a context-aware keybinding overlay.
 type Help struct {
 	Visible     bool
-	CurrentView string // "dashboard", "detail" or "escalation-policies"
+	CurrentView string // "dashboard", "detail", "escalation-policies", "services" or "teams"
 }
 
 // Init implements tea.Model.
@@ -155,6 +198,10 @@ func (h Help) View() tea.View {
 		sections = detailSections
 	case "escalation-policies":
 		sections = epSections
+	case "services":
+		sections = servicesSections
+	case "teams":
+		sections = teamsSections
 	default:
 		sections = listSections
 	}

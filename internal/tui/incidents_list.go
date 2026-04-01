@@ -211,7 +211,7 @@ func (m incidentList) updateNormalKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) 
 
 // viewportRows returns how many incident data rows fit in the available height.
 func (m incidentList) viewportRows() int {
-	rows := m.height - 1 // column header
+	rows := m.height - 2 // column header text + BorderBottom
 	if m.filterActive || m.filterInput.Value() != "" {
 		rows-- // filter bar
 	}

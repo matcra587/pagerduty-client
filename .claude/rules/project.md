@@ -418,3 +418,31 @@ y = copy URL, o = open in browser, alt+o = open external link,
 - Switching team or user triggers a re-fetch
 - Cache slow-changing data (teams, users, schedules) in memory
 - Fetch alerts and notes on demand when opening detail views
+
+### List Tab Requirements
+
+Every TUI tab that renders a scrollable list must implement:
+
+1. `scrollOffset int` field on the model
+2. `viewportRows() int` method returning available row count.
+   `theme.TableHeader` has `BorderBottom(true)` so the header
+   takes 2 lines, not 1. Subtract 2 from height.
+3. Scroll clamping after cursor moves:
+   ```go
+   maxRows := m.viewportRows()
+   if m.cursor < m.scrollOffset {
+       m.scrollOffset = m.cursor
+   }
+   if m.cursor >= m.scrollOffset+maxRows {
+       m.scrollOffset = m.cursor - maxRows + 1
+   }
+   ```
+4. Slice rendering from `scrollOffset` in the view:
+   ```go
+   start := min(m.scrollOffset, max(0, len(items)-maxRows))
+   for i := start; i < len(items) && (i-start) < maxRows; i++ { ... }
+   ```
+5. Full-width header row using `theme.TableHeader`
+
+Failing to implement scrolling causes the cursor to move
+off-screen when the list exceeds the terminal height.

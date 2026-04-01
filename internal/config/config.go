@@ -68,7 +68,7 @@ var validFormats = map[string]bool{
 // Validate checks required fields and value constraints.
 func (c *Config) Validate() error {
 	if c.Token == "" {
-		return errors.New("token is required: set PDC_TOKEN or configure a credential source (run \"pdc init\")")
+		return errors.New("token is required: set PDC_TOKEN or configure a credential source (run \"pdc config init\")")
 	}
 	if !validFormats[c.Format] {
 		return fmt.Errorf("invalid format %q: must be \"table\" or \"json\"", c.Format)

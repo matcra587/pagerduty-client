@@ -78,7 +78,7 @@ Tokens never go in config.toml. Resolution chain (highest wins):
 `--token-file` for programmatic use (`--token` is visible in `ps`).
 
 Config stores `credential_source = "keyring"` to indicate the backend.
-The `pdc init` wizard validates the token and stores it in the keyring.
+The `pdc config init` wizard validates the token and stores it in the keyring.
 
 ## Gotchas
 

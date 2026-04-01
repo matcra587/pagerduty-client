@@ -58,7 +58,7 @@ func TestResolveToken_KeyringNotFound_ReturnsError(t *testing.T) {
 	token, err := resolveToken(context.Background(), cfg, "", "")
 	assert.Empty(t, token)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "pdc init")
+	assert.ErrorContains(t, err, "pdc config init")
 }
 
 func TestResolveToken_EmptyFallthrough(t *testing.T) {

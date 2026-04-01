@@ -25,12 +25,12 @@ func TestListAbilities(t *testing.T) {
 	abilities, err := client.ListAbilities(context.Background())
 	require.NoError(t, err)
 	require.Len(t, abilities, 3)
-	assert.Equal(t, "sso", abilities[0].Name)
-	assert.Equal(t, "SSO", abilities[0].Display)
-	assert.Equal(t, "teams", abilities[1].Name)
-	assert.Equal(t, "Teams", abilities[1].Display)
-	assert.Equal(t, "read_only_users", abilities[2].Name)
-	assert.Equal(t, "Read Only Users", abilities[2].Display)
+	assert.Equal(t, "read_only_users", abilities[0].Name)
+	assert.Equal(t, "Read Only Users", abilities[0].Display)
+	assert.Equal(t, "sso", abilities[1].Name)
+	assert.Equal(t, "SSO", abilities[1].Display)
+	assert.Equal(t, "teams", abilities[2].Name)
+	assert.Equal(t, "Teams", abilities[2].Display)
 }
 
 func TestListAbilities_Empty(t *testing.T) {

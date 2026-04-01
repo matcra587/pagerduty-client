@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 
 	"golang.org/x/text/cases"
@@ -35,6 +36,9 @@ func toAbilities(names []string) []Ability {
 			Display: humanise(tc, n),
 		}
 	}
+	slices.SortFunc(abilities, func(a, b Ability) int {
+		return strings.Compare(a.Display, b.Display)
+	})
 	return abilities
 }
 

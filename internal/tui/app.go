@@ -167,6 +167,7 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 	sp.Style = lipgloss.NewStyle().Foreground(theme.ColorHeaderFg)
 
 	filterOpts := components.NewFilterOptions()
+	defaultState := components.DefaultFilterState()
 
 	a := App{
 		ctx:            ctx,
@@ -182,10 +183,10 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		svc:            newServices(),
 		svcCache:       make(map[string]pagerduty.Service),
 		tmv:            newTeamsView(),
-		statusBar:      components.StatusBar{Team: cfg.Team, FilterState: filterOpts.State()},
+		statusBar:      components.StatusBar{Team: cfg.Team, FilterState: defaultState},
 		teamSwitch:     components.NewTeamSwitcher(),
 		filterOpts:     filterOpts,
-		filterState:    filterOpts.State(),
+		filterState:    defaultState,
 		textInput:      components.NewTextInput(),
 		priorityPicker: components.NewPriorityPicker(),
 		spinner:        sp,
@@ -324,12 +325,25 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case components.TeamSwitcherClosed:
 		return a, nil
 
-	case components.FilterApplied:
-		a.filterState = msg.State
-		a.dashboard.incidents.filterState = msg.State
-		a.statusBar.FilterState = msg.State
-		a.loading = true
-		return a, tea.Batch(a.fetchIncidentsCmd(), a.spinner.Tick)
+	case components.FilterAppliedMsg:
+		switch msg.Origin {
+		case "incidents":
+			a.filterState = a.filterOpts.State()
+			a.dashboard.incidents.filterState = a.filterState
+			a.statusBar.FilterState = a.filterState
+			a.loading = true
+			return a, tea.Batch(a.fetchIncidentsCmd(), a.spinner.Tick)
+		case "services":
+			status := msg.Selections["Status"]
+			if status == "" {
+				status = "all"
+			}
+			a.svc.statusFilter = status
+			a.svc.cursor = 0
+			a.svc.scrollOffset = 0
+			return a, nil
+		}
+		return a, nil
 
 	case components.FilterClosed:
 		return a, nil
@@ -666,7 +680,12 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return a, nil
 	case key.Matches(msg, km.FilterOpts):
-		a.filterOpts = a.filterOpts.Show()
+		switch a.activeTabID() {
+		case "incidents":
+			a.filterOpts = a.filterOpts.ShowWithRows("incidents", components.IncidentFilterRows())
+		case "services":
+			a.filterOpts = a.filterOpts.ShowWithRows("services", components.ServiceFilterRows())
+		}
 		return a, nil
 	case key.Matches(msg, km.TeamSwitch):
 		ts, cmd := a.teamSwitch.Show(a.fetchTeamsCmd())
@@ -745,6 +764,10 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if msg.String() == "R" {
 			a.svc.loading = true
 			return a, a.fetchServicesCmd()
+		}
+		if msg.String() == "f" {
+			a.filterOpts = a.filterOpts.ShowWithRows("services", components.ServiceFilterRows())
+			return a, nil
 		}
 		sm, cmd := a.svc.Update(msg)
 		a.svc = sm.(services)

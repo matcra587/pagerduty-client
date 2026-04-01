@@ -68,66 +68,98 @@ func (fs FilterState) ChipSummary() string {
 	return strings.Join(chips, " ")
 }
 
-// FilterApplied is sent when the user confirms the filter selection.
-type FilterApplied struct{ State FilterState }
+// FilterAppliedMsg is sent when the user confirms the filter selection.
+// Origin identifies which tab opened the overlay; Selections maps each
+// row label to the chosen value.
+type FilterAppliedMsg struct {
+	Origin     string
+	Selections map[string]string
+}
 
 // FilterClosed is sent when the user dismisses the filter overlay without applying.
 type FilterClosed struct{}
 
-// filterRow describes a single filter option row with a label and ordered choices.
-type filterRow struct {
-	label   string
-	choices []string
-	current int // index into choices
+// FilterRow describes a single filter option row with a label and ordered choices.
+type FilterRow struct {
+	Label   string
+	Choices []string
+	Current int // index into Choices
 }
 
 // FilterOptions is a Bubble Tea overlay component that lets the user configure
-// incident filter criteria. State is preserved between openings.
+// filter criteria. It is data-driven: callers provide rows at show-time and
+// the component renders whatever it receives without knowing about specific tabs.
 type FilterOptions struct {
 	Visible bool
-	state   FilterState
+	origin  string
 	cursor  int
-	rows    []filterRow
+	rows    []FilterRow
 }
 
-// NewFilterOptions returns a FilterOptions with all choices set to "all".
+// NewFilterOptions returns an empty FilterOptions ready to receive rows.
 func NewFilterOptions() FilterOptions {
-	return FilterOptions{
-		rows: []filterRow{
-			{label: "Status", choices: []string{"open", "triggered", "acked", "resolved", "all"}, current: 0},
-			{label: "Urgency", choices: []string{"high", "low", "all"}, current: 2},
-			{label: "Priority", choices: []string{"P1", "P2", "P3", "P4", "P5", "all"}, current: 5},
-			{label: "Assigned", choices: []string{"assigned", "unassigned", "all"}, current: 2},
-			{label: "Age", choices: []string{"7d", "30d", "60d", "90d", "all"}, current: 0},
-		},
+	return FilterOptions{}
+}
+
+// IncidentFilterRows returns the default filter rows for the incidents tab.
+func IncidentFilterRows() []FilterRow {
+	return []FilterRow{
+		{Label: "Status", Choices: []string{"open", "triggered", "acked", "resolved", "all"}, Current: 0},
+		{Label: "Urgency", Choices: []string{"high", "low", "all"}, Current: 2},
+		{Label: "Priority", Choices: []string{"P1", "P2", "P3", "P4", "P5", "all"}, Current: 5},
+		{Label: "Assigned", Choices: []string{"assigned", "unassigned", "all"}, Current: 2},
+		{Label: "Age", Choices: []string{"7d", "30d", "60d", "90d", "all"}, Current: 0},
 	}
 }
 
-func (f FilterOptions) choiceByLabel(label string) string {
+// ServiceFilterRows returns the default filter rows for the services tab.
+func ServiceFilterRows() []FilterRow {
+	return []FilterRow{
+		{Label: "Status", Choices: []string{"all", "active", "warning", "critical", "maintenance", "disabled"}, Current: 0},
+	}
+}
+
+// Selections returns a map of label to currently selected value for each row.
+func (f FilterOptions) Selections() map[string]string {
+	m := make(map[string]string, len(f.rows))
 	for _, row := range f.rows {
-		if row.label == label {
-			return row.choices[row.current]
-		}
+		m[row.Label] = row.Choices[row.Current]
 	}
-	return ""
+	return m
 }
 
-// State returns the current FilterState matching the UI defaults.
+// Origin returns the tab identifier that opened the overlay.
+func (f FilterOptions) Origin() string {
+	return f.origin
+}
+
+// State returns the current FilterState by reading selections from the rows.
+// This is a convenience for the incidents tab which uses FilterState.
 func (f FilterOptions) State() FilterState {
+	sel := f.Selections()
 	return FilterState{
-		Status:   f.choiceByLabel("Status"),
-		Urgency:  f.choiceByLabel("Urgency"),
-		Priority: f.choiceByLabel("Priority"),
-		Assigned: f.choiceByLabel("Assigned"),
-		Age:      f.choiceByLabel("Age"),
+		Status:   sel["Status"],
+		Urgency:  sel["Urgency"],
+		Priority: sel["Priority"],
+		Assigned: sel["Assigned"],
+		Age:      sel["Age"],
 	}
 }
 
-// Show sets Visible to true and returns the FilterOptions. Previously selected
-// filter values are preserved.
-func (f FilterOptions) Show() FilterOptions {
+// ShowWithRows sets Visible to true, stores the origin and rows, and returns
+// the updated FilterOptions. The cursor is reset to the first row.
+func (f FilterOptions) ShowWithRows(origin string, rows []FilterRow) FilterOptions {
 	f.Visible = true
+	f.origin = origin
+	f.rows = rows
+	f.cursor = 0
 	return f
+}
+
+// Show opens the overlay with the default incident filter rows for backwards
+// compatibility. Prefer ShowWithRows for tab-specific rows.
+func (f FilterOptions) Show() FilterOptions {
+	return f.ShowWithRows("incidents", IncidentFilterRows())
 }
 
 // Init implements tea.Model.
@@ -157,21 +189,21 @@ func (f FilterOptions) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case "space", "l", "right":
 		row := &f.rows[f.cursor]
-		row.current = (row.current + 1) % len(row.choices)
+		row.Current = (row.Current + 1) % len(row.Choices)
 
 	case "h", "left":
 		row := &f.rows[f.cursor]
-		row.current = (row.current - 1 + len(row.choices)) % len(row.choices)
+		row.Current = (row.Current - 1 + len(row.Choices)) % len(row.Choices)
 
 	case "backspace":
 		row := &f.rows[f.cursor]
-		row.current = len(row.choices) - 1
+		row.Current = len(row.Choices) - 1
 
 	case "enter":
-		f.state = f.State()
 		f.Visible = false
-		state := f.state
-		return f, func() tea.Msg { return FilterApplied{State: state} }
+		origin := f.origin
+		selections := f.Selections()
+		return f, func() tea.Msg { return FilterAppliedMsg{Origin: origin, Selections: selections} }
 
 	case "esc":
 		f.Visible = false
@@ -193,7 +225,7 @@ func (f FilterOptions) View() tea.View {
 
 	maxLabel := 0
 	for _, row := range f.rows {
-		if w := len(row.label) + 1; w > maxLabel {
+		if w := len(row.Label) + 1; w > maxLabel {
 			maxLabel = w
 		}
 	}
@@ -206,11 +238,11 @@ func (f FilterOptions) View() tea.View {
 			cursor = "> "
 		}
 
-		label := theme.HelpDesc.Render(fmt.Sprintf("%-*s", maxLabel, row.label+":"))
+		label := theme.HelpDesc.Render(fmt.Sprintf("%-*s", maxLabel, row.Label+":"))
 
 		var choices []string
-		for j, c := range row.choices {
-			if j == row.current {
+		for j, c := range row.Choices {
+			if j == row.Current {
 				choices = append(choices, theme.HelpKey.Render(c))
 			} else {
 				choices = append(choices, dim.Render(c))

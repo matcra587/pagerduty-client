@@ -36,7 +36,47 @@ const (
 
 // topTab defines a top-level tab in the app.
 type topTab struct {
-	label string
+	id    string // config key: "incidents", "escalation-policies", etc.
+	label string // display label
+}
+
+// tabLabels maps config tab IDs to display labels.
+var tabLabels = map[string]string{
+	"incidents":           "Incidents",
+	"escalation-policies": "Escalation Policies",
+	"services":            "Services",
+	"teams":               "Teams",
+}
+
+// buildTabs constructs the tab list from config.
+// Falls back to all tabs if none configured.
+func buildTabs(cfg *config.Config) []topTab {
+	names := cfg.TUI.Tabs
+	if len(names) == 0 {
+		names = config.DefaultTabs
+	}
+
+	var tabs []topTab
+	for _, name := range names {
+		if label, ok := tabLabels[name]; ok {
+			tabs = append(tabs, topTab{id: name, label: label})
+		}
+	}
+
+	// Ensure incidents is always present as the first tab.
+	if len(tabs) == 0 || tabs[0].id != "incidents" {
+		tabs = append([]topTab{{id: "incidents", label: "Incidents"}}, tabs...)
+	}
+
+	return tabs
+}
+
+// activeTabID returns the config ID of the currently active tab.
+func (a App) activeTabID() string {
+	if a.activeTab >= 0 && a.activeTab < len(a.tabs) {
+		return a.tabs[a.activeTab].id
+	}
+	return "incidents"
 }
 
 // tickMsg is sent on each polling interval.
@@ -82,6 +122,9 @@ type App struct {
 	detail         incidentDetail
 	ep             escalationPolicies
 	epCache        map[string]pagerduty.EscalationPolicy
+	svc            services
+	svcCache       map[string]pagerduty.Service
+	tmv            teamsView
 	statusBar      components.StatusBar
 	help           components.Help
 	confirm        components.Confirm
@@ -136,6 +179,9 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		dashboard:      newDashboard(ctx, client, fromEmail, cfg.Service != ""),
 		ep:             newEscalationPolicies(),
 		epCache:        make(map[string]pagerduty.EscalationPolicy),
+		svc:            newServices(),
+		svcCache:       make(map[string]pagerduty.Service),
+		tmv:            newTeamsView(),
 		statusBar:      components.StatusBar{Team: cfg.Team, FilterState: filterOpts.State()},
 		teamSwitch:     components.NewTeamSwitcher(),
 		filterOpts:     filterOpts,
@@ -145,12 +191,9 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		spinner:        sp,
 		loading:        true,
 		interval:       interval,
-		tabs: []topTab{
-			{label: "Incidents"},
-			{label: "Escalation Policies"},
-		},
-		activeTab: 0,
-		keys:      newAppKeyMap(),
+		tabs:           buildTabs(cfg),
+		activeTab:      0,
+		keys:           newAppKeyMap(),
 	}
 	a.statusBar.LastRefresh = time.Now()
 	return a
@@ -187,6 +230,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.dashboard = dm.(Dashboard)
 		em, _ := a.ep.Update(childSize)
 		a.ep = em.(escalationPolicies)
+		sm, _ := a.svc.Update(childSize)
+		a.svc = sm.(services)
+		tm, _ := a.tmv.Update(childSize)
+		a.tmv = tm.(teamsView)
 		if a.current == viewDetail {
 			dm2, _ := a.detail.Update(childSize)
 			a.detail = dm2.(incidentDetail)
@@ -237,6 +284,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, p := range msg.policies {
 			a.epCache[p.ID] = p
 		}
+		return a, cmd
+
+	case servicesLoadedMsg:
+		sm, cmd := a.svc.Update(msg)
+		a.svc = sm.(services)
+		// Populate cache.
+		a.svcCache = make(map[string]pagerduty.Service, len(msg.services))
+		for _, sv := range msg.services {
+			a.svcCache[sv.ID] = sv
+		}
+		return a, cmd
+
+	case teamTabLoadedMsg:
+		tm, cmd := a.tmv.Update(msg)
+		a.tmv = tm.(teamsView)
 		return a, cmd
 
 	case incidentActionPendingMsg:
@@ -467,9 +529,19 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Non-key messages for the active view.
 	switch a.current {
 	case viewDashboard:
-		if a.activeTab == 1 {
+		if a.activeTabID() == "escalation-policies" {
 			em, cmd := a.ep.Update(msg)
 			a.ep = em.(escalationPolicies)
+			return a, cmd
+		}
+		if a.activeTabID() == "services" {
+			sm, cmd := a.svc.Update(msg)
+			a.svc = sm.(services)
+			return a, cmd
+		}
+		if a.activeTabID() == "teams" {
+			tm, cmd := a.tmv.Update(msg)
+			a.tmv = tm.(teamsView)
 			return a, cmd
 		}
 		dm, cmd := a.dashboard.Update(msg)
@@ -543,25 +615,22 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// is used here rather than key.Binding.
 		if idx := tabIndexFromKey(msg.String()); idx >= 0 && idx < len(a.tabs) {
 			a.activeTab = idx
-			if idx == 1 && !a.ep.loaded && !a.ep.loading {
-				a.ep.loading = true
-				return a, a.fetchEPCmd()
+			if cmd := a.lazyLoadTab(idx); cmd != nil {
+				return a, cmd
 			}
 			return a, nil
 		}
 		switch {
 		case key.Matches(msg, a.keys.Tab):
 			a.activeTab = (a.activeTab + 1) % len(a.tabs)
-			if a.activeTab == 1 && !a.ep.loaded && !a.ep.loading {
-				a.ep.loading = true
-				return a, a.fetchEPCmd()
+			if cmd := a.lazyLoadTab(a.activeTab); cmd != nil {
+				return a, cmd
 			}
 			return a, nil
 		case key.Matches(msg, a.keys.ShiftTab):
 			a.activeTab = (a.activeTab - 1 + len(a.tabs)) % len(a.tabs)
-			if a.activeTab == 1 && !a.ep.loaded && !a.ep.loading {
-				a.ep.loading = true
-				return a, a.fetchEPCmd()
+			if cmd := a.lazyLoadTab(a.activeTab); cmd != nil {
+				return a, cmd
 			}
 			return a, nil
 		}
@@ -579,8 +648,12 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		switch {
 		case a.current == viewDetail:
 			a.help.CurrentView = "detail"
-		case a.activeTab == 1:
+		case a.activeTabID() == "escalation-policies":
 			a.help.CurrentView = "escalation-policies"
+		case a.activeTabID() == "services":
+			a.help.CurrentView = "services"
+		case a.activeTabID() == "teams":
+			a.help.CurrentView = "teams"
 		default:
 			a.help.CurrentView = "dashboard"
 		}
@@ -652,18 +725,40 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// Dashboard-only action keys (incidents tab only).
-	if a.current == viewDashboard && a.activeTab == 0 {
+	if a.current == viewDashboard && a.activeTabID() == "incidents" {
 		return a.updateDashboardKey(msg)
 	}
 
 	// EP tab keys.
-	if a.current == viewDashboard && a.activeTab == 1 {
+	if a.current == viewDashboard && a.activeTabID() == "escalation-policies" {
 		if msg.String() == "R" {
 			a.ep.loading = true
 			return a, a.fetchEPCmd()
 		}
 		em, cmd := a.ep.Update(msg)
 		a.ep = em.(escalationPolicies)
+		return a, cmd
+	}
+
+	// Services tab keys.
+	if a.current == viewDashboard && a.activeTabID() == "services" {
+		if msg.String() == "R" {
+			a.svc.loading = true
+			return a, a.fetchServicesCmd()
+		}
+		sm, cmd := a.svc.Update(msg)
+		a.svc = sm.(services)
+		return a, cmd
+	}
+
+	// Teams tab keys.
+	if a.current == viewDashboard && a.activeTabID() == "teams" {
+		if msg.String() == "R" {
+			a.tmv.loading = true
+			return a, a.fetchTeamsTabCmd()
+		}
+		tm, cmd := a.tmv.Update(msg)
+		a.tmv = tm.(teamsView)
 		return a, cmd
 	}
 
@@ -802,8 +897,12 @@ func (a App) View() tea.View {
 	switch {
 	case a.current == viewDetail:
 		viewName = "detail"
-	case a.activeTab == 1:
+	case a.activeTabID() == "escalation-policies":
 		viewName = "escalation-policies"
+	case a.activeTabID() == "services":
+		viewName = "services"
+	case a.activeTabID() == "teams":
+		viewName = "teams"
 	default:
 		viewName = "dashboard"
 	}
@@ -819,14 +918,18 @@ func (a App) View() tea.View {
 	var bodyContent string
 	switch a.current {
 	case viewDashboard:
-		switch a.activeTab {
-		case 0:
+		switch a.activeTabID() {
+		case "incidents":
 			bodyContent = a.dashboard.View().Content
-		case 1:
+		case "escalation-policies":
 			bodyContent = a.ep.View().Content
+		case "services":
+			bodyContent = a.svc.View().Content
+		case "teams":
+			bodyContent = a.tmv.View().Content
 		default:
 			bodyContent = lipgloss.Place(a.width, a.bodyH, lipgloss.Center, lipgloss.Center,
-				lipgloss.NewStyle().Faint(true).Render("🚧 Not yet supported"))
+				lipgloss.NewStyle().Faint(true).Render("Not yet supported"))
 		}
 	case viewDetail:
 		bodyContent = a.detail.View().Content
@@ -1008,6 +1111,31 @@ func (a App) fetchTeamsCmd() tea.Cmd {
 	}
 }
 
+// lazyLoadTab triggers the first fetch for a tab that loads on demand.
+func (a *App) lazyLoadTab(idx int) tea.Cmd {
+	if idx < 0 || idx >= len(a.tabs) {
+		return nil
+	}
+	switch a.tabs[idx].id {
+	case "escalation-policies":
+		if !a.ep.loaded && !a.ep.loading {
+			a.ep.loading = true
+			return a.fetchEPCmd()
+		}
+	case "services":
+		if !a.svc.loaded && !a.svc.loading {
+			a.svc.loading = true
+			return a.fetchServicesCmd()
+		}
+	case "teams":
+		if !a.tmv.loaded && !a.tmv.loading {
+			a.tmv.loading = true
+			return a.fetchTeamsTabCmd()
+		}
+	}
+	return nil
+}
+
 // fetchEPCmd returns a tea.Cmd that loads escalation policies from the API.
 func (a App) fetchEPCmd() tea.Cmd {
 	client := a.client
@@ -1019,6 +1147,30 @@ func (a App) fetchEPCmd() tea.Cmd {
 	return func() tea.Msg {
 		policies, err := client.ListEscalationPolicies(appCtx, opts)
 		return epLoadedMsg{policies: policies, err: err}
+	}
+}
+
+// fetchServicesCmd returns a tea.Cmd that loads services from the API.
+func (a App) fetchServicesCmd() tea.Cmd {
+	client := a.client
+	appCtx := a.ctx
+	opts := api.ListServicesOpts{}
+	if a.cfg.Team != "" {
+		opts.TeamIDs = []string{a.cfg.Team}
+	}
+	return func() tea.Msg {
+		svcs, err := client.ListServices(appCtx, opts)
+		return servicesLoadedMsg{services: svcs, err: err}
+	}
+}
+
+// fetchTeamsTabCmd returns a tea.Cmd that loads teams from the API.
+func (a App) fetchTeamsTabCmd() tea.Cmd {
+	client := a.client
+	appCtx := a.ctx
+	return func() tea.Msg {
+		teams, err := client.ListTeams(appCtx, api.ListTeamsOpts{})
+		return teamTabLoadedMsg{teams: teams, err: err}
 	}
 }
 

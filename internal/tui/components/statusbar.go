@@ -171,6 +171,27 @@ func (s StatusBar) hintBindings() []key.Binding {
 			bind("q", "quit"),
 		}
 
+	case s.Hint.View == "services":
+		return []key.Binding{
+			bind("↑↓", "navigate"),
+			bind("enter", "expand"),
+			bind("f", "filter status"),
+			bind("R", "refresh"),
+			bind("t", "team"),
+			bind("?", "help"),
+			bind("q", "quit"),
+		}
+
+	case s.Hint.View == "teams":
+		return []key.Binding{
+			bind("↑↓", "navigate"),
+			bind("enter", "expand"),
+			bind("R", "refresh"),
+			bind("t", "team"),
+			bind("?", "help"),
+			bind("q", "quit"),
+		}
+
 	default:
 		return []key.Binding{
 			bind("a", "ack"),

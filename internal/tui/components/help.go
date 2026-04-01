@@ -102,10 +102,31 @@ var detailSections = []section{
 	},
 }
 
+var epSections = []section{
+	{
+		title: "Navigation",
+		bindings: []binding{
+			{"↑↓", "navigate"},
+			{"enter", "expand / collapse"},
+			{"g/G", "top / bottom"},
+		},
+	},
+	{
+		title: "Other",
+		bindings: []binding{
+			{"R", "refresh"},
+			{"t", "team switcher"},
+			{"tab", "switch tab"},
+			{"?", "help"},
+			{"q", "quit"},
+		},
+	},
+}
+
 // Help is a Bubble Tea model that renders a context-aware keybinding overlay.
 type Help struct {
 	Visible     bool
-	CurrentView string // "dashboard" or "detail"
+	CurrentView string // "dashboard", "detail" or "escalation-policies"
 }
 
 // Init implements tea.Model.
@@ -128,9 +149,14 @@ func (h Help) View() tea.View {
 		return tea.NewView("")
 	}
 
-	sections := listSections
-	if h.CurrentView == "detail" {
+	var sections []section
+	switch h.CurrentView {
+	case "detail":
 		sections = detailSections
+	case "escalation-policies":
+		sections = epSections
+	default:
+		sections = listSections
 	}
 
 	sectionStyle := lipgloss.NewStyle().Bold(true).Foreground(theme.ColorTitleFg)

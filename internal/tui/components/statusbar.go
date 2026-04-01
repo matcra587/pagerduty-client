@@ -161,6 +161,16 @@ func (s StatusBar) hintBindings() []key.Binding {
 			bind("y", "copy URL"),
 		}
 
+	case s.Hint.View == "escalation-policies":
+		return []key.Binding{
+			bind("↑↓", "navigate"),
+			bind("enter", "expand"),
+			bind("R", "refresh"),
+			bind("t", "team"),
+			bind("?", "help"),
+			bind("q", "quit"),
+		}
+
 	default:
 		return []key.Binding{
 			bind("a", "ack"),

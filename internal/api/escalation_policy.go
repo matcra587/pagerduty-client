@@ -25,6 +25,7 @@ func (c *Client) ListEscalationPolicies(ctx context.Context, opts ListEscalation
 	for _, id := range opts.TeamIDs {
 		params.Add("team_ids[]", id)
 	}
+	params.Add("include[]", "targets")
 
 	var policies []pagerduty.EscalationPolicy
 	err := paginate(ctx, c, paginateRequest{

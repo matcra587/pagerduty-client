@@ -29,6 +29,8 @@ const (
 	ResourceNote Resource = "note"
 	// ResourceEscalationPolicy is an escalation policy.
 	ResourceEscalationPolicy Resource = "escalation_policy"
+	// ResourceMaintenanceWindow is a maintenance window.
+	ResourceMaintenanceWindow Resource = "maintenance_window"
 	// ResourceNone is the default when no resource context applies.
 	ResourceNone Resource = ""
 )

@@ -32,6 +32,7 @@ type initConfig struct {
 	defaultTeamID    string
 	defaultServiceID string
 	interactive      bool
+	tabs             []string
 }
 
 var initCmd = &cobra.Command{
@@ -252,6 +253,23 @@ func runInitPreferencesForm(token string, ic *initConfig, apiOpts []api.Option) 
 			Value(&serviceID),
 	).WithHide(len(services) == 0)
 
+	tabs := config.DefaultTabs
+	tabOpts := []huh.Option[string]{
+		huh.NewOption("Incidents", "incidents"),
+		huh.NewOption("Escalation Policies", "escalation-policies"),
+		huh.NewOption("Services", "services"),
+		huh.NewOption("Teams", "teams"),
+	}
+
+	tabsGroup := huh.NewGroup(
+		huh.NewMultiSelect[string]().
+			Title("TUI tabs").
+			Description("Select which tabs to show in the dashboard").
+			Height(8).
+			Options(tabOpts...).
+			Value(&tabs),
+	)
+
 	prefsGroup := huh.NewGroup(
 		huh.NewConfirm().
 			Title("Enable interactive mode by default?").
@@ -259,7 +277,7 @@ func runInitPreferencesForm(token string, ic *initConfig, apiOpts []api.Option) 
 			Value(&interactive),
 	)
 
-	if err := huh.NewForm(emailGroup, teamGroup, serviceGroup, prefsGroup).
+	if err := huh.NewForm(emailGroup, teamGroup, serviceGroup, tabsGroup, prefsGroup).
 		Run(); err != nil {
 		return err
 	}
@@ -271,6 +289,7 @@ func runInitPreferencesForm(token string, ic *initConfig, apiOpts []api.Option) 
 	ic.defaultTeamID = teamID
 	ic.defaultServiceID = serviceID
 	ic.interactive = interactive
+	ic.tabs = tabs
 
 	if ic.defaultEmail != "" {
 		clog.Debug().Str("email", ic.defaultEmail).Msg("email set")
@@ -466,6 +485,15 @@ func writeInitConfig(configDir string, ic initConfig) error {
 		_, _ = fmt.Fprintf(&sb, "service          = %q\n", ic.defaultServiceID)
 	}
 	_, _ = fmt.Fprintf(&sb, "interactive      = %t\n", ic.interactive)
+
+	if len(ic.tabs) > 0 {
+		sb.WriteString("\n[tui]\n")
+		quoted := make([]string, len(ic.tabs))
+		for i, t := range ic.tabs {
+			quoted[i] = fmt.Sprintf("%q", t)
+		}
+		_, _ = fmt.Fprintf(&sb, "tabs = [%s]\n", strings.Join(quoted, ", "))
+	}
 
 	path := filepath.Join(configDir, "config.toml")
 	return os.WriteFile(path, []byte(sb.String()), 0o600)

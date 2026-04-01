@@ -16,11 +16,23 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/dirs"
 )
 
+// DefaultTabs is the default set of TUI tabs when none are configured.
+var DefaultTabs = []string{"incidents", "escalation-policies", "services", "teams"}
+
+// ValidTabs lists all recognised tab names.
+var ValidTabs = map[string]bool{
+	"incidents":           true,
+	"escalation-policies": true,
+	"services":            true,
+	"teams":               true,
+}
+
 // TUI holds dashboard display preferences.
 type TUI struct {
-	Theme        string `koanf:"theme"`
-	ShowResolved bool   `koanf:"show_resolved"`
-	PageSize     int    `koanf:"page_size"`
+	Theme        string   `koanf:"theme"`
+	ShowResolved bool     `koanf:"show_resolved"`
+	PageSize     int      `koanf:"page_size"`
+	Tabs         []string `koanf:"tabs"`
 }
 
 // CustomField maps a PagerDuty custom field to a display column.

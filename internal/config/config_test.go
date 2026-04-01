@@ -42,6 +42,7 @@ refresh_interval = 60
 theme = "dark"
 show_resolved = true
 page_size = 50
+tabs = ["incidents", "services"]
 `
 	require.NoError(t, os.WriteFile(cfgPath, []byte(toml), 0o600))
 
@@ -55,6 +56,7 @@ page_size = 50
 	assert.Equal(t, "dark", cfg.TUI.Theme)
 	assert.True(t, cfg.TUI.ShowResolved)
 	assert.Equal(t, 50, cfg.TUI.PageSize)
+	assert.Equal(t, []string{"incidents", "services"}, cfg.TUI.Tabs)
 }
 
 func TestLoad_EnvOverlay(t *testing.T) {

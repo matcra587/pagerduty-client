@@ -16,15 +16,12 @@ type servicesLoadedMsg struct {
 	err      error
 }
 
-// serviceStatuses lists the available status filters.
-var serviceStatuses = []string{"all", "active", "warning", "critical", "maintenance", "disabled"}
-
 // services is the model for the Services tab.
 type services struct {
 	services     []pagerduty.Service
 	cursor       int
 	expanded     map[string]bool
-	statusFilter int // index into serviceStatuses (0 = all)
+	statusFilter string // "all", "active", "warning", "critical", "maintenance", "disabled"
 	width        int
 	height       int
 	scrollOffset int
@@ -35,19 +32,19 @@ type services struct {
 
 func newServices() services {
 	return services{
-		expanded: make(map[string]bool),
+		expanded:     make(map[string]bool),
+		statusFilter: "all",
 	}
 }
 
 // visibleServices returns services matching the current status filter.
 func (s services) visibleServices() []pagerduty.Service {
-	if s.statusFilter == 0 {
+	if s.statusFilter == "all" {
 		return s.services
 	}
-	filter := serviceStatuses[s.statusFilter]
 	var out []pagerduty.Service
 	for _, svc := range s.services {
-		if svc.Status == filter {
+		if svc.Status == s.statusFilter {
 			out = append(out, svc)
 		}
 	}
@@ -108,10 +105,6 @@ func (s services) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			id := vis[s.cursor].ID
 			s.expanded[id] = !s.expanded[id]
 		}
-	case "f":
-		s.statusFilter = (s.statusFilter + 1) % len(serviceStatuses)
-		s.cursor = 0
-		s.scrollOffset = 0
 	case "g":
 		s.cursor = 0
 	case "G":
@@ -195,13 +188,12 @@ func (s services) renderList() string {
 	var sb strings.Builder
 
 	// Header row with active filter.
-	filterLabel := serviceStatuses[s.statusFilter]
-	header := fmt.Sprintf("  %-12s %-40s %-12s [f: %s]", "ID", "Name", "Status", filterLabel)
+	header := fmt.Sprintf("  %-12s %-40s %-12s [f: %s]", "ID", "Name", "Status", s.statusFilter)
 	sb.WriteString(theme.TableHeader.Render(fmt.Sprintf("%-*s", s.width, header)))
 	sb.WriteString("\n")
 
 	if len(vis) == 0 {
-		sb.WriteString(theme.DetailDim.Render(fmt.Sprintf("  No services with status %q", filterLabel)))
+		sb.WriteString(theme.DetailDim.Render(fmt.Sprintf("  No services with status %q", s.statusFilter)))
 		sb.WriteString("\n")
 		return lipgloss.NewStyle().Width(s.width).Height(s.height).MaxHeight(s.height).
 			Render(sb.String())

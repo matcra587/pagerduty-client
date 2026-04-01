@@ -175,7 +175,7 @@ func (s StatusBar) hintBindings() []key.Binding {
 		return []key.Binding{
 			bind("↑↓", "navigate"),
 			bind("enter", "expand"),
-			bind("f", "filter status"),
+			bind("f", "filter"),
 			bind("R", "refresh"),
 			bind("t", "team"),
 			bind("?", "help"),

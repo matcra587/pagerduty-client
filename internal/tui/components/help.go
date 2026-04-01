@@ -129,15 +129,20 @@ var servicesSections = []section{
 		bindings: []binding{
 			{"↑↓", "navigate"},
 			{"enter", "expand / collapse"},
-			{"f", "cycle status filter"},
 			{"g/G", "top / bottom"},
+		},
+	},
+	{
+		title: "Filters",
+		bindings: []binding{
+			{"f / O", "filter options"},
+			{"t", "team switcher"},
 		},
 	},
 	{
 		title: "Other",
 		bindings: []binding{
 			{"R", "refresh"},
-			{"t", "team switcher"},
 			{"tab", "switch tab"},
 			{"?", "help"},
 			{"q", "quit"},

@@ -99,6 +99,14 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 			for _, p := range policies {
 				printCompletion(p.ID, p.Name)
 			}
+		case "maintenance_window":
+			windows, err := client.ListMaintenanceWindows(ctx, api.ListMaintenanceWindowsOpts{})
+			if err != nil {
+				return
+			}
+			for _, w := range windows {
+				printCompletion(w.ID, w.Description)
+			}
 		case "urgency":
 			_, _ = fmt.Println("high")
 			_, _ = fmt.Println("low")

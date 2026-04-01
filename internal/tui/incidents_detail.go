@@ -311,6 +311,9 @@ func (m incidentDetail) summaryView() string {
 	sb.WriteString(field("Status", statusText(inc.Status)))
 	sb.WriteString(field("Priority", styledPriorityLabel(inc)))
 	sb.WriteString(field("Service", inc.Service.Summary))
+	if inc.EscalationPolicy.Summary != "" {
+		sb.WriteString(field("Escalation", inc.EscalationPolicy.Summary))
+	}
 
 	if inc.AlertCounts.All > 1 {
 		alertSummary := fmt.Sprintf("%d total, %d triggered, %d resolved",

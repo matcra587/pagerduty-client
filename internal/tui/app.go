@@ -80,6 +80,8 @@ type App struct {
 	current        view
 	dashboard      Dashboard
 	detail         incidentDetail
+	ep             escalationPolicies
+	epCache        map[string]pagerduty.EscalationPolicy
 	statusBar      components.StatusBar
 	help           components.Help
 	confirm        components.Confirm
@@ -132,6 +134,8 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		fromEmail:      fromEmail,
 		current:        viewDashboard,
 		dashboard:      newDashboard(ctx, client, fromEmail, cfg.Service != ""),
+		ep:             newEscalationPolicies(),
+		epCache:        make(map[string]pagerduty.EscalationPolicy),
 		statusBar:      components.StatusBar{Team: cfg.Team, FilterState: filterOpts.State()},
 		teamSwitch:     components.NewTeamSwitcher(),
 		filterOpts:     filterOpts,
@@ -143,6 +147,7 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		interval:       interval,
 		tabs: []topTab{
 			{label: "Incidents"},
+			{label: "Escalation Policies"},
 		},
 		activeTab: 0,
 		keys:      newAppKeyMap(),
@@ -180,6 +185,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		childSize := tea.WindowSizeMsg{Width: msg.Width, Height: a.bodyH}
 		dm, _ := a.dashboard.Update(childSize)
 		a.dashboard = dm.(Dashboard)
+		em, _ := a.ep.Update(childSize)
+		a.ep = em.(escalationPolicies)
 		if a.current == viewDetail {
 			dm2, _ := a.detail.Update(childSize)
 			a.detail = dm2.(incidentDetail)
@@ -221,6 +228,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.dashboard.SetIncidents(msg.incidents)
 		a.updateStatusBarCounts(msg.incidents)
 		return a, nil
+
+	case epLoadedMsg:
+		em, cmd := a.ep.Update(msg)
+		a.ep = em.(escalationPolicies)
+		// Populate cache.
+		a.epCache = make(map[string]pagerduty.EscalationPolicy, len(msg.policies))
+		for _, p := range msg.policies {
+			a.epCache[p.ID] = p
+		}
+		return a, cmd
 
 	case incidentActionPendingMsg:
 		a = a.setStatusPending(msg.op, msg.id)
@@ -450,6 +467,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Non-key messages for the active view.
 	switch a.current {
 	case viewDashboard:
+		if a.activeTab == 1 {
+			em, cmd := a.ep.Update(msg)
+			a.ep = em.(escalationPolicies)
+			return a, cmd
+		}
 		dm, cmd := a.dashboard.Update(msg)
 		a.dashboard = dm.(Dashboard)
 		return a, cmd
@@ -521,14 +543,26 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// is used here rather than key.Binding.
 		if idx := tabIndexFromKey(msg.String()); idx >= 0 && idx < len(a.tabs) {
 			a.activeTab = idx
+			if idx == 1 && !a.ep.loaded && !a.ep.loading {
+				a.ep.loading = true
+				return a, a.fetchEPCmd()
+			}
 			return a, nil
 		}
 		switch {
 		case key.Matches(msg, a.keys.Tab):
 			a.activeTab = (a.activeTab + 1) % len(a.tabs)
+			if a.activeTab == 1 && !a.ep.loaded && !a.ep.loading {
+				a.ep.loading = true
+				return a, a.fetchEPCmd()
+			}
 			return a, nil
 		case key.Matches(msg, a.keys.ShiftTab):
 			a.activeTab = (a.activeTab - 1 + len(a.tabs)) % len(a.tabs)
+			if a.activeTab == 1 && !a.ep.loaded && !a.ep.loading {
+				a.ep.loading = true
+				return a, a.fetchEPCmd()
+			}
 			return a, nil
 		}
 	}
@@ -542,9 +576,12 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a, tea.Quit
 	case key.Matches(msg, km.Help):
 		a.help.Visible = true
-		if a.current == viewDetail {
+		switch {
+		case a.current == viewDetail:
 			a.help.CurrentView = "detail"
-		} else {
+		case a.activeTab == 1:
+			a.help.CurrentView = "escalation-policies"
+		default:
 			a.help.CurrentView = "dashboard"
 		}
 		return a, nil
@@ -614,9 +651,20 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a, cmd
 	}
 
-	// Dashboard-only action keys.
-	if a.current == viewDashboard {
+	// Dashboard-only action keys (incidents tab only).
+	if a.current == viewDashboard && a.activeTab == 0 {
 		return a.updateDashboardKey(msg)
+	}
+
+	// EP tab keys.
+	if a.current == viewDashboard && a.activeTab == 1 {
+		if msg.String() == "R" {
+			a.ep.loading = true
+			return a, a.fetchEPCmd()
+		}
+		em, cmd := a.ep.Update(msg)
+		a.ep = em.(escalationPolicies)
+		return a, cmd
 	}
 
 	// Forward unhandled keys to the active view.
@@ -751,11 +799,13 @@ func (a App) View() tea.View {
 
 	// --- footer (set hint context first) ---
 	var viewName string
-	switch a.current {
-	case viewDashboard:
-		viewName = "dashboard"
-	case viewDetail:
+	switch {
+	case a.current == viewDetail:
 		viewName = "detail"
+	case a.activeTab == 1:
+		viewName = "escalation-policies"
+	default:
+		viewName = "dashboard"
 	}
 	a.statusBar.Hint = components.HintContext{
 		View:          viewName,
@@ -772,6 +822,8 @@ func (a App) View() tea.View {
 		switch a.activeTab {
 		case 0:
 			bodyContent = a.dashboard.View().Content
+		case 1:
+			bodyContent = a.ep.View().Content
 		default:
 			bodyContent = lipgloss.Place(a.width, a.bodyH, lipgloss.Center, lipgloss.Center,
 				lipgloss.NewStyle().Faint(true).Render("🚧 Not yet supported"))
@@ -953,6 +1005,20 @@ func (a App) fetchTeamsCmd() tea.Cmd {
 		defer cancel()
 		teams, err := client.ListTeams(ctx, api.ListTeamsOpts{})
 		return components.TeamsLoadedMsg{Teams: teams, Err: err}
+	}
+}
+
+// fetchEPCmd returns a tea.Cmd that loads escalation policies from the API.
+func (a App) fetchEPCmd() tea.Cmd {
+	client := a.client
+	appCtx := a.ctx
+	opts := api.ListEscalationPoliciesOpts{}
+	if a.cfg.Team != "" {
+		opts.TeamIDs = []string{a.cfg.Team}
+	}
+	return func() tea.Msg {
+		policies, err := client.ListEscalationPolicies(appCtx, opts)
+		return epLoadedMsg{policies: policies, err: err}
 	}
 }
 

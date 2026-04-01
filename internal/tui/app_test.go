@@ -95,8 +95,9 @@ func TestNewApp_HasTabBar(t *testing.T) {
 		"test@example.com",
 	)
 
-	require.Len(t, app.tabs, 1)
+	require.Len(t, app.tabs, 2)
 	assert.Equal(t, "Incidents", app.tabs[0].label)
+	assert.Equal(t, "Escalation Policies", app.tabs[1].label)
 	assert.Equal(t, 0, app.activeTab)
 }
 

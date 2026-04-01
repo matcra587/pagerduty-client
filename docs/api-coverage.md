@@ -9,10 +9,11 @@ Which PagerDuty REST API v2 endpoints `pdc` covers and which it does not.
 
 ## Summary
 
-**28 of 410 endpoints implemented** (7%).
-
-pdc focuses on day-to-day incident response: listing, triaging and acting on incidents, viewing services, users, teams, schedules and on-call rosters.
-Large administrative areas (automation, orchestration, business services, custom fields, workflows) remain uncovered.
+pdc focuses on day-to-day incident response and operational
+visibility: incidents, services, users, teams, schedules,
+escalation policies, maintenance windows and on-call rosters.
+Administrative areas (automation, orchestration, business
+services, custom fields, workflows) remain uncovered.
 
 | Category | Implemented | Total | Coverage |
 |---|---|---|---|
@@ -23,11 +24,12 @@ Large administrative areas (automation, orchestration, business services, custom
 | Teams | 3 | 14 | 21% |
 | Schedules | 4 | 11 | 36% |
 | On-Calls | 1 | 1 | 100% |
-| Escalation Policies | 1 | 6 | 17% |
+| Escalation Policies | 2 | 6 | 33% |
+| Maintenance Windows | 2 | 5 | 40% |
 | Priorities | 1 | 1 | 100% |
-| Abilities | 1 | 2 | 50% |
+| Abilities | 2 | 2 | 100% |
 | Log Entries | 0 | 3 | 0% |
-| All other resources | 0 | 288 | 0% |
+| All other resources | 0 | 283 | 0% |
 
 ---
 
@@ -184,10 +186,10 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/escalation_policies` | Not implemented | - |
+| GET | `/escalation_policies` | Implemented | `pdc escalation-policy list`, TUI |
 | POST | `/escalation_policies` | Not implemented | - |
 | DELETE | `/escalation_policies/{id}` | Not implemented | - |
-| GET | `/escalation_policies/{id}` | Implemented | TUI |
+| GET | `/escalation_policies/{id}` | Implemented | `pdc escalation-policy show`, TUI |
 | PUT | `/escalation_policies/{id}` | Not implemented | - |
 | GET | `/escalation_policies/{id}/audit/records` | Not implemented | - |
 
@@ -201,8 +203,18 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/abilities` | Implemented | `pdc config init` |
-| GET | `/abilities/{id}` | Not implemented | - |
+| GET | `/abilities` | Implemented | `pdc ability list`, `pdc config init` |
+| GET | `/abilities/{id}` | Implemented | `pdc ability test` |
+
+## Maintenance Windows
+
+| Method | Path | Status | Used by |
+|---|---|---|---|
+| GET | `/maintenance_windows` | Implemented | `pdc maintenance-window list` |
+| POST | `/maintenance_windows` | Not implemented | - |
+| DELETE | `/maintenance_windows/{id}` | Not implemented | - |
+| GET | `/maintenance_windows/{id}` | Implemented | `pdc maintenance-window show` |
+| PUT | `/maintenance_windows/{id}` | Not implemented | - |
 
 ## Log Entries (top-level)
 
@@ -268,10 +280,6 @@ Endpoints marked with a plan tier note require that tier or add-on.
 ### Licenses
 
 2 endpoints (read-only). Includes `GET /licenses` and `GET /license_allocations`.
-
-### Maintenance Windows
-
-5 endpoints.
 
 ### Notifications
 

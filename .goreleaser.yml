@@ -61,19 +61,6 @@ signs:
       - "--yes"
     artifacts: checksum
 
-# ── Distribute ───────────────────────────────────────────
-
-homebrew_casks:
-  - repository:
-      owner: matcra587
-      name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: https://github.com/matcra587/pagerduty-client
-    description: PagerDuty CLI client and TUI dashboard
-    license: MIT
-    binaries:
-      - pdc
-
 # ── Changelog ────────────────────────────────────────────
 
 changelog:

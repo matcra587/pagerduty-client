@@ -145,7 +145,17 @@ $ pdc oncall`,
 				}
 			}
 			app := tui.New(cmd.Context(), client, cfg, email)
-			p := tea.NewProgram(app, tea.WithContext(cmd.Context()))
+			var p *tea.Program
+			wc := tui.NewWheelCoalescer(func(msg tea.Msg) {
+				if p != nil {
+					p.Send(msg)
+				}
+			})
+			defer wc.Stop()
+			p = tea.NewProgram(app,
+				tea.WithContext(cmd.Context()),
+				tea.WithFilter(wc.Filter),
+			)
 			_, err := p.Run()
 			return err
 		}

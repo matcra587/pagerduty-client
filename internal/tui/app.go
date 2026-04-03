@@ -244,6 +244,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return a.updateKeyPress(msg)
 
+	case batchedScrollMsg:
+		if a.current == viewDetail {
+			a.detail.scroll(msg.delta)
+		}
+		return a, nil
+
 	case spinner.TickMsg:
 		if a.loading {
 			var cmd tea.Cmd
@@ -350,8 +356,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case IncidentSelected:
 		a.detail = newIncidentDetail(a.ctx, a.client, a.cfg, a.ansi, msg.Incident)
-		a.detail.width = a.width
-		a.detail.height = max(a.bodyH, 1)
+		a.detail.setSize(a.width, a.bodyH)
 		a.detail.syncContent()
 		a.current = viewDetail
 		return a, a.detail.Init()
@@ -959,9 +964,8 @@ func (a App) View() tea.View {
 	default:
 		bodyContent = a.dashboard.View().Content
 	}
-	// The detail view's View() outputs exactly bodyH lines (padded with
-	// newlines), so we skip the expensive lipgloss render for that path.
-	// Other views still need it for dimension enforcement.
+	// The viewport sizes its own output, so skip the expensive lipgloss
+	// Width/Height render for the detail view.
 	var body string
 	if a.current == viewDetail {
 		body = bodyContent

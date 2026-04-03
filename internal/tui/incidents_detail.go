@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
@@ -68,11 +69,37 @@ type incidentDetail struct {
 	cfg             *config.Config
 	ansi            *ansi.ANSI
 	activeTab       detailTab
-	lines           [tabCount][]string
-	scrolls         [tabCount]int
+	viewports       [tabCount]viewport.Model
+}
+
+// setSize updates the detail model and all viewports to the given dimensions.
+func (m *incidentDetail) setSize(width, height int) {
+	m.width = width
+	m.height = height
+	vpHeight := max(height, 1)
+	for i := range m.viewports {
+		m.viewports[i].SetWidth(width)
+		m.viewports[i].SetHeight(vpHeight)
+	}
+}
+
+// scroll applies an accumulated mouse wheel delta to the active viewport.
+// Positive delta scrolls down, negative scrolls up.
+func (m *incidentDetail) scroll(delta int) {
+	vp := &m.viewports[m.activeTab]
+	if delta > 0 {
+		vp.ScrollDown(delta)
+	} else {
+		vp.ScrollUp(-delta)
+	}
 }
 
 func newIncidentDetail(ctx context.Context, client *api.Client, cfg *config.Config, a *ansi.ANSI, inc pagerduty.Incident) incidentDetail {
+	var vps [tabCount]viewport.Model
+	for i := range vps {
+		vps[i] = viewport.New()
+		vps[i].SoftWrap = true
+	}
 	return incidentDetail{
 		ctx:             ctx,
 		client:          client,
@@ -82,6 +109,7 @@ func newIncidentDetail(ctx context.Context, client *api.Client, cfg *config.Conf
 		loading:         true,
 		notesLoading:    true,
 		timelineLoading: true,
+		viewports:       vps,
 	}
 }
 
@@ -94,8 +122,7 @@ func (m incidentDetail) Init() tea.Cmd {
 func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = max(msg.Height, 1)
+		m.setSize(msg.Width, msg.Height)
 		m.syncContent()
 
 	case tea.KeyPressMsg:
@@ -142,35 +169,10 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg {
 				return detailSnoozeMsg{id: m.incident.ID}
 			}
-		case "up", "k":
-			if m.scrolls[m.activeTab] > 0 {
-				m.scrolls[m.activeTab]--
-			}
-		case "down", "j":
-			if m.scrolls[m.activeTab] < m.maxScroll(m.activeTab) {
-				m.scrolls[m.activeTab]++
-			}
-		case "g", "home":
-			m.scrolls[m.activeTab] = 0
-		case "G", "end":
-			m.scrolls[m.activeTab] = m.maxScroll(m.activeTab)
-		case "pgup":
-			m.scrolls[m.activeTab] = max(m.scrolls[m.activeTab]-(m.height-1), 0)
-		case "pgdown":
-			m.scrolls[m.activeTab] = min(m.scrolls[m.activeTab]+(m.height-1), m.maxScroll(m.activeTab))
-		case "ctrl+u":
-			m.scrolls[m.activeTab] = max(m.scrolls[m.activeTab]-m.height/2, 0)
-		case "ctrl+d":
-			m.scrolls[m.activeTab] = min(m.scrolls[m.activeTab]+m.height/2, m.maxScroll(m.activeTab))
-		}
-
-	case tea.MouseWheelMsg:
-		const wheelDelta = 3
-		switch msg.Button {
-		case tea.MouseWheelUp:
-			m.scrolls[m.activeTab] = max(m.scrolls[m.activeTab]-wheelDelta, 0)
-		case tea.MouseWheelDown:
-			m.scrolls[m.activeTab] = min(m.scrolls[m.activeTab]+wheelDelta, m.maxScroll(m.activeTab))
+		default:
+			var cmd tea.Cmd
+			m.viewports[m.activeTab], cmd = m.viewports[m.activeTab].Update(msg)
+			return m, cmd
 		}
 
 	case alertsLoadedMsg:
@@ -201,21 +203,10 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *incidentDetail) syncContent() {
-	content := [tabCount]string{
-		m.summaryView(),
-		m.alertsSection(),
-		m.notesSection(),
-		m.timelineSection(),
-	}
-	for i, c := range content {
-		m.lines[i] = strings.Split(strings.TrimRight(c, "\n"), "\n")
-		m.scrolls[i] = min(m.scrolls[i], m.maxScroll(detailTab(i)))
-	}
-}
-
-// maxScroll returns the maximum scroll offset for the given tab.
-func (m incidentDetail) maxScroll(tab detailTab) int {
-	return max(len(m.lines[tab])-m.height, 0)
+	m.viewports[tabSummary].SetContent(m.summaryView())
+	m.viewports[tabAlerts].SetContent(m.alertsSection())
+	m.viewports[tabNotes].SetContent(m.notesSection())
+	m.viewports[tabTimeline].SetContent(m.timelineSection())
 }
 
 // View implements tea.Model.
@@ -223,20 +214,7 @@ func (m incidentDetail) View() tea.View {
 	if m.width == 0 {
 		return tea.NewView("")
 	}
-	lines := m.lines[m.activeTab]
-	offset := m.scrolls[m.activeTab]
-	end := min(offset+m.height, len(lines))
-
-	var sb strings.Builder
-	sb.Grow(m.height * (m.width + 1))
-	for _, line := range lines[offset:end] {
-		sb.WriteString(line)
-		sb.WriteString("\n")
-	}
-	for range m.height - (end - offset) {
-		sb.WriteString("\n")
-	}
-	return tea.NewView(sb.String())
+	return tea.NewView(m.viewports[m.activeTab].View())
 }
 
 // headerContent returns the detail tab bar with incident ID on the right.

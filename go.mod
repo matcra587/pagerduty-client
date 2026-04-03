@@ -21,7 +21,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/x/ansi v0.11.6
-	github.com/gechr/clib v0.2.3
+	github.com/gechr/clib v0.2.9
 	github.com/gechr/clog v0.7.28
 	github.com/joho/godotenv v1.5.1
 	github.com/knadh/koanf/parsers/toml v0.1.0

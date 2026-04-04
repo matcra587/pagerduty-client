@@ -50,7 +50,7 @@ jobs:
         with:
           inputs: ./.github/
           persona: pedantic
-          advanced-security: false
+          advanced-security: true
           annotations: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

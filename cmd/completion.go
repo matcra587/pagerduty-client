@@ -7,16 +7,31 @@ import (
 
 	"github.com/gechr/clib/complete"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/config"
 )
 
 // completionHandler returns a handler for dynamic shell completion requests.
 // It queries the PagerDuty API for resources matching the requested completion
 // kind (e.g. "team", "service") and prints matching IDs to stdout.
 //
+// Dynamic completions require a valid API token (PDC_TOKEN env var or OS
+// keyring). Each lookup enforces a 5-second timeout to keep tab completion
+// responsive. Results respect the team and service filters from config.
+//
 // Fish shell natively parses tab-separated "ID\tDescription" lines, so the
 // handler includes descriptions when the requesting shell is fish. Other
 // shells receive bare IDs until clib's generators learn to handle the format.
-func completionHandler(token string, opts ...api.Option) complete.Handler {
+func completionHandler(token string, cfg *config.Config, opts ...api.Option) complete.Handler {
+	// Build filter slices from config. These scope completions to the
+	// user's configured team/service so results stay relevant.
+	var teamIDs, serviceIDs []string
+	if cfg != nil && cfg.Team != "" {
+		teamIDs = []string{cfg.Team}
+	}
+	if cfg != nil && cfg.Service != "" {
+		serviceIDs = []string{cfg.Service}
+	}
+
 	return func(shell, kind string, args []string) {
 		if token == "" {
 			return
@@ -45,7 +60,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				printCompletion(t.ID, t.Name)
 			}
 		case "service":
-			services, err := client.ListServices(ctx, api.ListServicesOpts{})
+			services, err := client.ListServices(ctx, api.ListServicesOpts{TeamIDs: teamIDs})
 			if err != nil {
 				return
 			}
@@ -53,7 +68,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				printCompletion(s.ID, s.Name)
 			}
 		case "user":
-			users, err := client.ListUsers(ctx, api.ListUsersOpts{})
+			users, err := client.ListUsers(ctx, api.ListUsersOpts{TeamIDs: teamIDs})
 			if err != nil {
 				return
 			}
@@ -70,7 +85,9 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 			}
 		case "incident":
 			incidents, err := client.ListIncidents(ctx, api.ListIncidentsOpts{
-				Statuses: []string{"triggered", "acknowledged"},
+				Statuses:   []string{"triggered", "acknowledged"},
+				TeamIDs:    teamIDs,
+				ServiceIDs: serviceIDs,
 			})
 			if err != nil {
 				return
@@ -92,7 +109,7 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				}
 			}
 		case "escalation_policy":
-			policies, err := client.ListEscalationPolicies(ctx, api.ListEscalationPoliciesOpts{})
+			policies, err := client.ListEscalationPolicies(ctx, api.ListEscalationPoliciesOpts{TeamIDs: teamIDs})
 			if err != nil {
 				return
 			}
@@ -100,7 +117,10 @@ func completionHandler(token string, opts ...api.Option) complete.Handler {
 				printCompletion(p.ID, p.Name)
 			}
 		case "maintenance_window":
-			windows, err := client.ListMaintenanceWindows(ctx, api.ListMaintenanceWindowsOpts{})
+			windows, err := client.ListMaintenanceWindows(ctx, api.ListMaintenanceWindowsOpts{
+				TeamIDs:    teamIDs,
+				ServiceIDs: serviceIDs,
+			})
 			if err != nil {
 				return
 			}

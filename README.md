@@ -73,6 +73,23 @@ See [docs/configuration.md](docs/configuration.md) for the full
 reference: config file fields, environment variables, credential
 resolution and custom field mapping.
 
+## Shell Completion
+
+pdc provides tab completion for bash, zsh and fish:
+
+```bash
+pdc --install-completion         # Install for your detected shell
+```
+
+Completions include dynamic lookups that query the PagerDuty API for
+resource IDs (incidents, services, teams, etc.). These require a valid
+API token (via `PDC_TOKEN` or the OS keyring) and enforce a 5-second
+timeout to keep tab completion responsive.
+
+For best results, set a default team and/or service in your config.
+Without filters, dynamic lookups fetch all resources across your
+account, which can be slow on large organisations.
+
 ## Agent Mode
 
 pdc detects AI agents automatically and switches to structured JSON
@@ -119,6 +136,22 @@ reference.
 *   [Project layout](docs/project-layout.md) - package structure and design decisions
 *   [Releasing](docs/releasing.md) - version scheme, tagging, GoReleaser
 *   [Contributing](CONTRIBUTING.md) - setup, workflow, commit conventions
+
+## Security
+
+pdc sanitises API responses before rendering to the terminal.
+PagerDuty fields like incident titles can contain raw ASCII control
+characters that terminals interpret as commands - clearing the screen,
+changing the window title or injecting hyperlinks.
+
+pdc uses the [go-gh asciisanitizer](https://github.com/cli/go-gh/tree/trunk/pkg/asciisanitizer)
+to replace C0 and C1 control characters with visible caret notation
+(e.g. `^[` for ESC, `^G` for BEL). Tabs, newlines and carriage
+returns are preserved. If you see caret sequences in output, the
+original data contained terminal escape codes that were neutralised.
+
+JSON and agent output are not sanitised - they preserve the original
+data for machine consumers.
 
 ## Acknowledgements
 

@@ -127,7 +127,7 @@ PagerDuty fields like incident titles can contain raw ASCII control
 characters that terminals interpret as commands - clearing the screen,
 changing the window title or injecting hyperlinks.
 
-pdc uses the [go-gh asciisanitizer](https://github.com/cli/go-gh)
+pdc uses the [go-gh asciisanitizer](https://github.com/cli/go-gh/tree/trunk/pkg/asciisanitizer)
 to replace C0 and C1 control characters with visible caret notation
 (e.g. `^[` for ESC, `^G` for BEL). Tabs, newlines and carriage
 returns are preserved. If you see caret sequences in output, the

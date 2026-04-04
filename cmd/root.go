@@ -45,7 +45,7 @@ var comp *clib.Completion
 var rootCmd = &cobra.Command{
 	Use:   "pdc",
 	Short: "PagerDuty CLI",
-	Long:  "AI-agent-ready CLI for PagerDuty. Every command produces structured, self-describing output. Terminal output is sanitised against control character injection.",
+	Long:  "AI-agent-ready CLI for PagerDuty. Every command produces structured, self-describing output. Terminal output is sanitised to prevent control character injection.",
 	Example: `# Launch the TUI dashboard
 $ pdc -i
 

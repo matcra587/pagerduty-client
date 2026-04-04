@@ -7,9 +7,10 @@ import (
 )
 
 var updateCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Update pdc to the latest version",
-	Long:  "Detect the install method and update pdc to the latest tagged release.",
+	Use:     "update",
+	Aliases: []string{"up"},
+	Short:   "Update pdc to the latest version",
+	Long:    "Detect the install method and update pdc to the latest tagged release.",
 	Example: `# Update pdc to the latest version
 $ pdc update`,
 	Args: cobra.NoArgs,

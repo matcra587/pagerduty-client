@@ -20,8 +20,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// isAgentMode detects agent mode from the --agent flag for commands
-// that bypass PersistentPreRunE (config, version).
+// isAgentMode detects agent mode from env vars and the --agent flag
+// for commands that bypass PersistentPreRunE (config, version).
 func isAgentMode(cmd *cobra.Command) bool {
 	flag, _ := cmd.Root().PersistentFlags().GetBool("agent")
 	return agent.DetectWithFlag(flag).Active

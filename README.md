@@ -28,27 +28,13 @@ keyboard-driven actions and team switching.
 
 ## Installation
 
-### Homebrew (recommended)
-
 ```bash
 brew install matcra587/tap/pagerduty-client
 ```
 
-### Alternative methods
-
-#### GitHub Releases
-
-Download a pre-built binary from the
-[releases page](https://github.com/matcra587/pagerduty-client/releases)
-and place it on your `PATH`.
-
-#### Go
-
-Requires Go `1.26+`.
-
-```bash
-go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
-```
+Also available via `go install` and pre-built binaries. All installs
+support `pdc update` for self-updating.
+See [docs/installation.md](docs/installation.md) for details.
 
 ## Quick Start
 
@@ -58,6 +44,7 @@ pdc incident list                # List incidents (table on TTY, JSON for agents
 pdc incident ack P000001         # Acknowledge an incident
 pdc oncall                       # Who is on call
 pdc -i                           # TUI dashboard
+pdc update                       # Self-update to latest release
 ```
 
 ## Configuration
@@ -69,24 +56,6 @@ config file.
 See [docs/configuration.md](docs/configuration.md) for the full
 reference: config file fields, environment variables, credential
 resolution and custom field mapping.
-
-## Shell Completion
-
-Homebrew sets up completions automatically. If you installed via
-GitHub Releases or `go install`, run:
-
-```bash
-pdc --install-completion         # Install for your detected shell
-```
-
-Completions include dynamic lookups that query the PagerDuty API for
-resource IDs (incidents, services, teams, etc.). These require a valid
-API token (via `PDC_TOKEN` or the OS keyring) and enforce a 5-second
-timeout to keep tab completion responsive.
-
-For best results, set a default team and/or service in your config.
-Without filters, dynamic lookups fetch all resources across your
-account, which can be slow on large organisations.
 
 ## Agent Mode
 
@@ -129,6 +98,7 @@ reference.
 
 ## Documentation
 
+*   [Installation](docs/installation.md) - install methods, updating, shell completion
 *   [Configuration](docs/configuration.md) - config file, env vars, credentials
 *   [Agent mode](docs/agent-mode.md) - detection, envelope format, guides
 *   [Project layout](docs/project-layout.md) - package structure and design decisions

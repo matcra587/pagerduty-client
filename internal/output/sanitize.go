@@ -23,7 +23,7 @@ func Sanitize(s string) string {
 	return out
 }
 
-// stripNonPrintable removes non-printable, non-space runes and replaces
+// stripNonPrintable removes non-printable, non-space runes and drops
 // invalid UTF-8 sequences. Used as a fallback when the transformer fails.
 func stripNonPrintable(s string) string {
 	var sb strings.Builder

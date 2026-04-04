@@ -30,7 +30,7 @@ const (
 
 // RenderTable writes a column-aligned text table to w.
 // When colour is true, headers are bold and status/urgency values
-// are coloured. Long cell values are truncated.
+// are coloured. Cell values are sanitised and long values are truncated.
 func RenderTable(w io.Writer, headers []string, rows [][]string, colour bool) error {
 	if len(headers) == 0 {
 		return nil

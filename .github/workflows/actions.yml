@@ -51,6 +51,5 @@ jobs:
           inputs: ./.github/
           persona: pedantic
           advanced-security: true
-          annotations: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

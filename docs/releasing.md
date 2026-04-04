@@ -3,7 +3,7 @@
 ## Version scheme
 
 Releases follow [semver](https://semver.org/): `MAJOR.MINOR.PATCH`.
-Tags take the form `v0.6.12`.
+Tags take the form `v0.8.1`.
 Breaking changes increment MAJOR.
 New features increment MINOR.
 Bug fixes increment PATCH.
@@ -13,8 +13,8 @@ Bug fixes increment PATCH.
 Tag the commit you want to ship and push the tag:
 
 ```bash
-git tag v0.6.12
-git push origin v0.6.12
+git tag v0.8.1
+git push origin v0.8.1
 ```
 
 The `release` workflow triggers on any tag matching `v[0-9]*.[0-9]*.[0-9]*`.
@@ -52,7 +52,7 @@ The variables live in `internal/version/version.go` and default to
 
 | Variable | Value injected |
 |----------|---------------|
-| `version.Version` | Git tag (e.g. `0.6.12`) |
+| `version.Version` | Git tag (e.g. `0.8.1`) |
 | `version.Commit` | Short commit hash |
 | `version.Branch` | Branch name |
 | `version.BuildTime` | Commit timestamp (RFC3339) |
@@ -65,14 +65,10 @@ Run `pdc version` to inspect the embedded values.
 
 ## Homebrew tap
 
-GoReleaser updates the Homebrew cask in
-[matcra587/homebrew-tap](https://github.com/matcra587/homebrew-tap)
-after each release.
-It uses the `HOMEBREW_TAP_TOKEN` secret, which must be a PAT with
-write access to that repository.
-
-The tap repository must be public for `brew install` to work without authentication.
-The source repository (`pagerduty-client`) must also be public so GoReleaser can publish the release assets the cask points to.
+The Homebrew formula lives in
+[matcra587/homebrew-tap](https://github.com/matcra587/homebrew-tap).
+It is not yet automated - after each release, update the formula
+manually to point to the new tag and asset checksums.
 
 Users install or upgrade with:
 

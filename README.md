@@ -28,29 +28,26 @@ keyboard-driven actions and team switching.
 
 ## Installation
 
-### Homebrew
-
-> [!NOTE]
-> The Homebrew tap requires the repository to be public.
-> Until then, use one of the methods below.
+### Homebrew (recommended)
 
 ```bash
 brew install matcra587/tap/pagerduty-client
 ```
 
-### GitHub Releases
+### Alternative methods
+
+#### GitHub Releases
 
 Download a pre-built binary from the
 [releases page](https://github.com/matcra587/pagerduty-client/releases)
 and place it on your `PATH`.
 
-### Go
+#### Go
 
 Requires Go `1.26+`.
 
 ```bash
-git config --global url."git@github.com:matcra587/".insteadOf "https://github.com/matcra587/"
-GOPRIVATE=github.com/matcra587 go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
+go install github.com/matcra587/pagerduty-client/cmd/pdc@latest
 ```
 
 ## Quick Start
@@ -75,7 +72,8 @@ resolution and custom field mapping.
 
 ## Shell Completion
 
-pdc provides tab completion for bash, zsh and fish:
+Homebrew sets up completions automatically. If you installed via
+GitHub Releases or `go install`, run:
 
 ```bash
 pdc --install-completion         # Install for your detected shell

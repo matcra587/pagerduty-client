@@ -57,6 +57,11 @@ $ pdc oncall`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		// completion subcommand prints static scripts; skip full setup.
+		if cmd.Name() == "completion" || (cmd.Parent() != nil && cmd.Parent().Name() == "completion") {
+			return nil
+		}
+
 		pf := cmd.Root().PersistentFlags()
 
 		state, err := loadConfigAndFlags(pf)
@@ -156,7 +161,13 @@ func Execute() error {
 // completion subcommand. Called from Execute to guarantee init() across
 // all cmd/ files has run.
 func setup() error {
-	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	// Shell completion subcommand (for Homebrew: pdc completion <shell>).
+	// Also disables cobra's built-in completion subcommand.
+	rootCmd.AddCommand(clib.CompletionCommand(rootCmd, func() *complete.Generator {
+		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(rootCmd))
+		gen.Subs = clib.Subcommands(rootCmd)
+		return gen
+	}))
 
 	flags, positional, ok := clib.Preflight()
 	if !ok {

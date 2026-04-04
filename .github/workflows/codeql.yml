@@ -1,0 +1,51 @@
+---
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read      # Required to read workflow information for CodeQL.
+      contents: read     # Required to checkout the repository.
+      security-events: write  # Required to upload SARIF results to the Security tab.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
+        with:
+          languages: go
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@0e9f55954318745b37b7933c693bc093f7336125 # v4.35.1
+        with:
+          category: "/language:go"

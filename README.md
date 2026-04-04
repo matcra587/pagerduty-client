@@ -120,6 +120,22 @@ reference.
 *   [Releasing](docs/releasing.md) - version scheme, tagging, GoReleaser
 *   [Contributing](CONTRIBUTING.md) - setup, workflow, commit conventions
 
+## Security
+
+pdc sanitises API responses before rendering to the terminal.
+PagerDuty fields like incident titles can contain raw ASCII control
+characters that terminals interpret as commands - clearing the screen,
+changing the window title or injecting hyperlinks.
+
+pdc uses the [go-gh asciisanitizer](https://github.com/cli/go-gh)
+to replace C0 and C1 control characters with visible caret notation
+(e.g. `^[` for ESC, `^G` for BEL). Tabs, newlines and carriage
+returns are preserved. If you see caret sequences in output, the
+original data contained terminal escape codes that were neutralised.
+
+JSON and agent output are not sanitised - they preserve the original
+data for machine consumers.
+
 ## Acknowledgements
 
 Agent-first CLI design inspired by

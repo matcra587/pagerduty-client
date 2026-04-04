@@ -36,12 +36,14 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, colour bool) er
 		return nil
 	}
 
-	// Truncate long cells first (before measuring).
+	// Sanitise and truncate cells (before measuring).
 	for _, row := range rows {
 		for j, cell := range row {
+			cell = Sanitize(cell)
 			if xansi.StringWidth(cell) > maxCellW {
-				row[j] = xansi.Truncate(cell, maxCellW-3, "...")
+				cell = xansi.Truncate(cell, maxCellW-3, "...")
 			}
+			row[j] = cell
 		}
 	}
 

@@ -13,6 +13,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/tui/components"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
@@ -427,9 +428,9 @@ func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor boo
 	cells := []cell{
 		{prefix, lipgloss.NewStyle()},
 		{severityLabel(inc), style},
-		{inc.Title, style},
-		{inc.Service.Summary, theme.EntityColor(inc.Service.Summary)},
-		{assigneeNames(inc.Assignments), assigneeStyle},
+		{output.Sanitize(inc.Title), style},
+		{output.Sanitize(inc.Service.Summary), theme.EntityColor(inc.Service.Summary)},
+		{output.Sanitize(assigneeNames(inc.Assignments)), assigneeStyle},
 		{renderTimePlain(inc.CreatedAt), dimStyle},
 		{renderTimePlain(inc.LastStatusChangeAt), dimStyle},
 	}

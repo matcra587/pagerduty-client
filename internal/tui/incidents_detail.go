@@ -14,6 +14,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/integration"
+	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
@@ -277,7 +278,7 @@ func (m incidentDetail) summaryView() string {
 		return theme.DetailLabel.Render(fmt.Sprintf("%*s:", labelW, name))
 	}
 	field := func(name, value string) string {
-		return indent + lbl(name) + " " + theme.DetailValue.Render(value) + "\n"
+		return indent + lbl(name) + " " + theme.DetailValue.Render(output.Sanitize(value)) + "\n"
 	}
 
 	var sb strings.Builder
@@ -301,7 +302,8 @@ func (m incidentDetail) summaryView() string {
 
 	names := assigneeNames(inc.Assignments)
 	if names != "" {
-		sb.WriteString(indent + lbl("Assignees") + " " + theme.EntityColor(names).Render(names) + "\n")
+		sanitized := output.Sanitize(names)
+		sb.WriteString(indent + lbl("Assignees") + " " + theme.EntityColor(names).Render(sanitized) + "\n")
 	}
 
 	created := renderTimeAgo(inc.CreatedAt) + " " + theme.DetailDim.Render("("+formatTimeAbsolute(inc.CreatedAt)+")")
@@ -317,7 +319,7 @@ func (m incidentDetail) summaryView() string {
 			sb.WriteString("\n")
 			sb.WriteString(theme.DetailHeader.Render("Description"))
 			sb.WriteString("\n")
-			sb.WriteString(renderMarkdown(inc.Description, m.width))
+			sb.WriteString(renderMarkdown(output.Sanitize(inc.Description), m.width))
 			sb.WriteString("\n")
 		} else {
 			sb.WriteString(field("Description", inc.Description))
@@ -354,7 +356,7 @@ func (m incidentDetail) bodySection() string {
 	if m.incident.Body.Details != "" {
 		sb.WriteString(theme.DetailHeader.Render("Details"))
 		sb.WriteString("\n")
-		sb.WriteString(renderMarkdown(m.incident.Body.Details, m.width))
+		sb.WriteString(renderMarkdown(output.Sanitize(m.incident.Body.Details), m.width))
 		sb.WriteString("\n")
 	}
 
@@ -426,17 +428,18 @@ func (m incidentDetail) bodySection() string {
 		}
 		for _, f := range textFields {
 			label := fmt.Sprintf("%-*s", maxLabel, f.Label+":")
-			if strings.Contains(f.Value, "\n") {
+			val := output.Sanitize(f.Value)
+			if strings.Contains(val, "\n") {
 				fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
-				sb.WriteString(renderMarkdown(f.Value, m.width-4))
+				sb.WriteString(renderMarkdown(val, m.width-4))
 				sb.WriteString("\n")
-			} else if len(f.Value) > 80 {
+			} else if len(val) > 80 {
 				fmt.Fprintf(&sb, "    %s\n", theme.DetailLabel.Render(label))
-				sb.WriteString(theme.DetailDim.Render(wordWrap(f.Value, m.width-6, "      ")) + "\n")
+				sb.WriteString(theme.DetailDim.Render(wordWrap(val, m.width-6, "      ")) + "\n")
 			} else {
 				fmt.Fprintf(&sb, "    %s %s\n",
 					theme.DetailLabel.Render(label),
-					theme.DetailValue.Render(f.Value),
+					theme.DetailValue.Render(val),
 				)
 			}
 		}
@@ -457,12 +460,14 @@ func (m incidentDetail) bodySection() string {
 
 	// 3. Code blocks.
 	for _, f := range groups[integration.FieldCode] {
+		f.Value = output.Sanitize(f.Value)
 		sb.WriteString(renderCodeBlock(f, m.width))
 		sb.WriteString("\n")
 	}
 
 	// 4. Markdown fields.
 	for _, f := range groups[integration.FieldMarkdown] {
+		f.Value = output.Sanitize(f.Value)
 		sb.WriteString(renderMarkdownField(f, m.width))
 		sb.WriteString("\n")
 	}
@@ -473,6 +478,7 @@ func (m incidentDetail) bodySection() string {
 		sb.WriteString(theme.DetailDim.Render(strings.Repeat("─", m.width)))
 		sb.WriteString("\n")
 		for _, f := range tagFields {
+			f.Value = output.Sanitize(f.Value)
 			sb.WriteString(renderTagPills(f, m.width))
 			sb.WriteString("\n")
 		}
@@ -490,7 +496,7 @@ func (m incidentDetail) configuredFieldsView(body map[string]any) string {
 			continue
 		}
 		wrote = true
-		v := integration.FormatValue(val)
+		v := output.Sanitize(integration.FormatValue(val))
 		switch f.Display {
 		case "block":
 			sb.WriteString("\n")
@@ -553,9 +559,9 @@ func (m incidentDetail) alertsSection() string {
 
 	for _, a := range m.alerts {
 		status := statusText(a.Status)
-		key := theme.DetailValue.Render(truncate(a.AlertKey, 30))
+		key := theme.DetailValue.Render(truncate(output.Sanitize(a.AlertKey), 30))
 		summaryW := max(m.width-38, 0)
-		summary := truncate(a.APIObject.Summary, summaryW)
+		summary := truncate(output.Sanitize(a.APIObject.Summary), summaryW)
 		sb.WriteString(fmt.Sprintf("  %s %s  %s\n", status, key, summary))
 	}
 	sb.WriteString("\n")
@@ -578,10 +584,10 @@ func (m incidentDetail) notesSection() string {
 	sb.WriteString("\n\n")
 
 	for i, n := range m.notes {
-		author := theme.HelpKey.Render(n.User.Summary)
+		author := theme.HelpKey.Render(output.Sanitize(n.User.Summary))
 		when := theme.DetailDim.Render(renderTimeAgo(n.CreatedAt))
 		sb.WriteString(fmt.Sprintf("  %s  %s\n", author, when))
-		sb.WriteString(renderMarkdown(n.Content, m.width-2))
+		sb.WriteString(renderMarkdown(output.Sanitize(n.Content), m.width-2))
 		sb.WriteString("\n")
 		if i < len(m.notes)-1 {
 			sb.WriteString("\n")
@@ -625,13 +631,13 @@ func (m incidentDetail) timelineSection() string {
 		if agentName == "" {
 			agentName = "system"
 		}
-		agent := theme.DetailValue.Render(agentName)
+		agent := theme.DetailValue.Render(output.Sanitize(agentName))
 
 		sb.WriteString(fmt.Sprintf("  %s  %s  %s", when, typeLabel, agent))
 
 		if summary := logEntryChannelSummary(e); summary != "" {
 			sb.WriteString("\n")
-			sb.WriteString("    " + theme.DetailDim.Render(truncate(summary, m.width-6)))
+			sb.WriteString("    " + theme.DetailDim.Render(truncate(output.Sanitize(summary), m.width-6)))
 		}
 		sb.WriteString("\n")
 	}

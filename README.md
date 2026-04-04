@@ -1,5 +1,10 @@
 # pagerduty-client
 
+![License](https://img.shields.io/github/license/matcra587/pagerduty-client)
+![Go](https://img.shields.io/github/go-mod/go-version/matcra587/pagerduty-client?logo=go&logoColor=white)
+![Release](https://img.shields.io/github/v/release/matcra587/pagerduty-client)
+![Go Report Card](https://goreportcard.com/badge/github.com/matcra587/pagerduty-client)
+
 PagerDuty from the command line - built for AI agents, usable by humans.
 
 ## Background

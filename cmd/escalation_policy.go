@@ -55,6 +55,7 @@ $ pdc escalation-policy list --team T1`,
 
 		headers, rows := escalationPolicyRows(policies)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -65,11 +66,11 @@ $ pdc escalation-policy list --team T1`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(policies)}
-			return output.RenderAgentJSON(os.Stdout, "escalation-policy list", output.ResourceEscalationPolicy, policies, &meta, nil)
+			return output.RenderAgentJSON(w, "escalation-policy list", output.ResourceEscalationPolicy, policies, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, policies, isTTY)
+			return output.RenderJSON(w, policies, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -93,6 +94,7 @@ $ pdc escalation-policy show PABC123`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched escalation policy")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -102,9 +104,9 @@ $ pdc escalation-policy show PABC123`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "escalation-policy show", output.ResourceEscalationPolicy, ep, nil, nil)
+			return output.RenderAgentJSON(w, "escalation-policy show", output.ResourceEscalationPolicy, ep, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, ep, isTTY)
+			return output.RenderJSON(w, ep, isTTY)
 		default:
 			teamIDs := make([]string, len(ep.Teams))
 			for i, t := range ep.Teams {
@@ -119,14 +121,14 @@ $ pdc escalation-policy show PABC123`,
 				{"Num Loops", strconv.FormatUint(uint64(ep.NumLoops), 10)},
 				{"Teams", strings.Join(teamIDs, ", ")},
 			}
-			if err := output.RenderTable(os.Stdout, detailHeaders, detailRows, isTTY); err != nil {
+			if err := output.RenderTable(w, detailHeaders, detailRows, isTTY); err != nil {
 				return err
 			}
 
 			if len(ep.EscalationRules) > 0 {
-				fmt.Fprintln(os.Stdout)
+				fmt.Fprintln(w)
 				ruleHeaders, ruleRows := escalationRuleRows(ep.EscalationRules)
-				return output.RenderTable(os.Stdout, ruleHeaders, ruleRows, isTTY)
+				return output.RenderTable(w, ruleHeaders, ruleRows, isTTY)
 			}
 			return nil
 		}

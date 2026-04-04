@@ -42,6 +42,7 @@ $ pdc ability list -f json`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(abilities)).Msg("listed abilities")
 
+		out := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -52,9 +53,9 @@ $ pdc ability list -f json`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(abilities)}
-			return output.RenderAgentJSON(os.Stdout, "ability list", output.ResourceNone, abilities, &meta, nil)
+			return output.RenderAgentJSON(out, "ability list", output.ResourceNone, abilities, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, abilities, isTTY)
+			return output.RenderJSON(out, abilities, isTTY)
 		default:
 			items := make([]string, len(abilities))
 			for i, a := range abilities {
@@ -65,7 +66,7 @@ $ pdc ability list -f json`,
 				th = theme.Default()
 			}
 			w := terminal.Width(os.Stdout)
-			return output.RenderColumns(os.Stdout, items, w, th)
+			return output.RenderColumns(out, items, w, th)
 		}
 	},
 }
@@ -98,6 +99,7 @@ $ pdc ability test teams`,
 			"available": available,
 		}
 
+		out := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -107,9 +109,9 @@ $ pdc ability test teams`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "ability test", output.ResourceNone, data, nil, nil)
+			return output.RenderAgentJSON(out, "ability test", output.ResourceNone, data, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, data, isTTY)
+			return output.RenderJSON(out, data, isTTY)
 		default:
 			if available {
 				clog.Info().Str("ability", name).Msg("available")

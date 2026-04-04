@@ -52,6 +52,7 @@ $ pdc service list --team PTEAM01`,
 
 		headers, rows := serviceRows(services)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -62,11 +63,11 @@ $ pdc service list --team PTEAM01`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(services)}
-			return output.RenderAgentJSON(os.Stdout, "service list", output.ResourceService, services, &meta, nil)
+			return output.RenderAgentJSON(w, "service list", output.ResourceService, services, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, services, isTTY)
+			return output.RenderJSON(w, services, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -90,6 +91,7 @@ $ pdc service show PSVC001`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched service")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -99,9 +101,9 @@ $ pdc service show PSVC001`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "service show", output.ResourceService, service, nil, nil)
+			return output.RenderAgentJSON(w, "service show", output.ResourceService, service, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, service, isTTY)
+			return output.RenderJSON(w, service, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -110,7 +112,7 @@ $ pdc service show PSVC001`,
 				{"Status", service.Status},
 				{"Description", service.Description},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }

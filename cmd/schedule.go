@@ -47,6 +47,7 @@ $ pdc schedule list --query primary`,
 
 		headers, rows := scheduleRows(schedules)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -57,11 +58,11 @@ $ pdc schedule list --query primary`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(schedules)}
-			return output.RenderAgentJSON(os.Stdout, "schedule list", output.ResourceSchedule, schedules, &meta, nil)
+			return output.RenderAgentJSON(w, "schedule list", output.ResourceSchedule, schedules, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, schedules, isTTY)
+			return output.RenderJSON(w, schedules, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -85,6 +86,7 @@ $ pdc schedule show PSCHED01`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched schedule")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -94,9 +96,9 @@ $ pdc schedule show PSCHED01`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "schedule show", output.ResourceSchedule, schedule, nil, nil)
+			return output.RenderAgentJSON(w, "schedule show", output.ResourceSchedule, schedule, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, schedule, isTTY)
+			return output.RenderJSON(w, schedule, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -105,7 +107,7 @@ $ pdc schedule show PSCHED01`,
 				{"Time Zone", schedule.TimeZone},
 				{"Description", schedule.Description},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -149,7 +151,7 @@ $ pdc schedule override --user PUSER01 --start 2024-01-15T09:00:00Z --end 2024-0
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "schedule override", output.ResourceNone, map[string]string{
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "schedule override", output.ResourceNone, map[string]string{
 				"schedule": args[0],
 				"user":     userID,
 				"start":    start,

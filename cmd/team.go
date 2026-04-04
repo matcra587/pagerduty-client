@@ -46,6 +46,7 @@ $ pdc team list`,
 			rows[i] = []string{t.ID, t.Name, t.Description}
 		}
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -56,11 +57,11 @@ $ pdc team list`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(teams)}
-			return output.RenderAgentJSON(os.Stdout, "team list", output.ResourceTeam, teams, &meta, nil)
+			return output.RenderAgentJSON(w, "team list", output.ResourceTeam, teams, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, teams, isTTY)
+			return output.RenderJSON(w, teams, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -84,6 +85,7 @@ $ pdc team show PTEAM01`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched team")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -93,9 +95,9 @@ $ pdc team show PTEAM01`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "team show", output.ResourceTeam, team, nil, nil)
+			return output.RenderAgentJSON(w, "team show", output.ResourceTeam, team, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, team, isTTY)
+			return output.RenderJSON(w, team, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -103,7 +105,7 @@ $ pdc team show PTEAM01`,
 				{"Name", team.Name},
 				{"Description", team.Description},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }

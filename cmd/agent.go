@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	clib "github.com/gechr/clib/cli/cobra"
@@ -89,12 +88,13 @@ $ pdc agent schema --compact`,
 		compact, _ := cmd.Flags().GetBool("compact")
 		schema := buildSchema(cmd.Root(), compact)
 
+		w := cmd.OutOrStdout()
 		det := AgentFromContext(cmd)
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "agent schema", output.ResourceNone, schema, nil, nil)
+			return output.RenderAgentJSON(w, "agent schema", output.ResourceNone, schema, nil, nil)
 		}
 
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		return enc.Encode(schema)
 	},
@@ -116,7 +116,7 @@ $ pdc agent guide oncall`,
 		if err != nil {
 			return err
 		}
-		_, _ = fmt.Fprint(os.Stdout, content)
+		_, _ = fmt.Fprint(cmd.OutOrStdout(), content)
 		return nil
 	},
 }

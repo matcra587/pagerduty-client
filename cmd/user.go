@@ -47,6 +47,7 @@ $ pdc user list`,
 
 		headers, rows := userRows(users)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -57,11 +58,11 @@ $ pdc user list`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(users)}
-			return output.RenderAgentJSON(os.Stdout, "user list", output.ResourceUser, users, &meta, nil)
+			return output.RenderAgentJSON(w, "user list", output.ResourceUser, users, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, users, isTTY)
+			return output.RenderJSON(w, users, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -85,6 +86,7 @@ $ pdc user show PUSER01`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched user")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -94,9 +96,9 @@ $ pdc user show PUSER01`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "user show", output.ResourceUser, user, nil, nil)
+			return output.RenderAgentJSON(w, "user show", output.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, user, isTTY)
+			return output.RenderJSON(w, user, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -106,7 +108,7 @@ $ pdc user show PUSER01`,
 				{"Role", user.Role},
 				{"Time Zone", user.Timezone},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -129,6 +131,7 @@ $ pdc user me`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", user.ID).Msg("fetched current user")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -138,9 +141,9 @@ $ pdc user me`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "user me", output.ResourceUser, user, nil, nil)
+			return output.RenderAgentJSON(w, "user me", output.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, user, isTTY)
+			return output.RenderJSON(w, user, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -150,7 +153,7 @@ $ pdc user me`,
 				{"Role", user.Role},
 				{"Time Zone", user.Timezone},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }

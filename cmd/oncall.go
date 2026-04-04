@@ -73,6 +73,7 @@ $ pdc oncall --schedule PSCHED01`,
 
 		headers, rows := oncallRows(oncalls)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -83,11 +84,11 @@ $ pdc oncall --schedule PSCHED01`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(oncalls)}
-			return output.RenderAgentJSON(os.Stdout, "oncall", output.ResourceOnCall, oncalls, &meta, nil)
+			return output.RenderAgentJSON(w, "oncall", output.ResourceOnCall, oncalls, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, oncalls, isTTY)
+			return output.RenderJSON(w, oncalls, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/mail"
 	"os"
 	"slices"
@@ -120,6 +121,7 @@ $ pdc incident list --team PTEAM01`,
 
 		headers, rows := incidentRows(incidents)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -130,11 +132,11 @@ $ pdc incident list --team PTEAM01`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(incidents)}
-			return output.RenderAgentJSON(os.Stdout, "incident list", output.ResourceIncident, incidents, &meta, nil)
+			return output.RenderAgentJSON(w, "incident list", output.ResourceIncident, incidents, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, incidents, isTTY)
+			return output.RenderJSON(w, incidents, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -175,6 +177,7 @@ $ pdc incident show --alerts --payload P000001`,
 
 			headers, rows := alertRows(alertList)
 
+			w := cmd.OutOrStdout()
 			isTTY := terminal.Is(os.Stdout)
 			format := output.DetectFormat(output.FormatOpts{
 				AgentMode: det.Active,
@@ -185,17 +188,18 @@ $ pdc incident show --alerts --payload P000001`,
 			switch format {
 			case output.FormatAgentJSON:
 				meta := agent.Metadata{Total: len(alertList)}
-				return output.RenderAgentJSON(os.Stdout, "incident show --alerts", output.ResourceAlert, alertList, &meta, nil)
+				return output.RenderAgentJSON(w, "incident show --alerts", output.ResourceAlert, alertList, &meta, nil)
 			case output.FormatJSON:
-				return output.RenderJSON(os.Stdout, alertList, isTTY)
+				return output.RenderJSON(w, alertList, isTTY)
 			default:
-				return output.RenderTable(os.Stdout, headers, rows, isTTY)
+				return output.RenderTable(w, headers, rows, isTTY)
 			}
 		}
 		if payload {
-			return showIncidentPayload(cmd.Context(), client, det, cfg, incident)
+			return showIncidentPayload(cmd.Context(), cmd.OutOrStdout(), client, det, cfg, incident)
 		}
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -205,9 +209,9 @@ $ pdc incident show --alerts --payload P000001`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "incident show", output.ResourceIncident, incident, nil, nil)
+			return output.RenderAgentJSON(w, "incident show", output.ResourceIncident, incident, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, incident, isTTY)
+			return output.RenderJSON(w, incident, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -218,7 +222,7 @@ $ pdc incident show --alerts --payload P000001`,
 				{"Service", incident.Service.Summary},
 				{"Created", incident.CreatedAt},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -245,7 +249,7 @@ $ pdc incident ack P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident ack", output.ResourceNone, map[string]string{"id": args[0], "status": "acknowledged"}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident ack", output.ResourceNone, map[string]string{"id": args[0], "status": "acknowledged"}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident acknowledged")
 		return nil
@@ -297,7 +301,7 @@ $ pdc incident resolve --note "Root cause identified and fixed" P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident resolve", output.ResourceNone, map[string]string{"id": args[0], "status": "resolved"}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident resolve", output.ResourceNone, map[string]string{"id": args[0], "status": "resolved"}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident resolved")
 		return nil
@@ -332,7 +336,7 @@ $ pdc incident snooze --duration 2h P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident snooze", output.ResourceNone, map[string]string{"id": args[0], "duration": durationStr}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident snooze", output.ResourceNone, map[string]string{"id": args[0], "duration": durationStr}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Duration("duration", dur).Msg("Incident snoozed")
 		return nil
@@ -369,7 +373,7 @@ $ pdc incident reassign --user PUSER01 --user PUSER02 P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident reassign", output.ResourceNone, map[string]any{"id": args[0], "assignees": users}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident reassign", output.ResourceNone, map[string]any{"id": args[0], "assignees": users}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Strs("users", users).Msg("Incident reassigned")
 		return nil
@@ -403,7 +407,7 @@ $ pdc incident merge --source P000002 --source P000003 P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident merge", output.ResourceNone, map[string]any{"target": args[0], "sources": sources}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident merge", output.ResourceNone, map[string]any{"target": args[0], "sources": sources}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Strs("sources", sources).Msg("Incidents merged")
 		return nil
@@ -443,7 +447,7 @@ $ pdc incident note add --content "Investigating the issue" P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident note add", output.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident note add", output.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Note added")
 		return nil
@@ -471,6 +475,7 @@ $ pdc incident note list P000001`,
 
 		headers, rows := noteRows(notes)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -481,11 +486,11 @@ $ pdc incident note list P000001`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(notes)}
-			return output.RenderAgentJSON(os.Stdout, "incident note list", output.ResourceNote, notes, &meta, nil)
+			return output.RenderAgentJSON(w, "incident note list", output.ResourceNote, notes, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, notes, isTTY)
+			return output.RenderJSON(w, notes, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -525,6 +530,7 @@ $ pdc incident log --since 7d P000001`,
 
 		headers, rows := logEntryRows(entries)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -535,11 +541,11 @@ $ pdc incident log --since 7d P000001`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(entries)}
-			return output.RenderAgentJSON(os.Stdout, "incident log", output.ResourceLogEntry, entries, &meta, nil)
+			return output.RenderAgentJSON(w, "incident log", output.ResourceLogEntry, entries, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, entries, isTTY)
+			return output.RenderJSON(w, entries, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -571,7 +577,7 @@ $ pdc incident urgency P000001 high`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident urgency", output.ResourceNone, map[string]string{"id": args[0], "urgency": level}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident urgency", output.ResourceNone, map[string]string{"id": args[0], "urgency": level}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident urgency set to " + level)
 		return nil
@@ -605,7 +611,7 @@ $ pdc incident title P000001 "Database connection pool exhausted"`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident title", output.ResourceNone, map[string]string{"id": args[0], "title": title}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident title", output.ResourceNone, map[string]string{"id": args[0], "title": title}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident title updated")
 		return nil
@@ -640,7 +646,7 @@ $ pdc incident resolve-alert P000001 A000001 A000002`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(os.Stdout, "incident resolve-alert", output.ResourceNone, map[string]any{"incident_id": incidentID, "resolved": alertIDs}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident resolve-alert", output.ResourceNone, map[string]any{"incident_id": incidentID, "resolved": alertIDs}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(incidentID), incidentID).Int("count", len(alertIDs)).Msg(fmt.Sprintf("%d alerts resolved", len(alertIDs)))
 		return nil
@@ -689,7 +695,7 @@ func parseFromEmail(email string) (string, error) {
 
 // showIncidentPayload fetches the first alert's raw body payload, runs
 // integration detection and displays the source, extracted fields and raw JSON.
-func showIncidentPayload(ctx context.Context, client *api.Client, det agent.DetectionResult, cfg *config.Config, incident *pagerduty.Incident) error {
+func showIncidentPayload(ctx context.Context, w io.Writer, client *api.Client, det agent.DetectionResult, cfg *config.Config, incident *pagerduty.Incident) error {
 	alerts, err := client.ListIncidentAlerts(ctx, incident.ID)
 	if err != nil {
 		return fmt.Errorf("fetching alerts: %w", err)
@@ -712,12 +718,12 @@ func showIncidentPayload(ctx context.Context, client *api.Client, det agent.Dete
 	switch format {
 	case output.FormatAgentJSON:
 		data := payloadResult(summary, body)
-		return output.RenderAgentJSON(os.Stdout, "incident show --payload", output.ResourceNone, data, nil, nil)
+		return output.RenderAgentJSON(w, "incident show --payload", output.ResourceNone, data, nil, nil)
 	case output.FormatJSON:
 		data := payloadResult(summary, body)
-		return output.RenderJSON(os.Stdout, data, isTTY)
+		return output.RenderJSON(w, data, isTTY)
 	default:
-		return renderPayloadText(summary, body)
+		return renderPayloadText(w, summary, body)
 	}
 }
 
@@ -752,9 +758,7 @@ func payloadResult(summary integration.Summary, body map[string]any) map[string]
 }
 
 // renderPayloadText writes human-readable alert payload output.
-func renderPayloadText(summary integration.Summary, body map[string]any) error {
-	w := os.Stdout
-
+func renderPayloadText(w io.Writer, summary integration.Summary, body map[string]any) error {
 	_, _ = fmt.Fprintf(w, "Detected source: %s\n\n", summary.Source)
 
 	if len(summary.Fields) > 0 {

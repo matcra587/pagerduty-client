@@ -14,9 +14,18 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
+	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/config"
+	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
 )
+
+// isAgentMode detects agent mode from the --agent flag for commands
+// that bypass PersistentPreRunE (config, version).
+func isAgentMode(cmd *cobra.Command) bool {
+	flag, _ := cmd.Root().PersistentFlags().GetBool("agent")
+	return agent.DetectWithFlag(flag).Active
+}
 
 // configKeys is the ordered list of valid configuration keys.
 var configKeys = []string{
@@ -81,9 +90,14 @@ func configListCmd() *cobra.Command {
 			resolved := configToMap(cfg)
 			fileSources := configSourcesFromFile(cfgPath)
 
-			th := theme.Default()
+			type configEntry struct {
+				Key         string `json:"key"`
+				Value       string `json:"value"`
+				Source      string `json:"source"`
+				Description string `json:"description"`
+			}
 
-			rows := make([][]string, 0, len(configKeys))
+			entries := make([]configEntry, 0, len(configKeys))
 			for _, key := range configKeys {
 				val := resolved[key]
 				source := "default"
@@ -95,10 +109,25 @@ func configListCmd() *cobra.Command {
 						source = envVar
 					}
 				}
-				desc := configDescriptions[key]
-				rows = append(rows, []string{key, val, source, desc})
+				entries = append(entries, configEntry{
+					Key:         key,
+					Value:       val,
+					Source:      source,
+					Description: configDescriptions[key],
+				})
 			}
 
+			w := cmd.OutOrStdout()
+			if isAgentMode(cmd) {
+				return output.RenderAgentJSON(w, "config list", output.ResourceNone, entries, nil, nil)
+			}
+
+			rows := make([][]string, 0, len(entries))
+			for _, e := range entries {
+				rows = append(rows, []string{e.Key, e.Value, e.Source, e.Description})
+			}
+
+			th := theme.Default()
 			headerStyle := lipgloss.NewStyle().Bold(true).Padding(0, 1)
 			keyStyle := th.Blue.Padding(0, 1)
 			valueStyle := lipgloss.NewStyle().Padding(0, 1)
@@ -122,7 +151,7 @@ func configListCmd() *cobra.Command {
 				}).
 				Rows(rows...)
 
-			fmt.Fprintln(cmd.OutOrStdout(), t.Render())
+			fmt.Fprintln(w, t.Render())
 			return nil
 		},
 	}
@@ -151,7 +180,13 @@ func configGetCmd() *cobra.Command {
 				return fmt.Errorf("unknown config key %s - run 'pdc config list' to see all keys", args[0])
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), val)
+			w := cmd.OutOrStdout()
+			if isAgentMode(cmd) {
+				data := map[string]string{"key": args[0], "value": val}
+				return output.RenderAgentJSON(w, "config get", output.ResourceNone, data, nil, nil)
+			}
+
+			fmt.Fprintln(w, val)
 			return nil
 		},
 	}
@@ -167,7 +202,7 @@ func configSetCmd() *cobra.Command {
 		Short:             "Add or update a setting",
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: completeConfigKeys,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			key, val := args[0], args[1]
 			if !slices.Contains(configKeys, key) {
 				return fmt.Errorf("unknown config key %s - valid keys: %s", key, strings.Join(configKeys, ", "))
@@ -179,8 +214,15 @@ func configSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfgPath := config.DefaultConfigPath()
-			return modifyConfigFile(cfgPath, key, typed)
+			cfgPath := configPathFromFlags(cmd)
+			if err := modifyConfigFile(cfgPath, key, typed); err != nil {
+				return err
+			}
+			if isAgentMode(cmd) {
+				data := map[string]string{"key": key, "value": val}
+				return output.RenderAgentJSON(cmd.OutOrStdout(), "config set", output.ResourceNone, data, nil, nil)
+			}
+			return nil
 		},
 	}
 }
@@ -196,12 +238,19 @@ func configUnsetCmd() *cobra.Command {
 		Short:             "Remove a setting",
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeConfigKeys,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if !slices.Contains(configKeys, args[0]) {
 				return fmt.Errorf("unknown config key %s - valid keys: %s", args[0], strings.Join(configKeys, ", "))
 			}
-			cfgPath := config.DefaultConfigPath()
-			return removeConfigKey(cfgPath, args[0])
+			cfgPath := configPathFromFlags(cmd)
+			if err := removeConfigKey(cfgPath, args[0]); err != nil {
+				return err
+			}
+			if isAgentMode(cmd) {
+				data := map[string]string{"key": args[0]}
+				return output.RenderAgentJSON(cmd.OutOrStdout(), "config unset", output.ResourceNone, data, nil, nil)
+			}
+			return nil
 		},
 	}
 }
@@ -216,9 +265,19 @@ func configPathCmd() *cobra.Command {
 		Short: "Print the config file path",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			path := config.DefaultConfigPath()
+			path := configPathFromFlags(cmd)
 			w := cmd.OutOrStdout()
-			if _, err := os.Stat(path); err != nil {
+
+			_, statErr := os.Stat(path)
+			if isAgentMode(cmd) {
+				data := map[string]any{
+					"path":   path,
+					"exists": statErr == nil,
+				}
+				return output.RenderAgentJSON(w, "config path", output.ResourceNone, data, nil, nil)
+			}
+
+			if statErr != nil {
 				fmt.Fprintf(w, "%s (not found)\n", path)
 			} else {
 				fmt.Fprintln(w, path)

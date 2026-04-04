@@ -58,6 +58,7 @@ $ pdc maintenance-window list --service S1`,
 
 		headers, rows := maintenanceWindowRows(windows)
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -68,11 +69,11 @@ $ pdc maintenance-window list --service S1`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(windows)}
-			return output.RenderAgentJSON(os.Stdout, "maintenance-window list", output.ResourceMaintenanceWindow, windows, &meta, nil)
+			return output.RenderAgentJSON(w, "maintenance-window list", output.ResourceMaintenanceWindow, windows, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, windows, isTTY)
+			return output.RenderJSON(w, windows, isTTY)
 		default:
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }
@@ -96,6 +97,7 @@ $ pdc maintenance-window show PW98YIO`,
 		}
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched maintenance window")
 
+		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
 			AgentMode: det.Active,
@@ -105,9 +107,9 @@ $ pdc maintenance-window show PW98YIO`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(os.Stdout, "maintenance-window show", output.ResourceMaintenanceWindow, mw, nil, nil)
+			return output.RenderAgentJSON(w, "maintenance-window show", output.ResourceMaintenanceWindow, mw, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(os.Stdout, mw, isTTY)
+			return output.RenderJSON(w, mw, isTTY)
 		default:
 			svcNames := make([]string, len(mw.Services))
 			for i, s := range mw.Services {
@@ -133,7 +135,7 @@ $ pdc maintenance-window show PW98YIO`,
 				{"Services", strings.Join(svcNames, ", ")},
 				{"Teams", strings.Join(teamNames, ", ")},
 			}
-			return output.RenderTable(os.Stdout, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, isTTY)
 		}
 	},
 }

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	ghAuth "github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/gechr/clog"
 	"golang.org/x/mod/semver"
 )
@@ -180,13 +181,11 @@ func stripBuildSuffix(v string) string {
 	return v
 }
 
-// setGitHubAuth sets the Authorization header from GH_TOKEN or GITHUB_TOKEN.
-// GH_TOKEN takes precedence (gh CLI convention); GITHUB_TOKEN is the
-// GitHub Actions convention.
+// setGitHubAuth sets the Authorization header using go-gh's token
+// resolution. This picks up GH_TOKEN, GITHUB_TOKEN and tokens from
+// gh auth login (stored in the gh config file).
 func setGitHubAuth(req *http.Request) {
-	if token := os.Getenv("GH_TOKEN"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	} else if token := os.Getenv("GITHUB_TOKEN"); token != "" {
+	if token, _ := ghAuth.TokenForHost("github.com"); token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 }

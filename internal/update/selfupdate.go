@@ -103,8 +103,8 @@ func AtomicReplace(target string, data []byte) error {
 }
 
 // fetchReleaseAssets returns the assets for the given tag from the
-// GitHub API. Works for both public and private repos when GH_TOKEN
-// or GITHUB_TOKEN is set.
+// GitHub API. Authenticates using go-gh's token resolution (GH_TOKEN,
+// GITHUB_TOKEN or gh auth login).
 func fetchReleaseAssets(ctx context.Context, tag string) ([]releaseAsset, error) {
 	url := defaultAPIBase + "/repos/matcra587/pagerduty-client/releases/tags/" + tag
 	body, err := httpGet(ctx, url)

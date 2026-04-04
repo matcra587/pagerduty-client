@@ -40,6 +40,20 @@ func TestRenderTable_Truncation(t *testing.T) {
 	assert.NotContains(t, output, longTitle)
 }
 
+func TestRenderTable_SanitisesControlChars(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	headers := []string{"ID", "Title"}
+	rows := [][]string{
+		{"P1", "Normal \x1b[2Jpwned"},
+	}
+	err := RenderTable(&buf, headers, rows, false)
+	require.NoError(t, err)
+	output := buf.String()
+	assert.Contains(t, output, "^[")
+	assert.NotContains(t, output, "\x1b")
+}
+
 func TestRenderTable_Colour(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer

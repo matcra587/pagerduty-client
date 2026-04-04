@@ -111,14 +111,18 @@ clib.Extend(pf.Lookup("token"), clib.FlagExtra{
 
 ### Command Structure
 
+Shell completion runs in `setup()` via `clib.Preflight()` before
+Cobra parses flags. If a completion flag is found, `setup()` resolves
+a token (env → keyring), builds the generator, handles the action
+and exits. Normal commands never reach this path.
+
 Root command uses `PersistentPreRunE` to run before every command:
 
 1. Load config (file → env → flags)
 2. Set clog verbosity and colour mode
 3. Detect agent mode
-4. Wire shell completion (exit if handled)
-5. Create API client
-6. Store config, client, agent detection and user email on context
+4. Resolve token and create API client
+5. Store config, client, agent detection and user email on context
 
 Parent commands group related subcommands (no `RunE`):
 
@@ -175,19 +179,23 @@ rootCmd.SetHelpFunc(clib.HelpFunc(renderer, clib.SectionsWithOptions(clib.WithSu
 
 ### Shell Completion
 
-Wire after all subcommands register:
+Handled in `setup()` via `clib.Preflight()` before Cobra parses:
 
 ```go
-func setup() {
-    comp = clib.NewCompletion(rootCmd)
-}
-
-// In PersistentPreRunE:
-gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
-gen.Subs = clib.Subcommands(cmd.Root())
-handled, err := comp.Handle(gen, completionHandler(token, opts...))
-if handled {
-    os.Exit(0)
+func setup() error {
+    rootCmd.CompletionOptions.DisableDefaultCmd = true
+    flags, positional, ok := clib.Preflight()
+    if !ok {
+        return nil
+    }
+    // resolve token (env → keyring), build generator, handle, exit
+    gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(rootCmd))
+    gen.Subs = clib.Subcommands(rootCmd)
+    handled, err := flags.Handle(gen, completionHandler(token, apiOpts...), complete.WithArgs(positional))
+    if handled {
+        os.Exit(0)
+    }
+    return err
 }
 ```
 

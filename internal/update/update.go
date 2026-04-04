@@ -3,7 +3,6 @@ package update
 import (
 	"context"
 	"errors"
-	"os"
 	"os/exec"
 
 	"github.com/gechr/clog"
@@ -47,8 +46,6 @@ func runBrewUpgrade(ctx context.Context, latest string) error {
 		Elapsed("elapsed").
 		Wait(ctx, func(ctx context.Context) error {
 			cmd := exec.CommandContext(ctx, brewPath, "upgrade", "matcra587/tap/pagerduty-client") //nolint:gosec // brewPath validated by LookPath above
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			return cmd.Run()
 		}).
 		Msg("Updated")
@@ -67,8 +64,6 @@ func runGoInstall(ctx context.Context, latest string) error {
 		Elapsed("elapsed").
 		Wait(ctx, func(ctx context.Context) error {
 			cmd := exec.CommandContext(ctx, goPath, "install", target) //nolint:gosec // goPath validated by LookPath above
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
 			return cmd.Run()
 		}).
 		Msg("Updated")

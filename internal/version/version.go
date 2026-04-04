@@ -37,7 +37,11 @@ func Info() BuildInfo {
 	}
 }
 
-// String returns a human-readable summary of the build information.
+// String returns a plain multi-line summary of the build information.
 func (b BuildInfo) String() string {
-	return fmt.Sprintf("pagerduty-client %s (%s/%s) built %s by %s", b.Version, b.Commit, b.Branch, b.BuildTime, b.BuildBy)
+	return fmt.Sprintf(`pdc %s
+  commit:   %s
+  branch:   %s
+  built:    %s
+  built by: %s`, b.Version, b.Commit, b.Branch, b.BuildTime, b.BuildBy)
 }

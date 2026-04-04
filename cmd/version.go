@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/version"
@@ -20,7 +22,8 @@ $ pdc version`,
 	// Suppress root PersistentPreRunE: version does not require a token.
 	PersistentPreRunE: func(_ *cobra.Command, _ []string) error { return nil },
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		agentFlag, _ := cmd.Root().PersistentFlags().GetBool("agent")
+		pf := cmd.Root().PersistentFlags()
+		agentFlag, _ := pf.GetBool("agent")
 		det := agent.DetectWithFlag(agentFlag)
 		info := version.Info()
 
@@ -28,7 +31,17 @@ $ pdc version`,
 			return output.RenderAgentJSON(os.Stdout, "version", output.ResourceNone, info, nil, nil)
 		}
 
-		_, _ = fmt.Fprintln(os.Stdout, info.String())
+		w := os.Stdout
+		if terminal.Is(w) {
+			th := theme.New()
+			fmt.Fprintf(w, "%s %s\n", th.Bold.Render("pdc"), th.Green.Render(info.Version))
+			fmt.Fprintf(w, "  %s  %s\n", th.Dim.Render("commit:"), info.Commit)
+			fmt.Fprintf(w, "  %s  %s\n", th.Dim.Render("branch:"), info.Branch)
+			fmt.Fprintf(w, "  %s   %s\n", th.Dim.Render("built:"), info.BuildTime)
+			fmt.Fprintf(w, "  %s %s\n", th.Dim.Render("built by:"), info.BuildBy)
+		} else {
+			fmt.Fprintln(w, info.String())
+		}
 		return nil
 	},
 }

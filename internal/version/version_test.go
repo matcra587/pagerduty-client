@@ -26,7 +26,7 @@ func TestBuildInfo_String(t *testing.T) {
 	info := version.Info()
 	s := info.String()
 
-	assert.True(t, strings.HasPrefix(s, "pagerduty-client "), "expected prefix 'pagerduty-client ', got: %q", s)
+	assert.True(t, strings.HasPrefix(s, "pdc "), "expected prefix 'pdc ', got: %q", s)
 	assert.Contains(t, s, info.Version)
 	assert.Contains(t, s, info.Commit)
 	assert.Contains(t, s, info.Branch)

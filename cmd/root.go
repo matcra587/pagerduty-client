@@ -38,9 +38,6 @@ const (
 	updateResultKey contextKey = "updateResult"
 )
 
-// comp holds the hidden completion flags added by clib.NewCompletion.
-var comp *clib.Completion
-
 // rootCmd is the base command for pdc.
 var rootCmd = &cobra.Command{
 	Use:   "pdc",
@@ -67,34 +64,12 @@ $ pdc oncall`,
 			return err
 		}
 
-		// Handle shell completion before full token resolution so
-		// --install-completion and --print-completion work without a token.
-		// For dynamic completions, fall back to PDC_TOKEN env var then keyring.
-		flagToken, _ := pf.GetString("token")
-		if flagToken == "" {
-			flagToken = os.Getenv("PDC_TOKEN")
-		}
-		if flagToken == "" && state.cfg.CredentialSource == credential.SourceKeyring {
-			p := credential.KeyringProvider{}
-			if t, err := p.Provide(cmd.Context()); err == nil {
-				flagToken = t
-			}
-		}
-		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(cmd.Root()))
-		gen.Subs = clib.Subcommands(cmd.Root())
-		handled, err := comp.Handle(gen, completionHandler(flagToken, state.apiOpts...))
-		if err != nil {
-			return err
-		}
-		if handled {
-			os.Exit(0) //nolint:revive // completion handler must exit after handling
-		}
-
 		ctx := cmd.Context()
 		if ctx == nil {
 			ctx = context.Background()
 		}
 
+		flagToken, _ := pf.GetString("token")
 		ctx, err = resolveAndStore(ctx, pf, state, flagToken)
 		if err != nil {
 			return err
@@ -166,7 +141,10 @@ $ pdc oncall`,
 
 // Execute runs the root command and returns any error.
 func Execute() error {
-	setup()
+	if err := setup(); err != nil {
+		clog.Error().Err(err).Send()
+		return err
+	}
 	err := rootCmd.Execute()
 	if err != nil {
 		clog.Error().Err(err).Send()
@@ -174,10 +152,49 @@ func Execute() error {
 	return err
 }
 
-// setup wires completion flags after all subcommands are registered.
-// Called from Execute to guarantee init() across all cmd/ files has run.
-func setup() {
-	comp = clib.NewCompletion(rootCmd)
+// setup handles pre-parse completion and disables cobra's built-in
+// completion subcommand. Called from Execute to guarantee init() across
+// all cmd/ files has run.
+func setup() error {
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
+
+	flags, positional, ok := clib.Preflight()
+	if !ok {
+		return nil
+	}
+
+	// Resolve token for dynamic completions (env → keyring).
+	// Static completions (install/print/uninstall) don't need a token.
+	// --token and --token-file are unavailable because Cobra has not
+	// parsed flags yet; this is acceptable because completions are
+	// best-effort and --token is the least recommended credential path.
+	var token string
+	var apiOpts []api.Option
+
+	cfg, cfgErr := config.Load()
+	if cfgErr == nil && cfg.BaseURL != "" {
+		apiOpts = append(apiOpts, api.WithBaseURL(cfg.BaseURL))
+	}
+
+	if v := os.Getenv("PDC_TOKEN"); v != "" {
+		token = v
+	} else if cfgErr == nil && cfg.CredentialSource == credential.SourceKeyring {
+		p := credential.KeyringProvider{}
+		if t, err := p.Provide(context.Background()); err == nil {
+			token = t
+		}
+	}
+
+	gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(rootCmd))
+	gen.Subs = clib.Subcommands(rootCmd)
+	handled, err := flags.Handle(gen, completionHandler(token, cfg, apiOpts...), complete.WithArgs(positional))
+	if err != nil {
+		return err
+	}
+	if handled {
+		os.Exit(0) //nolint:revive // completion handler must exit after handling
+	}
+	return nil
 }
 
 type preRunState struct {

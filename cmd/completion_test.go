@@ -9,6 +9,7 @@ import (
 
 	"github.com/gechr/clib/complete"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -66,7 +67,7 @@ func TestCompletionHandler(t *testing.T) {
 		_, _ = w.Write([]byte(`{"maintenance_windows": [{"id": "MW1", "description": "Deploy window"}, {"id": "MW2", "description": "DB migration"}], "limit": 100, "offset": 0, "more": false}`))
 	})
 
-	handler := completionHandler("test-token", api.WithBaseURL(server.URL))
+	handler := completionHandler("test-token", nil, api.WithBaseURL(server.URL))
 
 	tests := []struct {
 		name     string
@@ -112,7 +113,59 @@ func TestCompletionHandler(t *testing.T) {
 }
 
 func TestCompletionHandler_NoToken(t *testing.T) {
-	handler := completionHandler("")
+	handler := completionHandler("", nil)
 	got := captureCompletion(t, handler, "zsh", "incident", nil)
 	assert.Empty(t, got)
+}
+
+func TestCompletionHandler_ConfigFilters(t *testing.T) {
+	// Sequential: captureCompletion redirects os.Stdout.
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("GET /incidents", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, []string{"T1"}, r.URL.Query()["team_ids[]"])
+		assert.Equal(t, []string{"S1"}, r.URL.Query()["service_ids[]"])
+		_, _ = w.Write([]byte(`{"incidents": [{"id": "P1", "title": "Filtered"}], "limit": 100, "offset": 0, "more": false}`))
+	})
+	mux.HandleFunc("GET /services", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, []string{"T1"}, r.URL.Query()["team_ids[]"])
+		_, _ = w.Write([]byte(`{"services": [{"id": "S1", "name": "Auth API"}], "limit": 100, "offset": 0, "more": false}`))
+	})
+	mux.HandleFunc("GET /users", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, []string{"T1"}, r.URL.Query()["team_ids[]"])
+		_, _ = w.Write([]byte(`{"users": [{"id": "U1", "name": "Alice"}], "limit": 100, "offset": 0, "more": false}`))
+	})
+	mux.HandleFunc("GET /escalation_policies", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, []string{"T1"}, r.URL.Query()["team_ids[]"])
+		_, _ = w.Write([]byte(`{"escalation_policies": [{"id": "EP1", "name": "Platform"}], "limit": 100, "offset": 0, "more": false}`))
+	})
+	mux.HandleFunc("GET /maintenance_windows", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, []string{"T1"}, r.URL.Query()["team_ids[]"])
+		assert.Equal(t, []string{"S1"}, r.URL.Query()["service_ids[]"])
+		_, _ = w.Write([]byte(`{"maintenance_windows": [{"id": "MW1", "description": "Deploy window"}], "limit": 100, "offset": 0, "more": false}`))
+	})
+
+	cfg := &config.Config{Team: "T1", Service: "S1"}
+	handler := completionHandler("test-token", cfg, api.WithBaseURL(server.URL))
+
+	tests := []struct {
+		name     string
+		kind     string
+		expected []string
+	}{
+		{name: "incidents filtered by team and service", kind: "incident", expected: []string{"P1"}},
+		{name: "services filtered by team", kind: "service", expected: []string{"S1"}},
+		{name: "users filtered by team", kind: "user", expected: []string{"U1"}},
+		{name: "escalation policies filtered by team", kind: "escalation_policy", expected: []string{"EP1"}},
+		{name: "maintenance windows filtered by team and service", kind: "maintenance_window", expected: []string{"MW1"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := captureCompletion(t, handler, "zsh", tt.kind, nil)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
 }

@@ -73,6 +73,23 @@ See [docs/configuration.md](docs/configuration.md) for the full
 reference: config file fields, environment variables, credential
 resolution and custom field mapping.
 
+## Shell Completion
+
+pdc provides tab completion for bash, zsh and fish:
+
+```bash
+pdc --install-completion         # Install for your detected shell
+```
+
+Completions include dynamic lookups that query the PagerDuty API for
+resource IDs (incidents, services, teams, etc.). These require a valid
+API token (via `PDC_TOKEN` or the OS keyring) and enforce a 5-second
+timeout to keep tab completion responsive.
+
+For best results, set a default team and/or service in your config.
+Without filters, dynamic lookups fetch all resources across your
+account, which can be slow on large organisations.
+
 ## Agent Mode
 
 pdc detects AI agents automatically and switches to structured JSON

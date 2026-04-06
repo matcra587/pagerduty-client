@@ -287,8 +287,8 @@ func (m incidentDetail) summaryView() string {
 	sb.WriteString("\n\n")
 
 	sb.WriteString(field("Title", inc.Title))
-	sb.WriteString(field("Status", statusText(inc.Status)))
-	sb.WriteString(field("Priority", styledPriorityLabel(inc)))
+	sb.WriteString(indent + lbl("Status") + " " + statusText(inc.Status) + "\n")
+	sb.WriteString(indent + lbl("Priority") + " " + styledPriorityLabel(inc) + "\n")
 	sb.WriteString(field("Service", inc.Service.Summary))
 	if inc.EscalationPolicy.Summary != "" {
 		sb.WriteString(field("Escalation", inc.EscalationPolicy.Summary))

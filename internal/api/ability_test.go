@@ -61,10 +61,10 @@ func TestHumanise(t *testing.T) {
 		{"single word", "teams", "Teams"},
 		{"version suffix", "liveness_android_v1", "Liveness Android v1"},
 	}
-	tc := cases.Title(language.English)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			tc := cases.Title(language.English)
 			assert.Equal(t, tt.want, humanise(tc, tt.in))
 		})
 	}

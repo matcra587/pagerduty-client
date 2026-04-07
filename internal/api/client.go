@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -179,10 +180,10 @@ func (c *Client) do(ctx context.Context, req *http.Request) ([]byte, error) {
 			if attempt == maxRetries {
 				return nil, fmt.Errorf("request failed after %d attempts: %w", maxRetries+1, err)
 			}
-			if sleepErr := sleepContext(ctx, backoff); sleepErr != nil {
+			backoff *= 2
+			if sleepErr := sleepContext(ctx, rand.N(max(backoff, 1))); sleepErr != nil { //nolint:gosec // jitter does not need crypto rand
 				return nil, sleepErr
 			}
-			backoff *= 2
 			continue
 		}
 
@@ -204,21 +205,21 @@ func (c *Client) do(ctx context.Context, req *http.Request) ([]byte, error) {
 			if attempt == maxRetries {
 				return nil, &APIError{StatusCode: resp.StatusCode, Message: "rate limited"}
 			}
-			wait := retryAfterDuration(resp.Header.Get("Retry-After"), backoff)
+			backoff *= 2
+			wait := retryAfterDuration(resp.Header.Get("Retry-After"), rand.N(max(backoff, 1))) //nolint:gosec // jitter does not need crypto rand
 			if sleepErr := sleepContext(ctx, wait); sleepErr != nil {
 				return nil, sleepErr
 			}
-			backoff *= 2
 			continue
 
 		case resp.StatusCode >= 500:
 			if attempt == maxRetries {
 				return nil, &APIError{StatusCode: resp.StatusCode, Message: "server error"}
 			}
-			if sleepErr := sleepContext(ctx, backoff); sleepErr != nil {
+			backoff *= 2
+			if sleepErr := sleepContext(ctx, rand.N(max(backoff, 1))); sleepErr != nil { //nolint:gosec // jitter does not need crypto rand
 				return nil, sleepErr
 			}
-			backoff *= 2
 			continue
 
 		case resp.StatusCode >= 400:

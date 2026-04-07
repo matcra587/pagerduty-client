@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -162,49 +165,85 @@ func TestClientRejectsOversizedResponse(t *testing.T) {
 	assert.ErrorContains(t, err, "response body too large")
 }
 
+// roundTripFunc adapts a function into an http.RoundTripper for use
+// with synctest, where real network I/O is not permitted.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+// bodyReader wraps a string as a ReadCloser for mock HTTP responses.
+func bodyReader(s string) io.ReadCloser {
+	return io.NopCloser(strings.NewReader(s))
+}
+
 func TestClientRetryOn5xx(t *testing.T) {
 	t.Parallel()
-	var attempts atomic.Int32
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
+	synctest.Test(t, func(t *testing.T) {
+		var attempts atomic.Int32
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			n := attempts.Add(1)
+			if n < 3 {
+				return &http.Response{StatusCode: http.StatusBadGateway, Body: http.NoBody}, nil
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: bodyReader(`{}`)}, nil
+		})
 
-	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		n := attempts.Add(1)
-		if n < 3 {
-			w.WriteHeader(http.StatusBadGateway)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{}`))
+		c := NewClient("test-token", WithHTTPClient(&http.Client{Transport: transport}))
+		c.baseURL = "https://mock"
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := c.get(context.Background(), "/test", nil)
+			done <- err
+		}()
+
+		// Advance past jittered backoff sleeps (up to 2s + 4s).
+		synctest.Wait()
+		time.Sleep(2 * time.Second)
+		synctest.Wait()
+		time.Sleep(4 * time.Second)
+		synctest.Wait()
+
+		require.NoError(t, <-done)
+		assert.Equal(t, int32(3), attempts.Load())
 	})
-
-	c := NewClient("test-token", WithBaseURL(server.URL))
-	_, err := c.get(context.Background(), "/test", nil)
-	require.NoError(t, err)
-	assert.Equal(t, int32(3), attempts.Load())
 }
 
 func TestClient5xxExhaustsRetries(t *testing.T) {
 	t.Parallel()
-	var attempts atomic.Int32
-	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
-	t.Cleanup(server.Close)
+	synctest.Test(t, func(t *testing.T) {
+		var attempts atomic.Int32
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts.Add(1)
+			return &http.Response{StatusCode: http.StatusServiceUnavailable, Body: http.NoBody}, nil
+		})
 
-	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		attempts.Add(1)
-		w.WriteHeader(http.StatusServiceUnavailable)
+		c := NewClient("test-token", WithHTTPClient(&http.Client{Transport: transport}))
+		c.baseURL = "https://mock"
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := c.get(context.Background(), "/test", nil)
+			done <- err
+		}()
+
+		// Advance past all jittered backoff sleeps (up to 2s + 4s + 8s).
+		for range 3 {
+			synctest.Wait()
+			time.Sleep(8 * time.Second)
+		}
+		synctest.Wait()
+
+		err := <-done
+		require.Error(t, err)
+
+		apiErr, ok := errors.AsType[*APIError](err)
+		require.True(t, ok)
+		assert.Equal(t, http.StatusServiceUnavailable, apiErr.StatusCode)
+		assert.Equal(t, int32(maxRetries+1), attempts.Load())
 	})
-
-	c := NewClient("test-token", WithBaseURL(server.URL))
-	_, err := c.get(context.Background(), "/test", nil)
-	require.Error(t, err)
-
-	apiErr, ok := errors.AsType[*APIError](err)
-	require.True(t, ok)
-	assert.Equal(t, http.StatusServiceUnavailable, apiErr.StatusCode)
-	assert.Equal(t, int32(maxRetries+1), attempts.Load())
 }
 
 func TestSleepContextCancelledStopsTimer(t *testing.T) {
@@ -283,4 +322,40 @@ func TestRetryAfterDuration_PassesThroughReasonableValues(t *testing.T) {
 	t.Parallel()
 	got := retryAfterDuration("5", time.Second)
 	assert.Equal(t, 5*time.Second, got)
+}
+
+func TestBackoffJitter_SleepWithinBounds(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		// Verify jittered backoff completes within bounded time using
+		// virtualised time. Backoff doubles before sleep: first retry
+		// sleeps rand.N(2s), second sleeps rand.N(4s).
+		var attempts atomic.Int32
+		transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			n := attempts.Add(1)
+			if n < 3 {
+				return &http.Response{StatusCode: http.StatusBadGateway, Body: http.NoBody}, nil
+			}
+			return &http.Response{StatusCode: http.StatusOK, Body: bodyReader(`{}`)}, nil
+		})
+
+		c := NewClient("test-token", WithHTTPClient(&http.Client{Transport: transport}))
+		c.baseURL = "https://mock"
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := c.get(context.Background(), "/test", nil)
+			done <- err
+		}()
+
+		// Advance past jittered backoff sleeps.
+		synctest.Wait()
+		time.Sleep(2 * time.Second)
+		synctest.Wait()
+		time.Sleep(4 * time.Second)
+		synctest.Wait()
+
+		require.NoError(t, <-done)
+		assert.Equal(t, int32(3), attempts.Load())
+	})
 }

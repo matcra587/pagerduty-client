@@ -58,6 +58,8 @@ type Config struct {
 	CredentialSource credential.Source `koanf:"credential_source"`
 
 	CustomFields []CustomField `koanf:"custom_fields"`
+
+	tokenOptional bool
 }
 
 var validFormats = map[string]bool{
@@ -65,9 +67,13 @@ var validFormats = map[string]bool{
 	"json":  true,
 }
 
+// SetTokenOptional marks the token as not required for validation.
+// Used by commands that can operate without authentication.
+func (c *Config) SetTokenOptional() { c.tokenOptional = true }
+
 // Validate checks required fields and value constraints.
 func (c *Config) Validate() error {
-	if c.Token == "" {
+	if c.Token == "" && !c.tokenOptional {
 		return errors.New("token is required: set PDC_TOKEN or configure a credential source (run \"pdc config init\")")
 	}
 	if !validFormats[c.Format] {

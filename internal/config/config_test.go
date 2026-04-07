@@ -104,6 +104,13 @@ func TestLoad_WithToken(t *testing.T) {
 	assert.Equal(t, "test-token", cfg.Token)
 }
 
+func TestValidate_TokenOptional(t *testing.T) {
+	t.Parallel()
+	cfg := &config.Config{Format: "table", RefreshInterval: 30}
+	cfg.SetTokenOptional()
+	require.NoError(t, cfg.Validate())
+}
+
 func TestValidate_MissingToken(t *testing.T) {
 	cfg := config.Default()
 	err := cfg.Validate()

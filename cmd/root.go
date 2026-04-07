@@ -38,6 +38,19 @@ const (
 	updateResultKey contextKey = "updateResult"
 )
 
+const statusHint = "PagerDuty may be experiencing issues — check https://status.pagerduty.com"
+
+// isOutageError returns true for errors that suggest PD is down.
+func isOutageError(err error) bool {
+	if strings.Contains(err.Error(), "request failed after") {
+		return true
+	}
+	if apiErr, ok := errors.AsType[*api.APIError](err); ok && apiErr.StatusCode >= 500 {
+		return true
+	}
+	return false
+}
+
 // rootCmd is the base command for pdc.
 var rootCmd = &cobra.Command{
 	Use:   "pdc",
@@ -67,6 +80,10 @@ $ pdc oncall`,
 		state, err := loadConfigAndFlags(pf)
 		if err != nil {
 			return err
+		}
+
+		if cmd.Name() == "status" {
+			state.cfg.SetTokenOptional()
 		}
 
 		ctx := cmd.Context()
@@ -153,6 +170,9 @@ func Execute() error {
 	err := rootCmd.Execute()
 	if err != nil {
 		clog.Error().Err(err).Send()
+		if isOutageError(err) {
+			clog.Warn().Msg(statusHint)
+		}
 	}
 	return err
 }
@@ -291,15 +311,15 @@ func resolveAndStore(ctx context.Context, pf *pflag.FlagSet, state preRunState, 
 		return ctx, err
 	}
 
-	client := api.NewClient(cfg.Token, apiOpts...)
-
 	ctx = context.WithValue(ctx, configKey, cfg)
-	ctx = context.WithValue(ctx, clientKey, client)
 	ctx = context.WithValue(ctx, agentKey, det)
 
-	// Resolve the token owner's email for write operations (From header).
-	// Best-effort: a failure here must not block startup.
 	if cfg.Token != "" {
+		client := api.NewClient(cfg.Token, apiOpts...)
+		ctx = context.WithValue(ctx, clientKey, client)
+
+		// Resolve the token owner's email for write operations (From header).
+		// Best-effort: a failure here must not block startup.
 		if u, err := client.GetCurrentUser(ctx); err == nil {
 			clog.Debug().Str("email", u.Email).Msg("resolved token owner")
 			ctx = context.WithValue(ctx, userEmailKey, u.Email)

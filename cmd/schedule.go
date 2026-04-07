@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -58,7 +59,7 @@ $ pdc schedule list --query primary`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(schedules)}
-			return output.RenderAgentJSON(w, "schedule list", output.ResourceSchedule, schedules, &meta, nil)
+			return output.RenderAgentJSON(w, "schedule list", compact.ResourceSchedule, schedules, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, schedules, isTTY)
 		default:
@@ -106,7 +107,7 @@ $ pdc schedule show PSCHED01`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "schedule show", output.ResourceSchedule, schedule, nil, nil)
+			return output.RenderAgentJSON(w, "schedule show", compact.ResourceSchedule, schedule, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, schedule, isTTY)
 		default:
@@ -181,7 +182,7 @@ $ pdc schedule override --user PUSER01 --start 2024-01-15T09:00:00Z --end 2024-0
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "schedule override", output.ResourceNone, map[string]string{
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "schedule override", compact.ResourceNone, map[string]string{
 				"schedule": args[0],
 				"user":     userID,
 				"start":    start,

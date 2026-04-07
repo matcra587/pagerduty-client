@@ -9,6 +9,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -57,7 +58,7 @@ $ pdc team list`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(teams)}
-			return output.RenderAgentJSON(w, "team list", output.ResourceTeam, teams, &meta, nil)
+			return output.RenderAgentJSON(w, "team list", compact.ResourceTeam, teams, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, teams, isTTY)
 		default:
@@ -105,7 +106,7 @@ $ pdc team show PTEAM01`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "team show", output.ResourceTeam, team, nil, nil)
+			return output.RenderAgentJSON(w, "team show", compact.ResourceTeam, team, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, team, isTTY)
 		default:

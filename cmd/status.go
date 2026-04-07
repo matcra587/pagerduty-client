@@ -7,6 +7,7 @@ import (
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
@@ -106,7 +107,7 @@ $ pdc status -f json`,
 				data["account_email"] = accountEmail
 			}
 			if format == output.FormatAgentJSON {
-				return output.RenderAgentJSON(w, "status", output.ResourceNone, data, nil, nil)
+				return output.RenderAgentJSON(w, "status", compact.ResourceNone, data, nil, nil)
 			}
 			return output.RenderJSON(w, data, isTTY)
 		}

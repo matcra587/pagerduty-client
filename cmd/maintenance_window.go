@@ -11,6 +11,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
@@ -83,7 +84,7 @@ $ pdc maintenance-window list --service S1`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(windows)}
-			return output.RenderAgentJSON(w, "maintenance-window list", output.ResourceMaintenanceWindow, windows, &meta, nil)
+			return output.RenderAgentJSON(w, "maintenance-window list", compact.ResourceMaintenanceWindow, windows, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, windows, isTTY)
 		default:
@@ -131,7 +132,7 @@ $ pdc maintenance-window show PW98YIO`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "maintenance-window show", output.ResourceMaintenanceWindow, mw, nil, nil)
+			return output.RenderAgentJSON(w, "maintenance-window show", compact.ResourceMaintenanceWindow, mw, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, mw, isTTY)
 		default:

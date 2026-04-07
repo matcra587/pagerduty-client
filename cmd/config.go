@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
@@ -119,7 +120,7 @@ func configListCmd() *cobra.Command {
 
 			w := cmd.OutOrStdout()
 			if isAgentMode(cmd) {
-				return output.RenderAgentJSON(w, "config list", output.ResourceNone, entries, nil, nil)
+				return output.RenderAgentJSON(w, "config list", compact.ResourceNone, entries, nil, nil)
 			}
 
 			rows := make([][]string, 0, len(entries))
@@ -183,7 +184,7 @@ func configGetCmd() *cobra.Command {
 			w := cmd.OutOrStdout()
 			if isAgentMode(cmd) {
 				data := map[string]string{"key": args[0], "value": val}
-				return output.RenderAgentJSON(w, "config get", output.ResourceNone, data, nil, nil)
+				return output.RenderAgentJSON(w, "config get", compact.ResourceNone, data, nil, nil)
 			}
 
 			fmt.Fprintln(w, val)
@@ -220,7 +221,7 @@ func configSetCmd() *cobra.Command {
 			}
 			if isAgentMode(cmd) {
 				data := map[string]string{"key": key, "value": val}
-				return output.RenderAgentJSON(cmd.OutOrStdout(), "config set", output.ResourceNone, data, nil, nil)
+				return output.RenderAgentJSON(cmd.OutOrStdout(), "config set", compact.ResourceNone, data, nil, nil)
 			}
 			return nil
 		},
@@ -248,7 +249,7 @@ func configUnsetCmd() *cobra.Command {
 			}
 			if isAgentMode(cmd) {
 				data := map[string]string{"key": args[0]}
-				return output.RenderAgentJSON(cmd.OutOrStdout(), "config unset", output.ResourceNone, data, nil, nil)
+				return output.RenderAgentJSON(cmd.OutOrStdout(), "config unset", compact.ResourceNone, data, nil, nil)
 			}
 			return nil
 		},
@@ -274,7 +275,7 @@ func configPathCmd() *cobra.Command {
 					"path":   path,
 					"exists": statErr == nil,
 				}
-				return output.RenderAgentJSON(w, "config path", output.ResourceNone, data, nil, nil)
+				return output.RenderAgentJSON(w, "config path", compact.ResourceNone, data, nil, nil)
 			}
 
 			if statErr != nil {

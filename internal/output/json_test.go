@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ func TestRenderAgentJSON(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	incidents := testutil.LoadIncidents(t)
-	err := RenderAgentJSON(&buf, "incident list", ResourceIncident, incidents, nil, nil)
+	err := RenderAgentJSON(&buf, "incident list", compact.ResourceIncident, incidents, nil, nil)
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), `"success":true`)
 	assert.Contains(t, buf.String(), `"command":"incident list"`)

@@ -19,6 +19,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/matcra587/pagerduty-client/internal/output"
@@ -155,7 +156,7 @@ $ pdc incident list --team PTEAM01`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(incidents)}
-			return output.RenderAgentJSON(w, "incident list", output.ResourceIncident, incidents, &meta, nil)
+			return output.RenderAgentJSON(w, "incident list", compact.ResourceIncident, incidents, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, incidents, isTTY)
 		default:
@@ -221,7 +222,7 @@ $ pdc incident show --alerts --payload P000001`,
 			switch format {
 			case output.FormatAgentJSON:
 				meta := agent.Metadata{Total: len(alertList)}
-				return output.RenderAgentJSON(w, "incident show --alerts", output.ResourceAlert, alertList, &meta, nil)
+				return output.RenderAgentJSON(w, "incident show --alerts", compact.ResourceAlert, alertList, &meta, nil)
 			case output.FormatJSON:
 				return output.RenderJSON(w, alertList, isTTY)
 			default:
@@ -242,7 +243,7 @@ $ pdc incident show --alerts --payload P000001`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "incident show", output.ResourceIncident, incident, nil, nil)
+			return output.RenderAgentJSON(w, "incident show", compact.ResourceIncident, incident, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, incident, isTTY)
 		default:
@@ -292,7 +293,7 @@ $ pdc incident ack P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident ack", output.ResourceNone, map[string]string{"id": args[0], "status": "acknowledged"}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident ack", compact.ResourceNone, map[string]string{"id": args[0], "status": "acknowledged"}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident acknowledged")
 		return nil
@@ -354,7 +355,7 @@ $ pdc incident resolve --note "Root cause identified and fixed" P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident resolve", output.ResourceNone, map[string]string{"id": args[0], "status": "resolved"}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident resolve", compact.ResourceNone, map[string]string{"id": args[0], "status": "resolved"}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident resolved")
 		return nil
@@ -399,7 +400,7 @@ $ pdc incident snooze --duration 2h P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident snooze", output.ResourceNone, map[string]string{"id": args[0], "duration": durationStr}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident snooze", compact.ResourceNone, map[string]string{"id": args[0], "duration": durationStr}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Duration("duration", dur).Msg("Incident snoozed")
 		return nil
@@ -453,7 +454,7 @@ $ pdc incident reassign --user PUSER01 --user PUSER02 P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident reassign", output.ResourceNone, map[string]any{"id": args[0], "assignees": users}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident reassign", compact.ResourceNone, map[string]any{"id": args[0], "assignees": users}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Strs("users", users).Msg("Incident reassigned")
 		return nil
@@ -497,7 +498,7 @@ $ pdc incident merge --source P000002 --source P000003 P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident merge", output.ResourceNone, map[string]any{"target": args[0], "sources": sources}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident merge", compact.ResourceNone, map[string]any{"target": args[0], "sources": sources}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Strs("sources", sources).Msg("Incidents merged")
 		return nil
@@ -547,7 +548,7 @@ $ pdc incident note add --content "Investigating the issue" P000001`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident note add", output.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident note add", compact.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Note added")
 		return nil
@@ -596,7 +597,7 @@ $ pdc incident note list P000001`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(notes)}
-			return output.RenderAgentJSON(w, "incident note list", output.ResourceNote, notes, &meta, nil)
+			return output.RenderAgentJSON(w, "incident note list", compact.ResourceNote, notes, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, notes, isTTY)
 		default:
@@ -661,7 +662,7 @@ $ pdc incident log --since 7d P000001`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(entries)}
-			return output.RenderAgentJSON(w, "incident log", output.ResourceLogEntry, entries, &meta, nil)
+			return output.RenderAgentJSON(w, "incident log", compact.ResourceLogEntry, entries, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, entries, isTTY)
 		default:
@@ -707,7 +708,7 @@ $ pdc incident urgency P000001 high`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident urgency", output.ResourceNone, map[string]string{"id": args[0], "urgency": level}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident urgency", compact.ResourceNone, map[string]string{"id": args[0], "urgency": level}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident urgency set to " + level)
 		return nil
@@ -751,7 +752,7 @@ $ pdc incident title P000001 "Database connection pool exhausted"`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident title", output.ResourceNone, map[string]string{"id": args[0], "title": title}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident title", compact.ResourceNone, map[string]string{"id": args[0], "title": title}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident title updated")
 		return nil
@@ -796,7 +797,7 @@ $ pdc incident resolve-alert P000001 A000001 A000002`,
 		}
 
 		if det.Active {
-			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident resolve-alert", output.ResourceNone, map[string]any{"incident_id": incidentID, "resolved": alertIDs}, nil, nil)
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident resolve-alert", compact.ResourceNone, map[string]any{"incident_id": incidentID, "resolved": alertIDs}, nil, nil)
 		}
 		clog.Info().Link("incident", incidentURL(incidentID), incidentID).Int("count", len(alertIDs)).Msg(fmt.Sprintf("%d alerts resolved", len(alertIDs)))
 		return nil
@@ -868,7 +869,7 @@ func showIncidentPayload(ctx context.Context, w io.Writer, client *api.Client, d
 	switch format {
 	case output.FormatAgentJSON:
 		data := payloadResult(summary, body)
-		return output.RenderAgentJSON(w, "incident show --payload", output.ResourceNone, data, nil, nil)
+		return output.RenderAgentJSON(w, "incident show --payload", compact.ResourceNone, data, nil, nil)
 	case output.FormatJSON:
 		data := payloadResult(summary, body)
 		return output.RenderJSON(w, data, isTTY)

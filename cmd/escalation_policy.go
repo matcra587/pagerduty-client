@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
@@ -76,7 +77,7 @@ $ pdc escalation-policy list --team T1`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(policies)}
-			return output.RenderAgentJSON(w, "escalation-policy list", output.ResourceEscalationPolicy, policies, &meta, nil)
+			return output.RenderAgentJSON(w, "escalation-policy list", compact.ResourceEscalationPolicy, policies, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, policies, isTTY)
 		default:
@@ -124,7 +125,7 @@ $ pdc escalation-policy show PABC123`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "escalation-policy show", output.ResourceEscalationPolicy, ep, nil, nil)
+			return output.RenderAgentJSON(w, "escalation-policy show", compact.ResourceEscalationPolicy, ep, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, ep, isTTY)
 		default:

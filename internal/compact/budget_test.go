@@ -1,4 +1,4 @@
-package output
+package compact
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ func TestBudgetSelect_MustHaveFieldsAlwaysKept(t *testing.T) {
 		"notes":  "this is a long note that should be dropped due to budget constraints",
 	}
 
-	result := budgetSelect(input, w)
+	result := BudgetSelect(input, w)
 
 	m, ok := result.(map[string]any)
 	require.True(t, ok)
@@ -59,7 +59,7 @@ func TestBudgetSelect_FillsByScore(t *testing.T) {
 		"description": "a]very long description field that consumes many tokens and has low importance",
 	}
 
-	result := budgetSelect(input, w)
+	result := BudgetSelect(input, w)
 
 	m, ok := result.(map[string]any)
 	require.True(t, ok)
@@ -86,7 +86,7 @@ func TestBudgetSelect_ArrayOfItems(t *testing.T) {
 		map[string]any{"id": "2", "name": "another long name exceeding budget"},
 	}
 
-	result := budgetSelect(input, w)
+	result := BudgetSelect(input, w)
 
 	arr, ok := result.([]any)
 	require.True(t, ok)
@@ -105,10 +105,10 @@ func TestBudgetSelect_NonMapPassthrough(t *testing.T) {
 
 	w := ResourceWeights{Budget: 100, DefaultWeight: 0.5}
 
-	assert.Equal(t, "hello", budgetSelect("hello", w))
-	assert.InDelta(t, 42.0, budgetSelect(42.0, w), 1e-9)
-	assert.Equal(t, true, budgetSelect(true, w))
-	assert.Nil(t, budgetSelect(nil, w))
+	assert.Equal(t, "hello", BudgetSelect("hello", w))
+	assert.InDelta(t, 42.0, BudgetSelect(42.0, w), 1e-9)
+	assert.Equal(t, true, BudgetSelect(true, w))
+	assert.Nil(t, BudgetSelect(nil, w))
 }
 
 func TestEstimateTokens(t *testing.T) {
@@ -180,7 +180,7 @@ func TestBudgetSelect_SkipsOversizedField(t *testing.T) {
 		"small": "ok",
 	}
 
-	result := budgetSelect(input, w)
+	result := BudgetSelect(input, w)
 
 	m, ok := result.(map[string]any)
 	require.True(t, ok)

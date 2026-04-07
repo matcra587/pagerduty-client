@@ -1,4 +1,4 @@
-package output
+package compact
 
 import (
 	"encoding/json"
@@ -15,17 +15,17 @@ type fieldCandidate struct {
 	score      float64
 }
 
-// budgetSelect applies token-budget field selection to data.
+// BudgetSelect applies token-budget field selection to data.
 // Maps are filtered via selectFields, slices have each element
 // selected independently, and all other types pass through unchanged.
-func budgetSelect(data any, w ResourceWeights) any {
+func BudgetSelect(data any, w ResourceWeights) any {
 	switch v := data.(type) {
 	case map[string]any:
 		return selectFields(v, w)
 	case []any:
 		out := make([]any, len(v))
 		for i, elem := range v {
-			out[i] = budgetSelect(elem, w)
+			out[i] = BudgetSelect(elem, w)
 		}
 		return out
 	default:

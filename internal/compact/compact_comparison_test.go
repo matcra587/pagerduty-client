@@ -1,4 +1,4 @@
-package output
+package compact
 
 import (
 	"encoding/json"
@@ -30,7 +30,7 @@ func TestCompactComparison(t *testing.T) {
 	// Layer 1 + 2: compact then budget select.
 	rw, ok := WeightsForResource(ResourceIncident)
 	require.True(t, ok)
-	budgeted := budgetSelect(compacted, rw)
+	budgeted := BudgetSelect(compacted, rw)
 	budgetBytes, err := json.Marshal(budgeted)
 	require.NoError(t, err)
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/alecthomas/chroma/v2/quick"
 	"github.com/matcra587/pagerduty-client/internal/agent"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 )
 
 // RenderJSON writes data as indented JSON to w. When isTTY is true,
@@ -24,10 +25,10 @@ func RenderJSON(w io.Writer, data any, isTTY bool) error {
 
 // RenderAgentJSON wraps data in an agent envelope and writes compact JSON to w.
 // Pass nil for metadata when the response has no pagination.
-func RenderAgentJSON(w io.Writer, command string, resource Resource, data any, metadata *agent.Metadata, hints []string) error {
-	compacted := Compact(data)
-	if rw, ok := WeightsForResource(resource); ok {
-		compacted = budgetSelect(compacted, rw)
+func RenderAgentJSON(w io.Writer, command string, resource compact.Resource, data any, metadata *agent.Metadata, hints []string) error {
+	compacted := compact.Compact(data)
+	if rw, ok := compact.WeightsForResource(resource); ok {
+		compacted = compact.BudgetSelect(compacted, rw)
 	}
 	env := agent.Success(command, compacted, metadata, hints)
 	b, err := json.Marshal(env)

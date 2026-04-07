@@ -1,6 +1,6 @@
 //go:build integration
 
-package output
+package compact
 
 import (
 	"context"
@@ -104,7 +104,7 @@ func TestCompactComparison_Integration(t *testing.T) {
 			rw, hasWeights := WeightsForResource(rc.resource)
 			var budgetBytes []byte
 			if hasWeights {
-				budgeted := budgetSelect(compacted, rw)
+				budgeted := BudgetSelect(compacted, rw)
 				budgetBytes, err = json.Marshal(budgeted)
 				require.NoError(t, err)
 			}

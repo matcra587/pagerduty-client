@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
@@ -68,7 +69,7 @@ $ pdc user list`,
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(users)}
-			return output.RenderAgentJSON(w, "user list", output.ResourceUser, users, &meta, nil)
+			return output.RenderAgentJSON(w, "user list", compact.ResourceUser, users, &meta, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, users, isTTY)
 		default:
@@ -116,7 +117,7 @@ $ pdc user show PUSER01`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "user show", output.ResourceUser, user, nil, nil)
+			return output.RenderAgentJSON(w, "user show", compact.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, user, isTTY)
 		default:
@@ -161,7 +162,7 @@ $ pdc user me`,
 
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "user me", output.ResourceUser, user, nil, nil)
+			return output.RenderAgentJSON(w, "user me", compact.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
 			return output.RenderJSON(w, user, isTTY)
 		default:

@@ -7,6 +7,7 @@ import (
 
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/matcra587/pagerduty-client/internal/agent"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -35,12 +36,12 @@ type flagSchema struct {
 	Usage     string `json:"usage,omitempty"`
 }
 
-func buildSchema(cmd *cobra.Command, compact bool) commandSchema {
+func buildSchema(cmd *cobra.Command, brief bool) commandSchema {
 	s := commandSchema{
 		Use:   cmd.Use,
 		Short: cmd.Short,
 	}
-	if !compact {
+	if !brief {
 		s.Long = cmd.Long
 	}
 
@@ -54,7 +55,7 @@ func buildSchema(cmd *cobra.Command, compact bool) commandSchema {
 			Type:      f.Value.Type(),
 			Default:   f.DefValue,
 		}
-		if !compact {
+		if !brief {
 			fs.Usage = f.Usage
 		}
 		s.Flags = append(s.Flags, fs)
@@ -64,7 +65,7 @@ func buildSchema(cmd *cobra.Command, compact bool) commandSchema {
 		if sub.Hidden {
 			continue
 		}
-		s.Commands = append(s.Commands, buildSchema(sub, compact))
+		s.Commands = append(s.Commands, buildSchema(sub, brief))
 	}
 
 	return s
@@ -85,13 +86,13 @@ $ pdc agent schema
 $ pdc agent schema --compact`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
-		compact, _ := cmd.Flags().GetBool("compact")
-		schema := buildSchema(cmd.Root(), compact)
+		brief, _ := cmd.Flags().GetBool("compact")
+		schema := buildSchema(cmd.Root(), brief)
 
 		w := cmd.OutOrStdout()
 		det := AgentFromContext(cmd)
 		if det.Active {
-			return output.RenderAgentJSON(w, "agent schema", output.ResourceNone, schema, nil, nil)
+			return output.RenderAgentJSON(w, "agent schema", compact.ResourceNone, schema, nil, nil)
 		}
 
 		enc := json.NewEncoder(w)

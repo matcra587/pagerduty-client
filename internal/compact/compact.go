@@ -1,4 +1,7 @@
-package output
+// Package compact normalises PagerDuty API data for agent JSON output,
+// applying deny-list filtering, empty-value stripping, APIObject
+// flattening and token-budget field selection.
+package compact
 
 import (
 	"encoding/json"

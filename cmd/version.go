@@ -6,6 +6,7 @@ import (
 
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
+	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/version"
 	"github.com/spf13/cobra"
@@ -25,7 +26,7 @@ $ pdc version`,
 		w := cmd.OutOrStdout()
 
 		if isAgentMode(cmd) {
-			return output.RenderAgentJSON(w, "version", output.ResourceNone, info, nil, nil)
+			return output.RenderAgentJSON(w, "version", compact.ResourceNone, info, nil, nil)
 		}
 
 		if terminal.Is(os.Stdout) {

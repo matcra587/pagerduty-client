@@ -191,7 +191,7 @@ $ pdc incident show --alerts --payload P000001`,
 			args[0] = resolved
 		}
 
-		incident, err := client.GetIncident(ctx, args[0])
+		incident, _, err := client.GetIncident(ctx, args[0])
 		if err != nil {
 			return fmt.Errorf("getting incident: %w", err)
 		}
@@ -199,6 +199,7 @@ $ pdc incident show --alerts --payload P000001`,
 
 		alerts, _ := cmd.Flags().GetBool("alerts")
 		payload, _ := cmd.Flags().GetBool("payload")
+		detailed, _ := cmd.Flags().GetBool("detailed")
 		if alerts && payload {
 			return errors.New("--alerts and --payload are mutually exclusive")
 		}
@@ -241,11 +242,13 @@ $ pdc incident show --alerts --payload P000001`,
 			IsTTY:     isTTY,
 		})
 
+		enriched := enrichIncident(ctx, client, incident)
+
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "incident show", compact.ResourceIncident, incident, nil, nil)
+			return output.RenderAgentJSON(w, "incident show", compact.ResourceIncident, enriched, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, incident, isTTY)
+			return output.RenderJSON(w, enriched, isTTY)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -255,6 +258,29 @@ $ pdc incident show --alerts --payload P000001`,
 				{"Urgency", incident.Urgency},
 				{"Service", incident.Service.Summary},
 				{"Created", incident.CreatedAt},
+			}
+			if incident.IncidentKey != "" {
+				rows = append(rows, []string{"Incident Key", incident.IncidentKey})
+			}
+			rows = append(rows, []string{"Alerts", fmt.Sprintf("%d triggered, %d resolved", incident.AlertCounts.Triggered, incident.AlertCounts.Resolved)})
+			if incident.LastStatusChangeBy.Summary != "" {
+				rows = append(rows, []string{"Last Changed By", incident.LastStatusChangeBy.Summary})
+			}
+			if len(incident.Teams) > 0 {
+				teamNames := make([]string, len(incident.Teams))
+				for i, t := range incident.Teams {
+					teamNames[i] = t.Summary
+				}
+				rows = append(rows, []string{"Teams", strings.Join(teamNames, ", ")})
+			}
+			if enriched.Integration != nil {
+				rows = append(rows, []string{"Source", enriched.Integration.Source})
+				for _, f := range enriched.Integration.Fields {
+					if !detailed && isVerboseField(f.Label) {
+						continue
+					}
+					rows = append(rows, []string{f.Label, f.Value})
+				}
 			}
 			return output.RenderTable(w, headers, rows, isTTY)
 		}
@@ -890,6 +916,79 @@ type payloadLink struct {
 	URL   string `json:"url"`
 }
 
+// enrichedIncident wraps an incident with parsed integration fields
+// for JSON output.
+type enrichedIncident struct {
+	*pagerduty.Incident
+	Integration *integrationSummary `json:"integration,omitempty"`
+}
+
+// integrationSummary holds parsed fields from an alert body.
+// This is a JSON-friendly projection of integration.Summary —
+// integration.Field carries a Type (FieldBadge, FieldCode, etc.)
+// for TUI rendering that must not leak into agent/JSON output.
+type integrationSummary struct {
+	Source string         `json:"source"`
+	Fields []payloadField `json:"fields,omitempty"`
+	Links  []payloadLink  `json:"links,omitempty"`
+}
+
+// verboseFields are integration fields hidden from the default table
+// view because they duplicate incident metadata or add noise. Shown
+// with --detailed.
+var verboseFields = map[string]struct{}{
+	"Summary":   {},
+	"Condition": {},
+	"Metric":    {},
+	"Body":      {},
+	"Tags":      {},
+	"Title":     {},
+	"Query":     {},
+}
+
+func isVerboseField(label string) bool {
+	_, ok := verboseFields[label]
+	return ok
+}
+
+// enrichIncident fetches the first alert body for the incident and
+// runs integration detection to extract structured fields. Returns
+// the incident without integration fields when there are no alerts
+// or detection fails.
+func enrichIncident(ctx context.Context, client *api.Client, incident *pagerduty.Incident) enrichedIncident {
+	result := enrichedIncident{Incident: incident}
+
+	alerts, err := client.ListIncidentAlerts(ctx, incident.ID)
+	if err != nil {
+		clog.Debug().Err(err).Msg("failed to fetch alerts for enrichment")
+		return result
+	}
+	if len(alerts) == 0 {
+		return result
+	}
+
+	body := alerts[0].Body
+	if len(body) == 0 {
+		return result
+	}
+
+	summary := integration.Detect(body)
+	if summary.Source == "" {
+		return result
+	}
+
+	is := &integrationSummary{Source: summary.Source}
+	for _, f := range summary.Fields {
+		is.Fields = append(is.Fields, payloadField{Label: f.Label, Value: f.Value})
+	}
+	for _, l := range summary.Links {
+		is.Links = append(is.Links, payloadLink{Label: l.Label, URL: l.URL})
+	}
+	result.Integration = is
+
+	return result
+}
+
 // payloadResult builds a structured result for JSON/agent output.
 func payloadResult(summary integration.Summary, body map[string]any) map[string]any {
 	fields := make([]payloadField, len(summary.Fields))
@@ -1172,6 +1271,11 @@ func init() {
 	clib.Extend(sf.Lookup("payload"), clib.FlagExtra{
 		Group: "Output",
 		Terse: "show alert event payload",
+	})
+	sf.Bool("detailed", false, "Show all integration fields in table output")
+	clib.Extend(sf.Lookup("detailed"), clib.FlagExtra{
+		Group: "Output",
+		Terse: "show all integration fields",
 	})
 
 	// shared --from flag

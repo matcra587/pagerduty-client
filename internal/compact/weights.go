@@ -57,7 +57,7 @@ func (w ResourceWeights) ForField(field string) float64 {
 // resourceWeights holds the per-resource weight profiles.
 var resourceWeights = map[Resource]ResourceWeights{
 	ResourceIncident: {
-		Budget:        250,
+		Budget:        400,
 		DefaultWeight: 0.1,
 		Fields: map[string]float64{
 			"id":                    1.0,
@@ -65,6 +65,7 @@ var resourceWeights = map[Resource]ResourceWeights{
 			"status":                1.0,
 			"urgency":               1.0,
 			"priority":              1.0,
+			"integration":           1.0,
 			"service":               0.9,
 			"assignments":           0.9,
 			"incident_number":       0.8,

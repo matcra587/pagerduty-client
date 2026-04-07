@@ -33,6 +33,9 @@ func (Datadog) Normalise(env AlertEnvelope) (Summary, bool) {
 	if v, ok := cd["priority"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Priority", Value: v, Type: FieldBadge})
 	}
+	if v, ok := cd["event_id"].(string); ok {
+		s.Fields = append(s.Fields, Field{Label: "Event ID", Value: v})
+	}
 	// Text.
 	if v, ok := cd["title"].(string); ok {
 		s.Fields = append(s.Fields, Field{Label: "Title", Value: v})

@@ -39,6 +39,27 @@ func TestDatadog_RejectsNonDatadog(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestDatadog_ExtractsEventID(t *testing.T) {
+	t.Parallel()
+	env := UnwrapAlert(map[string]any{
+		"cef_details": map[string]any{
+			"client": "Datadog",
+			"details": map[string]any{
+				"event_id":      "1234567890123456789",
+				"query":         "avg(last_5m):avg:system.cpu{host:web-1} > 90",
+				"monitor_state": "Alert",
+			},
+		},
+	})
+	s, ok := Datadog{}.Normalise(env)
+	require.True(t, ok)
+	fieldMap := make(map[string]string)
+	for _, f := range s.Fields {
+		fieldMap[f.Label] = f.Value
+	}
+	assert.Equal(t, "1234567890123456789", fieldMap["Event ID"])
+}
+
 func TestDatadog_ExtractsFields(t *testing.T) {
 	t.Parallel()
 	s, _ := Datadog{}.Normalise(datadogEnv())

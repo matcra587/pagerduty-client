@@ -166,24 +166,37 @@ func TestGetIncident(t *testing.T) {
 
 	mux.HandleFunc("/incidents/P1", func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "body", r.URL.Query().Get("include[]"))
 		_, _ = w.Write([]byte(`{
 			"incident": {
 				"id": "P1",
 				"title": "Server down",
 				"status": "triggered",
-				"service": {"id": "PSVC001", "type": "service_reference"}
+				"service": {"id": "PSVC001", "type": "service_reference"},
+				"body": {
+					"cef_details": {
+						"client": "Datadog",
+						"details": {
+							"event_id": "12345",
+							"monitor_state": "Alert",
+							"query": "avg:cpu > 90"
+						}
+					}
+				}
 			}
 		}`))
 	})
 
-	c := NewClient("test-token", WithBaseURL(server.URL))
-	incident, err := c.GetIncident(context.Background(), "P1")
+	client := NewClient("test-token", WithBaseURL(server.URL))
+	incident, body, err := client.GetIncident(context.Background(), "P1")
 	require.NoError(t, err)
 	require.NotNil(t, incident)
 	assert.Equal(t, "P1", incident.ID)
 	assert.Equal(t, "Server down", incident.Title)
 	assert.Equal(t, "triggered", incident.Status)
 	assert.Equal(t, "PSVC001", incident.Service.ID)
+	require.NotNil(t, body)
+	assert.Contains(t, string(body), "Datadog")
 }
 
 func TestGetIncident_NotFound(t *testing.T) {
@@ -197,10 +210,35 @@ func TestGetIncident_NotFound(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":{"message":"Incident not found","code":2100}}`))
 	})
 
-	c := NewClient("test-token", WithBaseURL(server.URL))
-	incident, err := c.GetIncident(context.Background(), "NOTEXIST")
+	client := NewClient("test-token", WithBaseURL(server.URL))
+	incident, _, err := client.GetIncident(context.Background(), "NOTEXIST")
 	require.Error(t, err)
 	assert.Nil(t, incident)
+}
+
+func TestGetIncident_NilBody(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/incidents/P2", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"incident": {
+				"id": "P2",
+				"title": "Manual incident",
+				"status": "triggered",
+				"service": {"id": "PSVC001", "type": "service_reference"}
+			}
+		}`))
+	})
+
+	client := NewClient("test-token", WithBaseURL(server.URL))
+	incident, body, err := client.GetIncident(context.Background(), "P2")
+	require.NoError(t, err)
+	require.NotNil(t, incident)
+	assert.Equal(t, "P2", incident.ID)
+	assert.Nil(t, body)
 }
 
 func TestAckIncident(t *testing.T) {

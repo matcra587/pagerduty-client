@@ -76,20 +76,31 @@ func incidentListParams(opts ListIncidentsOpts) url.Values {
 	return v
 }
 
-// GetIncident retrieves a single incident by ID.
-func (c *Client) GetIncident(ctx context.Context, id string) (*pagerduty.Incident, error) {
-	body, err := c.get(ctx, "/incidents/"+id, nil)
+// incidentWithRawBody works around go-pagerduty typing Body.Details
+// as string when the PD API returns it as an object for some
+// integrations (Datadog CEF, Google, etc.).
+type incidentWithRawBody struct {
+	pagerduty.Incident
+	Body json.RawMessage `json:"body,omitempty"`
+}
+
+// GetIncident retrieves a single incident by ID. Includes the
+// incident body so integration details are available for parsing.
+func (c *Client) GetIncident(ctx context.Context, id string) (*pagerduty.Incident, json.RawMessage, error) {
+	params := url.Values{}
+	params.Add("include[]", "body")
+	raw, err := c.get(ctx, "/incidents/"+id, params)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var resp struct {
-		Incident pagerduty.Incident `json:"incident"`
+		Incident incidentWithRawBody `json:"incident"`
 	}
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("decoding incident: %w", err)
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, nil, fmt.Errorf("decoding incident: %w", err)
 	}
-	return &resp.Incident, nil
+	return &resp.Incident.Incident, resp.Incident.Body, nil
 }
 
 type incidentStatusUpdate struct {

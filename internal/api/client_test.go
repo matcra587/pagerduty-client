@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -322,6 +323,46 @@ func TestRetryAfterDuration_PassesThroughReasonableValues(t *testing.T) {
 	t.Parallel()
 	got := retryAfterDuration("5", time.Second)
 	assert.Equal(t, 5*time.Second, got)
+}
+
+func TestGetDeduplicatesConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		time.Sleep(50 * time.Millisecond) // hold the request open
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	})
+
+	client := NewClient("test-token", WithBaseURL(server.URL))
+
+	const n = 10
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+	results := make([][]byte, n)
+
+	// Ensure all goroutines start before any can finish.
+	ready := make(chan struct{})
+	for i := range n {
+		wg.Go(func() {
+			<-ready
+			results[i], errs[i] = client.get(context.Background(), "/test", nil)
+		})
+	}
+	close(ready)
+	wg.Wait()
+
+	// All callers got the same result, server hit exactly once.
+	assert.Equal(t, int32(1), hits.Load())
+	for i := range n {
+		require.NoError(t, errs[i])
+		assert.JSONEq(t, `{"ok":true}`, string(results[i]))
+	}
 }
 
 func TestBackoffJitter_SleepWithinBounds(t *testing.T) {

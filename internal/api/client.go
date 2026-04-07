@@ -18,6 +18,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/version"
+	"golang.org/x/sync/singleflight"
 	"golang.org/x/time/rate"
 )
 
@@ -69,6 +70,7 @@ type Client struct {
 	token        string
 	httpClient   *http.Client
 	limiter      *rate.Limiter
+	sfGroup      singleflight.Group
 	userAgent    string
 	extraHeaders map[string]string
 }
@@ -245,14 +247,23 @@ func (c *Client) get(ctx context.Context, path string, params url.Values) ([]byt
 	if err := validatePath(path); err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("building request: %w", err)
-	}
+	u := c.baseURL + path
 	if len(params) > 0 {
-		req.URL.RawQuery = params.Encode()
+		u += "?" + params.Encode()
 	}
-	return c.do(ctx, req)
+	// The first caller's context governs the shared request. This is safe
+	// because all callers in this codebase share the same root context.
+	v, err, _ := c.sfGroup.Do(u, func() (any, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		if err != nil {
+			return nil, fmt.Errorf("building request: %w", err)
+		}
+		return c.do(ctx, req)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.([]byte), nil
 }
 
 func (c *Client) postFrom(ctx context.Context, path string, payload any, from string) ([]byte, error) {

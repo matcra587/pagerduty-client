@@ -12,6 +12,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
 )
 
@@ -44,6 +45,19 @@ $ pdc maintenance-window list --service S1`,
 		teams, _ := cmd.Flags().GetStringSlice("team")
 		services, _ := cmd.Flags().GetStringSlice("service")
 		filter, _ := cmd.Flags().GetString("filter")
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			var resolveErr error
+			teams, resolveErr = resolveSlice(!det.Active, teams, func(s string) (string, []resolve.Match, error) { return r.Team(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+			services, resolveErr = resolveSlice(!det.Active, services, func(s string) (string, []resolve.Match, error) { return r.Service(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
 
 		windows, err := client.ListMaintenanceWindows(ctx, api.ListMaintenanceWindowsOpts{
 			Query:      query,
@@ -90,6 +104,16 @@ $ pdc maintenance-window show PW98YIO`,
 		client := ClientFromContext(cmd)
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.MaintenanceWindow(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		mw, err := client.GetMaintenanceWindow(ctx, args[0])
 		if err != nil {

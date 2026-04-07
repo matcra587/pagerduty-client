@@ -80,6 +80,16 @@ $ pdc schedule show PSCHED01`,
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Schedule(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		schedule, err := client.GetSchedule(ctx, args[0])
 		if err != nil {
 			return fmt.Errorf("getting schedule: %w", err)
@@ -124,6 +134,16 @@ $ pdc schedule override --user PUSER01 --start 2024-01-15T09:00:00Z --end 2024-0
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Schedule(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
@@ -133,6 +153,16 @@ $ pdc schedule override --user PUSER01 --start 2024-01-15T09:00:00Z --end 2024-0
 		if userID == "" {
 			return errors.New("--user is required")
 		}
+
+		if r != nil {
+			rid, matches, fnErr := r.User(ctx, userID)
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			userID = resolved
+		}
+
 		start, _ := cmd.Flags().GetString("start")
 		if start == "" {
 			return errors.New("--start is required")

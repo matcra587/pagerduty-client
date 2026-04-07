@@ -12,6 +12,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +38,19 @@ $ pdc oncall --schedule PSCHED01`,
 		eps, _ := cmd.Flags().GetStringSlice("escalation-policy")
 		since, _ := cmd.Flags().GetString("since")
 		until, _ := cmd.Flags().GetString("until")
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			var resolveErr error
+			teams, resolveErr = resolveSlice(!det.Active, teams, func(s string) (string, []resolve.Match, error) { return r.Team(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+			schedules, resolveErr = resolveSlice(!det.Active, schedules, func(s string) (string, []resolve.Match, error) { return r.Schedule(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
 
 		oncalls, err := client.ListOnCalls(ctx, api.ListOnCallsOpts{
 			ScheduleIDs:         schedules,

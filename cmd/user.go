@@ -11,6 +11,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
 )
 
@@ -35,6 +36,15 @@ $ pdc user list`,
 
 		teams, _ := cmd.Flags().GetStringSlice("team")
 		query, _ := cmd.Flags().GetString("query")
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			var resolveErr error
+			teams, resolveErr = resolveSlice(!det.Active, teams, func(s string) (string, []resolve.Match, error) { return r.Team(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
 
 		users, err := client.ListUsers(ctx, api.ListUsersOpts{
 			TeamIDs: teams,
@@ -79,6 +89,16 @@ $ pdc user show PUSER01`,
 		client := ClientFromContext(cmd)
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.User(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		user, err := client.GetUser(ctx, args[0])
 		if err != nil {

@@ -79,6 +79,16 @@ $ pdc team show PTEAM01`,
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Team(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		team, err := client.GetTeam(ctx, args[0])
 		if err != nil {
 			return fmt.Errorf("getting team: %w", err)

@@ -11,6 +11,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +40,15 @@ $ pdc service list --team PTEAM01`,
 		teams, _ := cmd.Flags().GetStringSlice("team")
 		query, _ := cmd.Flags().GetString("query")
 		sortBy, _ := cmd.Flags().GetString("sort")
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			var resolveErr error
+			teams, resolveErr = resolveSlice(!det.Active, teams, func(s string) (string, []resolve.Match, error) { return r.Team(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
 
 		services, err := client.ListServices(ctx, api.ListServicesOpts{
 			TeamIDs: teams,
@@ -84,6 +94,16 @@ $ pdc service show PSVC001`,
 		client := ClientFromContext(cmd)
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Service(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		service, err := client.GetService(ctx, args[0])
 		if err != nil {

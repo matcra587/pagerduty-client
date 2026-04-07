@@ -20,6 +20,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/credential"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/matcra587/pagerduty-client/internal/tui"
 	"github.com/matcra587/pagerduty-client/internal/update"
 	"github.com/matcra587/pagerduty-client/internal/version"
@@ -34,6 +35,7 @@ const (
 	configKey       contextKey = "config"
 	clientKey       contextKey = "client"
 	agentKey        contextKey = "agent"
+	resolverKey     contextKey = "resolver"
 	userEmailKey    contextKey = "userEmail"
 	updateResultKey contextKey = "updateResult"
 )
@@ -317,6 +319,7 @@ func resolveAndStore(ctx context.Context, pf *pflag.FlagSet, state preRunState, 
 	if cfg.Token != "" {
 		client := api.NewClient(cfg.Token, apiOpts...)
 		ctx = context.WithValue(ctx, clientKey, client)
+		ctx = context.WithValue(ctx, resolverKey, resolve.New(client))
 
 		// Resolve the token owner's email for write operations (From header).
 		// Best-effort: a failure here must not block startup.
@@ -425,6 +428,12 @@ func ConfigFromContext(cmd *cobra.Command) *config.Config {
 // ClientFromContext retrieves the API Client from the command context.
 func ClientFromContext(cmd *cobra.Command) *api.Client {
 	v, _ := cmd.Context().Value(clientKey).(*api.Client)
+	return v
+}
+
+// ResolverFromContext retrieves the Resolver from the command context.
+func ResolverFromContext(cmd *cobra.Command) *resolve.Resolver {
+	v, _ := cmd.Context().Value(resolverKey).(*resolve.Resolver)
 	return v
 }
 

@@ -13,6 +13,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +44,15 @@ $ pdc escalation-policy list --team T1`,
 
 		query, _ := cmd.Flags().GetString("query")
 		teams, _ := cmd.Flags().GetStringSlice("team")
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			var resolveErr error
+			teams, resolveErr = resolveSlice(!det.Active, teams, func(s string) (string, []resolve.Match, error) { return r.Team(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
 
 		policies, err := client.ListEscalationPolicies(ctx, api.ListEscalationPoliciesOpts{
 			Query:   query,
@@ -87,6 +97,16 @@ $ pdc escalation-policy show PABC123`,
 		client := ClientFromContext(cmd)
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.EscalationPolicy(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		ep, err := client.GetEscalationPolicy(ctx, args[0])
 		if err != nil {

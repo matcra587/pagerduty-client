@@ -22,6 +22,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/spf13/cobra"
 )
 
@@ -59,6 +60,28 @@ $ pdc incident list --team PTEAM01`,
 		services, _ := cmd.Flags().GetStringSlice("service")
 		users, _ := cmd.Flags().GetStringSlice("user")
 		schedules, _ := cmd.Flags().GetStringSlice("schedule")
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			var resolveErr error
+			teams, resolveErr = resolveSlice(!det.Active, teams, func(s string) (string, []resolve.Match, error) { return r.Team(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+			services, resolveErr = resolveSlice(!det.Active, services, func(s string) (string, []resolve.Match, error) { return r.Service(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+			users, resolveErr = resolveSlice(!det.Active, users, func(s string) (string, []resolve.Match, error) { return r.User(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+			schedules, resolveErr = resolveSlice(!det.Active, schedules, func(s string) (string, []resolve.Match, error) { return r.Schedule(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
+
 		if len(schedules) == 0 && len(users) == 0 && len(teams) == 0 && len(services) == 0 && cfg.Service != "" {
 			services = []string{cfg.Service}
 		}
@@ -157,6 +180,16 @@ $ pdc incident show --alerts --payload P000001`,
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		incident, err := client.GetIncident(ctx, args[0])
 		if err != nil {
 			return fmt.Errorf("getting incident: %w", err)
@@ -239,6 +272,16 @@ $ pdc incident ack P000001`,
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
@@ -270,6 +313,16 @@ $ pdc incident resolve --note "Root cause identified and fixed" P000001`,
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
@@ -320,6 +373,16 @@ $ pdc incident snooze --duration 2h P000001`,
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
@@ -358,12 +421,29 @@ $ pdc incident reassign --user PUSER01 --user PUSER02 P000001`,
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
 		}
 
 		users, _ := cmd.Flags().GetStringSlice("user")
+		if r != nil {
+			var resolveErr error
+			users, resolveErr = resolveSlice(!det.Active, users, func(s string) (string, []resolve.Match, error) { return r.User(ctx, s) })
+			if resolveErr != nil {
+				return resolveErr
+			}
+		}
 		if len(users) == 0 {
 			return errors.New("--user is required")
 		}
@@ -391,6 +471,16 @@ $ pdc incident merge --source P000002 --source P000003 P000001`,
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
@@ -432,6 +522,16 @@ $ pdc incident note add --content "Investigating the issue" P000001`,
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
@@ -466,6 +566,16 @@ $ pdc incident note list P000001`,
 		client := ClientFromContext(cmd)
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		notes, err := client.ListIncidentNotes(ctx, args[0])
 		if err != nil {
@@ -511,6 +621,16 @@ $ pdc incident log --since 7d P000001`,
 		client := ClientFromContext(cmd)
 		cfg := ConfigFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		since, _ := cmd.Flags().GetString("since")
 		until, _ := cmd.Flags().GetString("until")
@@ -567,6 +687,16 @@ $ pdc incident urgency P000001 high`,
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
@@ -601,6 +731,16 @@ $ pdc incident title P000001 "Database connection pool exhausted"`,
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
 
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
 		from, err := resolveFromEmail(cmd)
 		if err != nil {
 			return err
@@ -632,6 +772,16 @@ $ pdc incident resolve-alert P000001 A000001 A000002`,
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
 		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
 
 		from, err := resolveFromEmail(cmd)
 		if err != nil {

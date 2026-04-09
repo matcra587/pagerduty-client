@@ -69,8 +69,8 @@ func TestVersionCache_IsDismissed(t *testing.T) {
 	t.Run("dismissed when versions match", func(t *testing.T) {
 		t.Parallel()
 		c := update.VersionCache{
-			LatestVersion:    "0.4.0",
-			DismissedVersion: "0.4.0",
+			LatestRef:    "0.4.0",
+			DismissedRef: "0.4.0",
 		}
 		assert.True(t, c.IsDismissed())
 	})
@@ -78,15 +78,15 @@ func TestVersionCache_IsDismissed(t *testing.T) {
 	t.Run("not dismissed when versions differ", func(t *testing.T) {
 		t.Parallel()
 		c := update.VersionCache{
-			LatestVersion:    "0.5.0",
-			DismissedVersion: "0.4.0",
+			LatestRef:    "0.5.0",
+			DismissedRef: "0.4.0",
 		}
 		assert.False(t, c.IsDismissed())
 	})
 
 	t.Run("not dismissed when no dismissed version", func(t *testing.T) {
 		t.Parallel()
-		c := update.VersionCache{LatestVersion: "0.4.0"}
+		c := update.VersionCache{LatestRef: "0.4.0"}
 		assert.False(t, c.IsDismissed())
 	})
 }
@@ -117,17 +117,17 @@ func TestWriteCache_ReadCache_Roundtrip(t *testing.T) {
 	path := filepath.Join(dir, "cache.json")
 
 	want := update.VersionCache{
-		LatestVersion:    "0.4.0",
-		CheckedAt:        time.Now().Truncate(time.Second),
-		DismissedVersion: "0.3.0",
+		LatestRef:    "0.4.0",
+		CheckedAt:    time.Now().Truncate(time.Second),
+		DismissedRef: "0.3.0",
 	}
 
 	require.NoError(t, update.WriteCache(path, want))
 
 	got, err := update.ReadCache(path)
 	require.NoError(t, err)
-	assert.Equal(t, want.LatestVersion, got.LatestVersion)
-	assert.Equal(t, want.DismissedVersion, got.DismissedVersion)
+	assert.Equal(t, want.LatestRef, got.LatestRef)
+	assert.Equal(t, want.DismissedRef, got.DismissedRef)
 	assert.WithinDuration(t, want.CheckedAt, got.CheckedAt, time.Second)
 }
 

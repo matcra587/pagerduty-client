@@ -19,9 +19,10 @@ const (
 
 // CheckResult holds the outcome of a version check.
 type CheckResult struct {
-	LatestVersion string
-	UpdateAvail   bool
-	Dismissed     bool
+	LatestRef   string
+	Channel     Channel
+	UpdateAvail bool
+	Dismissed   bool
 }
 
 // CheckForUpdate reads the cache, refreshes if stale and returns
@@ -47,7 +48,7 @@ func CheckForUpdate(ctx context.Context) CheckResult {
 			clog.Debug().Err(err).Msg("could not fetch latest version")
 			return resultFromCache(cache)
 		}
-		cache.LatestVersion = latest
+		cache.LatestRef = latest
 		cache.CheckedAt = time.Now()
 		if err := WriteCache(cachePath, cache); err != nil {
 			clog.Debug().Err(err).Msg("could not write version cache")
@@ -60,9 +61,10 @@ func CheckForUpdate(ctx context.Context) CheckResult {
 func resultFromCache(cache VersionCache) CheckResult {
 	current := version.Version
 	return CheckResult{
-		LatestVersion: cache.LatestVersion,
-		UpdateAvail:   IsNewer(current, cache.LatestVersion),
-		Dismissed:     cache.IsDismissed(),
+		LatestRef:   cache.LatestRef,
+		Channel:     ChannelStable,
+		UpdateAvail: IsNewer(current, cache.LatestRef),
+		Dismissed:   cache.IsDismissed(),
 	}
 }
 
@@ -72,7 +74,7 @@ func NotifyCLI(result CheckResult) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "\nA new version of pdc is available: v%s -> v%s\nRun \"pdc update\" to update.\n\n",
-		version.Version, result.LatestVersion)
+		version.Version, result.LatestRef)
 }
 
 // ShouldCheck returns false when update checks should be skipped.
@@ -89,6 +91,6 @@ func DismissVersion(ver string) {
 	}
 	cachePath := filepath.Join(cacheDir, cacheFile)
 	cache, _ := ReadCache(cachePath)
-	cache.DismissedVersion = ver
+	cache.DismissedRef = ver
 	_ = WriteCache(cachePath, cache)
 }

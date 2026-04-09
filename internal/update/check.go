@@ -25,9 +25,10 @@ const (
 
 // VersionCache holds the result of a GitHub release check.
 type VersionCache struct {
-	LatestVersion    string    `json:"latest_version"`
-	CheckedAt        time.Time `json:"checked_at"`
-	DismissedVersion string    `json:"dismissed_version"`
+	Channel      string    `json:"channel"`
+	LatestRef    string    `json:"latest_ref"`
+	CheckedAt    time.Time `json:"checked_at"`
+	DismissedRef string    `json:"dismissed_ref"`
 }
 
 // IsStale returns true if CheckedAt is zero or older than maxAge.
@@ -38,9 +39,9 @@ func (c VersionCache) IsStale(maxAge time.Duration) bool {
 	return time.Since(c.CheckedAt) > maxAge
 }
 
-// IsDismissed returns true if DismissedVersion equals LatestVersion.
+// IsDismissed returns true if DismissedRef equals LatestRef.
 func (c VersionCache) IsDismissed() bool {
-	return c.DismissedVersion != "" && c.DismissedVersion == c.LatestVersion
+	return c.DismissedRef != "" && c.DismissedRef == c.LatestRef
 }
 
 // ReadCache reads a VersionCache from disk. A missing or corrupt file

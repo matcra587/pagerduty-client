@@ -120,7 +120,7 @@ $ pdc oncall`,
 
 		if !det.Active && isTTY && cfg.Interactive {
 			if updateResult.UpdateAvail && !updateResult.Dismissed {
-				choice, err := tui.RunUpdatePrompt(version.Version, updateResult.LatestVersion)
+				choice, err := tui.RunUpdatePrompt(version.Version, updateResult.LatestRef)
 				if err != nil {
 					clog.Debug().Err(err).Msg("update prompt error")
 				}
@@ -129,7 +129,7 @@ $ pdc oncall`,
 				case tui.UpdateNow:
 					return update.Run(cmd.Context())
 				case tui.UpdateDismiss:
-					update.DismissVersion(updateResult.LatestVersion)
+					update.DismissVersion(updateResult.LatestRef)
 				}
 			}
 

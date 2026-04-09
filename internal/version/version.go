@@ -49,12 +49,18 @@ func (b BuildInfo) String() string {
   built by: %s`, b.Version, b.Commit, b.Branch, b.BuildTime, b.BuildBy)
 }
 
-// ResolvedCommit returns the build commit hash. It prefers the
-// ldflags-injected Commit value; when that is "unknown" (e.g.
-// go install @main), it falls back to vcs.revision from build info.
+// CommitHashLen is the standard truncation length for commit SHAs.
+// Both ResolvedCommit and FetchLatestCommit normalise to this length
+// so comparisons are consistent regardless of source.
+const CommitHashLen = 12
+
+// ResolvedCommit returns the build commit hash, truncated to
+// CommitHashLen characters. It prefers the ldflags-injected Commit
+// value; when that is "unknown" (e.g. go install @main), it falls
+// back to vcs.revision from build info.
 func ResolvedCommit() string {
 	if Commit != "unknown" {
-		return Commit
+		return Commit[:min(CommitHashLen, len(Commit))]
 	}
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
@@ -62,7 +68,7 @@ func ResolvedCommit() string {
 	}
 	for _, s := range info.Settings {
 		if s.Key == "vcs.revision" {
-			return s.Value[:min(12, len(s.Value))]
+			return s.Value[:min(CommitHashLen, len(s.Value))]
 		}
 	}
 	return "unknown"

@@ -38,6 +38,7 @@ var configKeys = []string{
 	"defaults.team",
 	"defaults.service",
 	"defaults.interactive",
+	"defaults.update_channel",
 	"tui.theme",
 	"tui.show_resolved",
 	"tui.page_size",
@@ -54,6 +55,7 @@ var configDescriptions = map[string]string{ //nolint:gosec // G101 false positiv
 	"defaults.team":             "Default team filter (see: pdc team list)",
 	"defaults.service":          "Default service filter (see: pdc service list)",
 	"defaults.interactive":      "Launch TUI by default",
+	"defaults.update_channel":   "Update channel (stable/dev)",
 	"tui.theme":                 "TUI colour theme",
 	"tui.show_resolved":         "Show resolved incidents",
 	"tui.page_size":             "TUI page size",
@@ -63,12 +65,13 @@ var configDescriptions = map[string]string{ //nolint:gosec // G101 false positiv
 // envVarMapping maps config keys to their environment variable equivalents.
 // Only keys with env var support are listed.
 var envVarMapping = map[string]string{
-	"base_url":             "PDC_BASE_URL",
-	"defaults.email":       "PDC_EMAIL",
-	"defaults.team":        "PDC_TEAM",
-	"defaults.service":     "PDC_SERVICE",
-	"defaults.format":      "PDC_FORMAT",
-	"defaults.interactive": "PDC_INTERACTIVE",
+	"base_url":                "PDC_BASE_URL",
+	"defaults.email":          "PDC_EMAIL",
+	"defaults.team":           "PDC_TEAM",
+	"defaults.service":        "PDC_SERVICE",
+	"defaults.format":         "PDC_FORMAT",
+	"defaults.interactive":    "PDC_INTERACTIVE",
+	"defaults.update_channel": "PDC_UPDATE_CHANNEL",
 }
 
 // ------------------------------------------------------------------
@@ -311,6 +314,7 @@ func configToMap(cfg *config.Config) map[string]string {
 		"defaults.team":             cfg.Team,
 		"defaults.service":          cfg.Service,
 		"defaults.interactive":      strconv.FormatBool(cfg.Interactive),
+		"defaults.update_channel":   cfg.UpdateChannel,
 		"tui.theme":                 cfg.TUI.Theme,
 		"tui.show_resolved":         strconv.FormatBool(cfg.TUI.ShowResolved),
 		"tui.page_size":             strconv.Itoa(cfg.TUI.PageSize),

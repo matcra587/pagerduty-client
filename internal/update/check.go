@@ -14,6 +14,7 @@ import (
 
 	ghAuth "github.com/cli/go-gh/v2/pkg/auth"
 	"github.com/gechr/clog"
+	"github.com/matcra587/pagerduty-client/internal/version"
 	"golang.org/x/mod/semver"
 )
 
@@ -186,7 +187,7 @@ func FetchLatestCommit(ctx context.Context, baseURL string) (string, error) {
 		return "", fmt.Errorf("decoding commit response: %w", err)
 	}
 
-	return commit.SHA[:min(12, len(commit.SHA))], nil
+	return commit.SHA[:min(version.CommitHashLen, len(commit.SHA))], nil
 }
 
 // IsNewer returns true if latest is a newer semver than current.

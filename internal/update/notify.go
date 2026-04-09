@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gechr/clog"
@@ -86,7 +87,7 @@ func resultFromCache(cache VersionCache, ch Channel) CheckResult {
 		return CheckResult{
 			LatestRef:   cache.LatestRef,
 			Channel:     ch,
-			UpdateAvail: current != "unknown" && cache.LatestRef != "" && current != cache.LatestRef,
+			UpdateAvail: current != "unknown" && cache.LatestRef != "" && !commitsMatch(current, cache.LatestRef),
 			Dismissed:   cache.IsDismissed(),
 		}
 	default:
@@ -133,4 +134,15 @@ func DismissVersion(ver string) {
 	cache, _ := ReadCache(cachePath)
 	cache.DismissedRef = ver
 	_ = WriteCache(cachePath, cache)
+}
+
+// commitsMatch returns true if two commit SHAs refer to the same
+// commit. Handles different truncation lengths by comparing on the
+// shorter of the two (e.g. 7-char ldflags vs 12-char API response).
+func commitsMatch(a, b string) bool {
+	n := min(len(a), len(b))
+	if n == 0 {
+		return false
+	}
+	return strings.EqualFold(a[:n], b[:n])
 }

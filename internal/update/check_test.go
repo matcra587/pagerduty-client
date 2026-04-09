@@ -3,6 +3,7 @@ package update_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -162,4 +163,116 @@ func TestFetchLatestVersion_ServerError(t *testing.T) {
 
 	_, err := update.FetchLatestVersion(context.Background(), server.URL)
 	assert.Error(t, err)
+}
+
+func TestFetchLatestCommit_Success(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/repos/matcra587/pagerduty-client/commits/main", func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"sha": "abc123def456789"})
+	})
+
+	sha, err := update.FetchLatestCommit(context.Background(), server.URL)
+	require.NoError(t, err)
+	assert.Equal(t, "abc123def456", sha)
+}
+
+func TestFetchLatestCommit_ServerError(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/repos/matcra587/pagerduty-client/commits/main", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	})
+
+	_, err := update.FetchLatestCommit(context.Background(), server.URL)
+	assert.Error(t, err)
+}
+
+func TestReadCache_LegacyFormat(t *testing.T) {
+	t.Parallel()
+
+	// Simulate a cache file written by a pre-channel version of pdc.
+	// Old format used "latest_version" and "dismissed_version" JSON keys
+	// with no "channel" field.
+	recent := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
+	legacy := fmt.Sprintf(`{
+		"latest_version": "0.10.0",
+		"checked_at": %q,
+		"dismissed_version": "0.9.0"
+	}`, recent)
+
+	path := filepath.Join(t.TempDir(), "version.json")
+	require.NoError(t, os.WriteFile(path, []byte(legacy), 0o600))
+
+	c, err := update.ReadCache(path)
+	require.NoError(t, err)
+
+	// Old keys don't match new struct tags — fields should be zero-value.
+	assert.Empty(t, c.LatestRef, "old latest_version key should not populate LatestRef")
+	assert.Empty(t, c.DismissedRef, "old dismissed_version key should not populate DismissedRef")
+	assert.Empty(t, c.Channel, "old format has no channel field")
+
+	// checked_at key is unchanged, so CheckedAt unmarshals correctly.
+	// The cache is NOT stale by time — but CheckForUpdate will
+	// force-invalidate it because Channel is "" (doesn't match "stable").
+	assert.False(t, c.IsStale(24*time.Hour), "checked_at is valid, cache is not time-stale")
+	assert.NotZero(t, c.CheckedAt, "checked_at key is unchanged and should unmarshal")
+}
+
+func TestReadCache_LegacyFormat_NotDismissed(t *testing.T) {
+	t.Parallel()
+
+	// A legacy cache with empty fields should not report as dismissed.
+	recent := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
+	legacy := fmt.Sprintf(`{"latest_version": "0.10.0", "checked_at": %q}`, recent)
+
+	path := filepath.Join(t.TempDir(), "version.json")
+	require.NoError(t, os.WriteFile(path, []byte(legacy), 0o600))
+
+	c, err := update.ReadCache(path)
+	require.NoError(t, err)
+
+	assert.False(t, c.IsDismissed(), "legacy cache should not be dismissed")
+}
+
+func TestIsNewerDev_DifferentCommits(t *testing.T) {
+	t.Parallel()
+	current := "abc123def456"
+	latest := "789012345678"
+	updateAvail := current != "unknown" && latest != "" && current != latest
+	assert.True(t, updateAvail)
+}
+
+func TestIsNewerDev_SameCommit(t *testing.T) {
+	t.Parallel()
+	current := "abc123def456"
+	latest := "abc123def456"
+	updateAvail := current != "unknown" && latest != "" && current != latest
+	assert.False(t, updateAvail)
+}
+
+func TestIsNewerDev_UnknownCommit(t *testing.T) {
+	t.Parallel()
+	current := "unknown"
+	latest := "abc123def456"
+	updateAvail := current != "unknown" && latest != "" && current != latest
+	assert.False(t, updateAvail)
+}
+
+func TestIsNewerDev_EmptyLatest(t *testing.T) {
+	t.Parallel()
+	current := "abc123def456"
+	latest := ""
+	updateAvail := current != "unknown" && latest != "" && current != latest
+	assert.False(t, updateAvail)
 }

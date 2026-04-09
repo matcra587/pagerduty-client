@@ -103,7 +103,8 @@ $ pdc oncall`,
 		// Check for updates (cached for 24h, 3s timeout).
 		isTTY := terminal.Is(os.Stdout)
 		if update.ShouldCheck(state.det.Active, isTTY) {
-			result := update.CheckForUpdate(cmd.Context())
+			ch, _ := update.ParseChannel(state.cfg.UpdateChannel)
+			result := update.CheckForUpdate(cmd.Context(), ch)
 			update.NotifyCLI(result)
 			cmd.SetContext(context.WithValue(cmd.Context(), updateResultKey, result))
 		}
@@ -120,14 +121,19 @@ $ pdc oncall`,
 
 		if !det.Active && isTTY && cfg.Interactive {
 			if updateResult.UpdateAvail && !updateResult.Dismissed {
-				choice, err := tui.RunUpdatePrompt(version.Version, updateResult.LatestRef)
+				ch, _ := update.ParseChannel(cfg.UpdateChannel)
+				currentRef := version.Version
+				if updateResult.Channel == update.ChannelDev {
+					currentRef = version.ResolvedCommit()
+				}
+				choice, err := tui.RunUpdatePrompt(currentRef, updateResult.LatestRef, ch)
 				if err != nil {
 					clog.Debug().Err(err).Msg("update prompt error")
 				}
 
 				switch choice {
 				case tui.UpdateNow:
-					return update.Run(cmd.Context())
+					return update.Run(cmd.Context(), ch)
 				case tui.UpdateDismiss:
 					update.DismissVersion(updateResult.LatestRef)
 				}

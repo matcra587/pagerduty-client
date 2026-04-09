@@ -50,6 +50,7 @@ type Config struct {
 	Team             string            `koanf:"-"`
 	Service          string            `koanf:"-"`
 	Format           string            `koanf:"-"`
+	UpdateChannel    string            `koanf:"-"`
 	RefreshInterval  int               `koanf:"-"`
 	Debug            bool              `koanf:"-"`
 	AgentMode        bool              `koanf:"-"`
@@ -186,6 +187,9 @@ func Load(opts ...Option) (*Config, error) {
 	if k.Bool("defaults.interactive") {
 		cfg.Interactive = true
 	}
+	if v := k.String("defaults.update_channel"); v != "" {
+		cfg.UpdateChannel = v
+	}
 
 	// Load .env from the working directory if present. Ignore errors
 	// (file is optional). Variables set here are picked up by applyEnv.
@@ -227,5 +231,8 @@ func applyEnv(cfg *Config) {
 	}
 	if v := os.Getenv("PDC_INTERACTIVE"); v != "" {
 		cfg.Interactive = v == "1" || v == "true"
+	}
+	if v := os.Getenv("PDC_UPDATE_CHANNEL"); v != "" {
+		cfg.UpdateChannel = v
 	}
 }

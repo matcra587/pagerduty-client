@@ -1,7 +1,10 @@
 // Package version exposes build-time version information injected via ldflags.
 package version
 
-import "fmt"
+import (
+	"fmt"
+	"runtime/debug"
+)
 
 //nolint:gochecknoglobals
 var (
@@ -44,4 +47,23 @@ func (b BuildInfo) String() string {
   branch:   %s
   built:    %s
   built by: %s`, b.Version, b.Commit, b.Branch, b.BuildTime, b.BuildBy)
+}
+
+// ResolvedCommit returns the build commit hash. It prefers the
+// ldflags-injected Commit value; when that is "unknown" (e.g.
+// go install @main), it falls back to vcs.revision from build info.
+func ResolvedCommit() string {
+	if Commit != "unknown" {
+		return Commit
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			return s.Value[:min(12, len(s.Value))]
+		}
+	}
+	return "unknown"
 }

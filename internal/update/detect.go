@@ -63,6 +63,46 @@ func DetectMethod() InstallMethod {
 	return DetectMethodFromPath(resolved, goMod)
 }
 
+// IsHomebrewHEAD returns true if the current binary is a Homebrew
+// HEAD install. Only meaningful when DetectMethod returns Homebrew.
+func IsHomebrewHEAD() bool {
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return false
+	}
+	return IsHomebrewHEADFromPath(resolved)
+}
+
+// IsHomebrewHEADFromPath is the testable core of HEAD detection.
+// Homebrew builds HEAD formulae into directories named HEAD-<hash>
+// under the Cellar (e.g. /opt/homebrew/Cellar/<name>/HEAD-abc1234/).
+func IsHomebrewHEADFromPath(binPath string) bool {
+	isHomebrew := false
+	for _, prefix := range homebrewPrefixes {
+		if strings.HasPrefix(binPath, prefix) {
+			isHomebrew = true
+			break
+		}
+	}
+	if !isHomebrew {
+		return false
+	}
+
+	// Find the Cellar segment and extract the version directory.
+	// Path layout: <prefix>[/Cellar]/<formula>/<version>/bin/<binary>
+	_, rest, found := strings.Cut(binPath, "/Cellar/")
+	if !found {
+		return false
+	}
+
+	parts := strings.SplitN(rest, "/", 3)
+	return len(parts) >= 2 && strings.HasPrefix(parts[1], "HEAD-")
+}
+
 // DetectMethodFromPath is the testable core of install method detection.
 // It takes a resolved binary path and the module path from build info.
 func DetectMethodFromPath(binPath, goMod string) InstallMethod {

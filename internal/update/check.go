@@ -20,6 +20,7 @@ import (
 const (
 	defaultAPIBase = "https://api.github.com"
 	repoPath       = "/repos/matcra587/pagerduty-client/releases/latest"
+	commitPath     = "/repos/matcra587/pagerduty-client/commits/main"
 	httpTimeout    = 3 * time.Second
 )
 
@@ -143,6 +144,49 @@ func FetchLatestVersion(ctx context.Context, baseURL string) (string, error) {
 	}
 
 	return strings.TrimPrefix(release.TagName, "v"), nil
+}
+
+// FetchLatestCommit queries the GitHub API for the latest commit
+// SHA on main and returns a truncated 12-character hash. An empty
+// baseURL defaults to https://api.github.com.
+func FetchLatestCommit(ctx context.Context, baseURL string) (string, error) {
+	if baseURL == "" {
+		baseURL = defaultAPIBase
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, httpTimeout)
+	defer cancel()
+
+	url := baseURL + commitPath
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil) //nolint:gosec // baseURL is a constant or test override
+	if err != nil {
+		return "", fmt.Errorf("building request: %w", err)
+	}
+
+	setGitHubAuth(req)
+
+	client := &http.Client{
+		CheckRedirect: stripAuthOnRedirect,
+	}
+
+	resp, err := client.Do(req) //nolint:gosec // URL constructed from trusted constant
+	if err != nil {
+		return "", fmt.Errorf("fetching latest commit: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected status %d from GitHub API", resp.StatusCode)
+	}
+
+	var commit struct {
+		SHA string `json:"sha"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&commit); err != nil {
+		return "", fmt.Errorf("decoding commit response: %w", err)
+	}
+
+	return commit.SHA[:min(12, len(commit.SHA))], nil
 }
 
 // IsNewer returns true if latest is a newer semver than current.

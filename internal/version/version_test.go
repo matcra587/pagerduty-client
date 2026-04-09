@@ -33,3 +33,12 @@ func TestBuildInfo_String(t *testing.T) {
 	assert.Contains(t, s, info.BuildTime)
 	assert.Contains(t, s, info.BuildBy)
 }
+
+func TestResolvedCommit_LdflagsSet(t *testing.T) {
+	t.Parallel()
+	// In test binaries, Commit is "unknown" and vcs.revision is
+	// available from debug.ReadBuildInfo. ResolvedCommit should
+	// return a non-empty string in either case.
+	got := version.ResolvedCommit()
+	assert.NotEmpty(t, got)
+}

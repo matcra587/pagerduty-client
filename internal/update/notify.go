@@ -26,8 +26,9 @@ type CheckResult struct {
 }
 
 // CheckForUpdate reads the cache, refreshes if stale and returns
-// whether an update is available.
-func CheckForUpdate(ctx context.Context) CheckResult {
+// whether an update is available. The channel determines whether
+// to check the latest release (stable) or latest commit (dev).
+func CheckForUpdate(ctx context.Context, ch Channel) CheckResult {
 	cacheDir, err := dirs.PdcCacheDir()
 	if err != nil {
 		clog.Debug().Err(err).Msg("could not resolve cache directory")
@@ -41,30 +42,61 @@ func CheckForUpdate(ctx context.Context) CheckResult {
 		return CheckResult{}
 	}
 
+	ch = ch.Effective()
+
+	// Invalidate cache when channel changed.
+	if cache.Channel != ch.String() {
+		cache = VersionCache{}
+	}
+
 	if cache.IsStale(cacheTTL) {
 		baseURL := os.Getenv("PDC_UPDATE_URL")
-		latest, err := FetchLatestVersion(ctx, baseURL)
-		if err != nil {
-			clog.Debug().Err(err).Msg("could not fetch latest version")
-			return resultFromCache(cache)
+
+		switch ch {
+		case ChannelStable:
+			latest, err := FetchLatestVersion(ctx, baseURL)
+			if err != nil {
+				clog.Debug().Err(err).Msg("could not fetch latest version")
+				return resultFromCache(cache, ch)
+			}
+			cache.LatestRef = latest
+		case ChannelDev:
+			sha, err := FetchLatestCommit(ctx, baseURL)
+			if err != nil {
+				clog.Debug().Err(err).Msg("could not fetch latest commit")
+				return resultFromCache(cache, ch)
+			}
+			cache.LatestRef = sha
 		}
-		cache.LatestRef = latest
+
+		cache.Channel = ch.String()
 		cache.CheckedAt = time.Now()
 		if err := WriteCache(cachePath, cache); err != nil {
 			clog.Debug().Err(err).Msg("could not write version cache")
 		}
 	}
 
-	return resultFromCache(cache)
+	return resultFromCache(cache, ch)
 }
 
-func resultFromCache(cache VersionCache) CheckResult {
-	current := version.Version
-	return CheckResult{
-		LatestRef:   cache.LatestRef,
-		Channel:     ChannelStable,
-		UpdateAvail: IsNewer(current, cache.LatestRef),
-		Dismissed:   cache.IsDismissed(),
+func resultFromCache(cache VersionCache, ch Channel) CheckResult {
+	switch ch {
+	case ChannelDev:
+		current := version.ResolvedCommit()
+		return CheckResult{
+			LatestRef:   cache.LatestRef,
+			Channel:     ch,
+			UpdateAvail: current != "unknown" && cache.LatestRef != "" && current != cache.LatestRef,
+			Dismissed:   cache.IsDismissed(),
+		}
+	default:
+		current := version.Version
+		return CheckResult{
+			LatestRef:   cache.LatestRef,
+			Channel:     ch,
+			UpdateAvail: IsNewer(current, cache.LatestRef),
+			Dismissed:   cache.IsDismissed(),
+		}
 	}
 }
 
@@ -73,8 +105,16 @@ func NotifyCLI(result CheckResult) {
 	if !result.UpdateAvail || result.Dismissed {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "\nA new version of pdc is available: v%s -> v%s\nRun \"pdc update\" to update.\n\n",
-		version.Version, result.LatestRef)
+
+	switch result.Channel {
+	case ChannelDev:
+		current := version.ResolvedCommit()
+		fmt.Fprintf(os.Stderr, "\nCurrent build is behind latest dev build (%s -> %s)\nRun \"pdc update\" to update.\n\n",
+			current, result.LatestRef)
+	default:
+		fmt.Fprintf(os.Stderr, "\nA new version of pdc is available: v%s -> v%s\nRun \"pdc update\" to update.\n\n",
+			version.Version, result.LatestRef)
+	}
 }
 
 // ShouldCheck returns false when update checks should be skipped.

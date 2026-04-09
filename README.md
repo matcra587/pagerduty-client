@@ -50,6 +50,7 @@ pdc incident ack P000001         # Acknowledge an incident
 pdc oncall                       # Who is on call
 pdc -i                           # TUI dashboard
 pdc update                       # Self-update to latest release
+pdc update --channel dev         # Track latest commit on main
 ```
 
 ## Configuration

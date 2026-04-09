@@ -1,6 +1,7 @@
 package theme_test
 
 import (
+	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
@@ -128,4 +129,107 @@ func TestEntityColor_DifferentNamesVary(t *testing.T) {
 func TestPriorityStyle_UnknownReturnsFalse(t *testing.T) {
 	_, ok := theme.PriorityStyle("P9")
 	assert.False(t, ok, "unknown priority should return false")
+}
+
+func TestRenderEntityNames_Nil(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	assert.Empty(t, theme.RenderEntityNames(nil))
+}
+
+func TestRenderEntityNames_Empty(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	assert.Empty(t, theme.RenderEntityNames([]string{}))
+}
+
+func TestRenderEntityNames_Single(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	result := theme.RenderEntityNames([]string{"Alice"})
+	assert.Contains(t, result, "Alice")
+	// Should have ANSI colour codes wrapping the name.
+	assert.NotEqual(t, "Alice", result, "name should be styled with colour")
+}
+
+func TestRenderEntityNames_Multiple(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	result := theme.RenderEntityNames([]string{"Alice", "Bob"})
+	assert.Contains(t, result, "Alice")
+	assert.Contains(t, result, "Bob")
+	assert.Contains(t, result, ", ", "names should be joined with comma separator")
+}
+
+func TestRenderEntityNames_PositionIndependence(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	ab := theme.RenderEntityNames([]string{"Alice", "Bob"})
+	ba := theme.RenderEntityNames([]string{"Bob", "Alice"})
+
+	// Extract the rendered "Alice" segment from each result.
+	// The separator ", " is uncoloured so we can split on it.
+	abParts := strings.SplitN(ab, ", ", 2)
+	baParts := strings.SplitN(ba, ", ", 2)
+
+	require.Len(t, abParts, 2)
+	require.Len(t, baParts, 2)
+
+	// Alice is first in ab, second in ba.
+	assert.Equal(t, abParts[0], baParts[1],
+		"Alice should have the same colour regardless of position")
+}
+
+func TestRenderEntityNames_Duplicates(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	result := theme.RenderEntityNames([]string{"Alice", "Alice"})
+	parts := strings.SplitN(result, ", ", 2)
+	require.Len(t, parts, 2)
+	assert.Equal(t, parts[0], parts[1],
+		"duplicate names should produce identical styled output")
+}
+
+func TestRenderEntityNames_SkipsEmpty(t *testing.T) {
+	theme.ResetForTest()
+	theme.Apply(theme.Presets["dark"]())
+	t.Cleanup(func() {
+		theme.ResetForTest()
+		theme.Apply(theme.Presets["dark"]())
+	})
+
+	result := theme.RenderEntityNames([]string{"Alice", "", "  ", "Bob"})
+	// Should only contain Alice and Bob, no empty segments.
+	parts := strings.SplitN(result, ", ", 3)
+	assert.Len(t, parts, 2, "empty and whitespace-only elements should be skipped")
 }

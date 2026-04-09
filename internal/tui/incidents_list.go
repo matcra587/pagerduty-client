@@ -411,7 +411,7 @@ func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor boo
 	isSelected := m.selections[inc.ID]
 
 	style := incidentStyle(inc)
-	assigneeStyle := theme.EntityColor(assigneeNames(inc.Assignments))
+	names := assigneeNames(inc.Assignments)
 	dimStyle := theme.DetailDim
 
 	prefix := "  "
@@ -422,17 +422,18 @@ func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor boo
 	}
 
 	type cell struct {
-		text  string
-		style lipgloss.Style
+		text     string
+		style    lipgloss.Style
+		renderFn func(string) string
 	}
 	cells := []cell{
-		{prefix, lipgloss.NewStyle()},
-		{severityLabel(inc), style},
-		{output.Sanitize(inc.Title), style},
-		{output.Sanitize(inc.Service.Summary), theme.EntityColor(inc.Service.Summary)},
-		{output.Sanitize(assigneeNames(inc.Assignments)), assigneeStyle},
-		{renderTimePlain(inc.CreatedAt), dimStyle},
-		{renderTimePlain(inc.LastStatusChangeAt), dimStyle},
+		{prefix, lipgloss.NewStyle(), nil},
+		{severityLabel(inc), style, nil},
+		{output.Sanitize(inc.Title), style, nil},
+		{output.Sanitize(inc.Service.Summary), theme.EntityColor(inc.Service.Summary), nil},
+		{strings.Join(sanitizeAll(names), ", "), lipgloss.NewStyle(), colourPaddedNames},
+		{renderTimePlain(inc.CreatedAt), dimStyle, nil},
+		{renderTimePlain(inc.LastStatusChangeAt), dimStyle, nil},
 	}
 
 	var parts []string
@@ -442,7 +443,11 @@ func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor boo
 		}
 		truncated := truncate(cells[i].text, w)
 		padded := fmt.Sprintf("%-*s", w, truncated)
-		parts = append(parts, cells[i].style.Render(padded))
+		if cells[i].renderFn != nil {
+			parts = append(parts, cells[i].renderFn(padded))
+		} else {
+			parts = append(parts, cells[i].style.Render(padded))
+		}
 	}
 
 	row := strings.Join(parts, " ")

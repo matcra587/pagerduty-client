@@ -3,6 +3,7 @@ package theme
 
 import (
 	"hash/fnv"
+	"strings"
 	"sync"
 
 	"charm.land/lipgloss/v2"
@@ -285,4 +286,20 @@ func EntityColor(name string) lipgloss.Style {
 	//nolint:gosec // palette length is always small and positive
 	c := colors[h.Sum32()%uint32(len(colors))]
 	return lipgloss.NewStyle().Foreground(c)
+}
+
+// RenderEntityNames colours each name individually using EntityColor
+// and joins the results with ", ". Empty and whitespace-only elements
+// are skipped. Callers are responsible for sanitising names before
+// passing them in.
+func RenderEntityNames(names []string) string {
+	var styled []string
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		styled = append(styled, EntityColor(name).Render(name))
+	}
+	return strings.Join(styled, ", ")
 }

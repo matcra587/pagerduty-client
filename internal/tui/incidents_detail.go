@@ -301,9 +301,8 @@ func (m incidentDetail) summaryView() string {
 	}
 
 	names := assigneeNames(inc.Assignments)
-	if names != "" {
-		sanitized := output.Sanitize(names)
-		sb.WriteString(indent + lbl("Assignees") + " " + theme.EntityColor(names).Render(sanitized) + "\n")
+	if len(names) > 0 {
+		sb.WriteString(indent + lbl("Assignees") + " " + theme.RenderEntityNames(sanitizeAll(names)) + "\n")
 	}
 
 	created := renderTimeAgo(inc.CreatedAt) + " " + theme.DetailDim.Render("("+formatTimeAbsolute(inc.CreatedAt)+")")
@@ -584,7 +583,7 @@ func (m incidentDetail) notesSection() string {
 	sb.WriteString("\n\n")
 
 	for i, n := range m.notes {
-		author := theme.HelpKey.Render(output.Sanitize(n.User.Summary))
+		author := theme.RenderEntityNames([]string{output.Sanitize(n.User.Summary)})
 		when := theme.DetailDim.Render(renderTimeAgo(n.CreatedAt))
 		sb.WriteString(fmt.Sprintf("  %s  %s\n", author, when))
 		sb.WriteString(renderMarkdown(output.Sanitize(n.Content), m.width-2))
@@ -631,7 +630,7 @@ func (m incidentDetail) timelineSection() string {
 		if agentName == "" {
 			agentName = "system"
 		}
-		agent := theme.DetailValue.Render(output.Sanitize(agentName))
+		agent := theme.RenderEntityNames([]string{output.Sanitize(agentName)})
 
 		sb.WriteString(fmt.Sprintf("  %s  %s  %s", when, typeLabel, agent))
 

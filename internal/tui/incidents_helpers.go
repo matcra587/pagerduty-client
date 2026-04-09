@@ -8,6 +8,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/gechr/clib/human"
+	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
@@ -66,14 +67,32 @@ func severityStyle(name string) lipgloss.Style {
 	return theme.DetailDim
 }
 
-func assigneeNames(assignments []pagerduty.Assignment) string {
+func assigneeNames(assignments []pagerduty.Assignment) []string {
 	names := make([]string, 0, len(assignments))
 	for _, a := range assignments {
 		if a.Assignee.Summary != "" {
 			names = append(names, a.Assignee.Summary)
 		}
 	}
-	return strings.Join(names, ", ")
+	return names
+}
+
+// colourPaddedNames applies per-name entity colouring to a
+// pre-truncated, pre-padded cell string. It preserves trailing
+// padding spaces so column alignment is unaffected.
+func colourPaddedNames(padded string) string {
+	content := strings.TrimRight(padded, " ")
+	trailing := padded[len(content):]
+	parts := strings.Split(content, ", ")
+	return theme.RenderEntityNames(parts) + trailing
+}
+
+func sanitizeAll(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = output.Sanitize(n)
+	}
+	return out
 }
 
 func renderTimeAgo(raw string) string {

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -10,38 +9,33 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
-// badgeBgColour returns a background colour for a badge value based on
+// badgeFgStyle returns a foreground style for a badge value based on
 // common monitoring state names. Matching is case-insensitive.
-func badgeBgColour(value string) color.Color {
+func badgeFgStyle(value string) lipgloss.Style {
 	switch strings.ToLower(value) {
 	case "triggered", "alert", "alarm":
-		return theme.Theme.Red.GetForeground()
+		return lipgloss.NewStyle().Foreground(theme.Theme.Red.GetForeground()).Bold(true)
 	case "ok", "resolved", "closed":
-		return theme.Theme.Green.GetForeground()
+		return lipgloss.NewStyle().Foreground(theme.Theme.Green.GetForeground()).Bold(true)
 	case "warning", "warn":
-		return theme.Theme.Yellow.GetForeground()
+		return lipgloss.NewStyle().Foreground(theme.Theme.Yellow.GetForeground()).Bold(true)
 	case "open", "incident", "incident_opened", "incident_closed":
-		return theme.Theme.Orange.GetForeground()
+		return lipgloss.NewStyle().Foreground(theme.Theme.Orange.GetForeground()).Bold(true)
 	case "no data", "insufficient_data":
-		return theme.Theme.Orange.GetForeground()
+		return lipgloss.NewStyle().Foreground(theme.Theme.Orange.GetForeground())
 	case "muted":
-		return theme.Theme.Dim.GetForeground()
+		return lipgloss.NewStyle().Faint(true)
 	default:
-		return theme.Theme.Dim.GetForeground()
+		return lipgloss.NewStyle().Faint(true)
 	}
 }
 
-// renderBadge renders a single field as a coloured background pill.
+// renderBadge renders a single field as a coloured foreground pill.
 func renderBadge(f integration.Field) string {
 	if f.Value == "" {
 		return ""
 	}
-	return lipgloss.NewStyle().
-		Background(badgeBgColour(f.Value)).
-		Foreground(theme.ColorTitleFg).
-		Padding(0, 1).
-		Bold(true).
-		Render(f.Value)
+	return badgeFgStyle(f.Value).Padding(0, 1).Render(f.Value)
 }
 
 // renderHeaderRow composes the source label, badge pills and clickable

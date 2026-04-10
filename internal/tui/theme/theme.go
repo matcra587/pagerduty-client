@@ -21,7 +21,7 @@ var Presets = map[string]func() *clibtheme.Theme{
 }
 
 func lightTheme() *clibtheme.Theme {
-	return clibtheme.New(
+	return clibtheme.Default().With(
 		clibtheme.WithRed(lipgloss.NewStyle().Foreground(lipgloss.Color("124"))),
 		clibtheme.WithGreen(lipgloss.NewStyle().Foreground(lipgloss.Color("28"))),
 		clibtheme.WithYellow(lipgloss.NewStyle().Foreground(lipgloss.Color("136"))),
@@ -35,7 +35,7 @@ func lightTheme() *clibtheme.Theme {
 }
 
 func highContrastTheme() *clibtheme.Theme {
-	return clibtheme.New(
+	return clibtheme.Default().With(
 		clibtheme.WithBold(lipgloss.NewStyle().Bold(true)),
 		clibtheme.WithDim(lipgloss.NewStyle()), // no faint
 		clibtheme.WithRed(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)),

@@ -30,7 +30,7 @@ $ pdc version`,
 		}
 
 		if terminal.Is(os.Stdout) {
-			th := theme.New()
+			th := theme.Default()
 			fmt.Fprintf(w, "%s %s\n", th.Bold.Render("pdc"), th.Green.Render(info.Version))
 			fmt.Fprintf(w, "  %s  %s\n", th.Dim.Render("commit:"), info.Commit)
 			fmt.Fprintf(w, "  %s  %s\n", th.Dim.Render("branch:"), info.Branch)

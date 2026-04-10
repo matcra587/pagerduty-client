@@ -417,7 +417,7 @@ func init() {
 	)
 
 	// Themed help rendering.
-	th := theme.New(
+	th := theme.Default().With(
 		theme.WithEnumStyle(theme.EnumStyleHighlightBoth),
 		theme.WithHelpRepeatEllipsisEnabled(true),
 	)

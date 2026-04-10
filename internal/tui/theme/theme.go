@@ -12,42 +12,37 @@ import (
 
 var applyOnce sync.Once
 
-// Presets maps theme names to constructor functions that return a
-// configured clib theme. The "dark" preset is the default.
-var Presets = map[string]func() *clibtheme.Theme{
-	"dark":          clibtheme.Default,
-	"light":         lightTheme,
-	"high-contrast": highContrastTheme,
+// presetNames lists the clib theme presets available for selection.
+// Sorted alphabetically for completion output.
+var presetNames = []string{
+	"catppuccin-frappe",
+	"catppuccin-latte",
+	"catppuccin-macchiato",
+	"catppuccin-mocha",
+	"default",
+	"dracula",
+	"monochrome",
+	"monokai",
 }
 
-func lightTheme() *clibtheme.Theme {
-	return clibtheme.Default().With(
-		clibtheme.WithRed(lipgloss.NewStyle().Foreground(lipgloss.Color("124"))),
-		clibtheme.WithGreen(lipgloss.NewStyle().Foreground(lipgloss.Color("28"))),
-		clibtheme.WithYellow(lipgloss.NewStyle().Foreground(lipgloss.Color("136"))),
-		clibtheme.WithBlue(lipgloss.NewStyle().Foreground(lipgloss.Color("25"))),
-		clibtheme.WithMagenta(lipgloss.NewStyle().Foreground(lipgloss.Color("127"))),
-		clibtheme.WithOrange(lipgloss.NewStyle().Foreground(lipgloss.Color("166"))),
-		clibtheme.WithBoldGreen(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("28"))),
-		clibtheme.WithMarkdownCode(lipgloss.NewStyle().Foreground(lipgloss.Color("#2E7D6F"))),
-		clibtheme.WithMarkdownText(lipgloss.NewStyle().Foreground(lipgloss.Color("#2E3440"))),
-	)
+// PresetNames returns the sorted list of available theme preset names.
+func PresetNames() []string {
+	return presetNames
 }
 
-func highContrastTheme() *clibtheme.Theme {
-	return clibtheme.Default().With(
-		clibtheme.WithBold(lipgloss.NewStyle().Bold(true)),
-		clibtheme.WithDim(lipgloss.NewStyle()), // no faint
-		clibtheme.WithRed(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)),
-		clibtheme.WithGreen(lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Bold(true)),
-		clibtheme.WithYellow(lipgloss.NewStyle().Foreground(lipgloss.Color("226")).Bold(true)),
-		clibtheme.WithBlue(lipgloss.NewStyle().Foreground(lipgloss.Color("33")).Bold(true)),
-		clibtheme.WithMagenta(lipgloss.NewStyle().Foreground(lipgloss.Color("201")).Bold(true)),
-		clibtheme.WithOrange(lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)),
-		clibtheme.WithBoldGreen(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46"))),
-		clibtheme.WithMarkdownCode(lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true)),
-		clibtheme.WithMarkdownText(lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))),
-	)
+// Resolve returns a clib theme for the given preset name. An empty or
+// unrecognised name returns theme.Default() (which itself checks the
+// PDC_THEME / CLIB_THEME env vars before falling back to the built-in
+// default).
+func Resolve(name string) *clibtheme.Theme {
+	if name == "" {
+		return clibtheme.Default()
+	}
+	var th clibtheme.Theme
+	if err := th.UnmarshalText([]byte(name)); err != nil {
+		return clibtheme.Default()
+	}
+	return &th
 }
 
 // Theme is the shared clib theme instance used as the colour foundation.
@@ -242,13 +237,7 @@ func applyTheme(t *clibtheme.Theme) {
 // theme needs inverted chrome (dark text on light backgrounds) while dark
 // and high-contrast share the same dark-background chrome.
 func applyChrome(t *clibtheme.Theme) {
-	// Detect light theme by checking if the markdown text colour is dark.
-	// Pragmatic heuristic - the light preset uses #2E3440.
-	fg := t.MarkdownText.GetForeground()
-	r, g, b, _ := fg.RGBA()
-	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-
-	if luminance < 0.5 {
+	if isLightTheme(t) {
 		// Light theme chrome.
 		ColorStatusBarFg = lipgloss.Color("#2E3440")
 		ColorTitleFg = lipgloss.Color("#2E3440")
@@ -268,6 +257,21 @@ func applyChrome(t *clibtheme.Theme) {
 		ColorOverlayBg = lipgloss.Color("#222233")
 		ColorOverlayBorder = lipgloss.Color("#7F849C")
 		ColorSelectedBg = lipgloss.Color("#313244")
+	}
+}
+
+// isLightTheme returns true if the theme uses a light background. Known
+// light presets are matched by name via Theme.String(). Unknown themes
+// fall back to a luminance heuristic on the MarkdownText foreground.
+func isLightTheme(t *clibtheme.Theme) bool {
+	switch t.String() {
+	case "catppuccin-latte":
+		return true
+	default:
+		fg := t.MarkdownText.GetForeground()
+		r, g, b, _ := fg.RGBA()
+		luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
+		return luminance < 0.5
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gechr/clog"
 	"github.com/joho/godotenv"
 	koToml "github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/providers/confmap"
@@ -27,12 +28,17 @@ var ValidTabs = map[string]bool{
 	"teams":               true,
 }
 
-// TUI holds dashboard display preferences.
+// TUI holds dashboard-specific display preferences nested under [ui.tui].
 type TUI struct {
-	Theme        string   `koanf:"theme"`
 	ShowResolved bool     `koanf:"show_resolved"`
 	PageSize     int      `koanf:"page_size"`
 	Tabs         []string `koanf:"tabs"`
+}
+
+// UI holds user interface settings that apply to all output modes.
+type UI struct {
+	Theme string `koanf:"theme"`
+	TUI   TUI    `koanf:"tui"`
 }
 
 // CustomField maps a PagerDuty custom field to a display column.
@@ -55,7 +61,7 @@ type Config struct {
 	Debug            bool              `koanf:"-"`
 	AgentMode        bool              `koanf:"-"`
 	Interactive      bool              `koanf:"-"`
-	TUI              TUI               `koanf:"tui"`
+	UI               UI                `koanf:"ui"`
 	CredentialSource credential.Source `koanf:"credential_source"`
 
 	CustomFields []CustomField `koanf:"custom_fields"`
@@ -154,12 +160,18 @@ func Load(opts ...Option) (*Config, error) {
 		return nil, fmt.Errorf("loading defaults: %w", err)
 	}
 
+	var fileLoaded bool
 	if lo.path != "" {
 		if _, err := os.Stat(lo.path); err == nil {
 			if err := k.Load(file.Provider(lo.path), koToml.Parser()); err != nil {
 				return nil, fmt.Errorf("loading config file: %w", err)
 			}
+			fileLoaded = true
 		}
+	}
+
+	if fileLoaded && !k.Exists("config_version") {
+		clog.Warn().Str("fix", "pdc config migrate").Msg("config version outdated")
 	}
 
 	cfg := &Config{}

@@ -38,8 +38,10 @@ service = "PSVC01"
 format = "json"
 refresh_interval = 60
 
-[tui]
+[ui]
 theme = "dark"
+
+[ui.tui]
 show_resolved = true
 page_size = 50
 tabs = ["incidents", "services"]
@@ -53,10 +55,34 @@ tabs = ["incidents", "services"]
 	assert.Equal(t, "PSVC01", cfg.Service)
 	assert.Equal(t, "json", cfg.Format)
 	assert.Equal(t, 60, cfg.RefreshInterval)
-	assert.Equal(t, "dark", cfg.TUI.Theme)
-	assert.True(t, cfg.TUI.ShowResolved)
-	assert.Equal(t, 50, cfg.TUI.PageSize)
-	assert.Equal(t, []string{"incidents", "services"}, cfg.TUI.Tabs)
+	assert.Equal(t, "dark", cfg.UI.Theme)
+	assert.True(t, cfg.UI.TUI.ShowResolved)
+	assert.Equal(t, 50, cfg.UI.TUI.PageSize)
+	assert.Equal(t, []string{"incidents", "services"}, cfg.UI.TUI.Tabs)
+}
+
+func TestLoad_UISection(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	data := `
+[ui]
+theme = "dracula"
+
+[ui.tui]
+show_resolved = true
+page_size = 25
+tabs = ["incidents", "teams"]
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(data), 0o600))
+
+	cfg, err := config.Load(config.WithPath(cfgPath))
+	require.NoError(t, err)
+	assert.Equal(t, "dracula", cfg.UI.Theme)
+	assert.True(t, cfg.UI.TUI.ShowResolved)
+	assert.Equal(t, 25, cfg.UI.TUI.PageSize)
+	assert.Equal(t, []string{"incidents", "teams"}, cfg.UI.TUI.Tabs)
 }
 
 func TestLoad_EnvOverlay(t *testing.T) {

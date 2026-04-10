@@ -69,6 +69,7 @@ func init() {
 	configCmd.AddCommand(configSetCmd())
 	configCmd.AddCommand(configUnsetCmd())
 	configCmd.AddCommand(configPathCmd())
+	configCmd.AddCommand(configMigrateCmd())
 }
 
 func runInit(cmd *cobra.Command, _ []string) error {

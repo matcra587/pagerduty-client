@@ -5,9 +5,10 @@ import (
 	"os"
 
 	"github.com/gechr/clib/terminal"
-	"github.com/gechr/clib/theme"
 	"github.com/matcra587/pagerduty-client/internal/compact"
+	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/matcra587/pagerduty-client/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +31,11 @@ $ pdc version`,
 		}
 
 		if terminal.Is(os.Stdout) {
-			th := theme.Default()
+			var themeName string
+			if cfg, err := config.Load(); err == nil {
+				themeName = cfg.UI.Theme
+			}
+			th := pdctheme.Resolve(themeName)
 			fmt.Fprintf(w, "%s %s\n", th.Bold.Render("pdc"), th.Green.Render(info.Version))
 			fmt.Fprintf(w, "  %s  %s\n", th.Dim.Render("commit:"), info.Commit)
 			fmt.Fprintf(w, "  %s  %s\n", th.Dim.Render("branch:"), info.Branch)

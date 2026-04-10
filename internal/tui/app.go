@@ -51,7 +51,7 @@ var tabLabels = map[string]string{
 // buildTabs constructs the tab list from config.
 // Falls back to all tabs if none configured.
 func buildTabs(cfg *config.Config) []topTab {
-	names := cfg.TUI.Tabs
+	names := cfg.UI.TUI.Tabs
 	if len(names) == 0 {
 		names = config.DefaultTabs
 	}
@@ -157,11 +157,7 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		interval = 30 * time.Second
 	}
 
-	preset, ok := theme.Presets[cfg.TUI.Theme]
-	if !ok {
-		preset = theme.Presets["dark"]
-	}
-	theme.Apply(preset())
+	theme.Apply(theme.Resolve(cfg.UI.Theme))
 
 	sp := spinner.New(spinner.WithSpinner(spinner.MiniDot))
 	sp.Style = lipgloss.NewStyle().Foreground(theme.ColorHeaderFg)

@@ -12,12 +12,12 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
 	"github.com/BurntSushi/toml"
-	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -39,10 +39,10 @@ var configKeys = []string{
 	"defaults.service",
 	"defaults.interactive",
 	"defaults.update_channel",
-	"tui.theme",
-	"tui.show_resolved",
-	"tui.page_size",
-	"tui.tabs",
+	"ui.theme",
+	"ui.tui.show_resolved",
+	"ui.tui.page_size",
+	"ui.tui.tabs",
 }
 
 // configDescriptions maps each key to a human-readable description.
@@ -56,10 +56,10 @@ var configDescriptions = map[string]string{ //nolint:gosec // G101 false positiv
 	"defaults.service":          "Default service filter (see: pdc service list)",
 	"defaults.interactive":      "Launch TUI by default",
 	"defaults.update_channel":   "Update channel (stable/dev)",
-	"tui.theme":                 "TUI colour theme",
-	"tui.show_resolved":         "Show resolved incidents",
-	"tui.page_size":             "TUI page size",
-	"tui.tabs":                  "TUI tab selection",
+	"ui.theme":                  "Colour theme",
+	"ui.tui.show_resolved":      "Show resolved incidents",
+	"ui.tui.page_size":          "TUI page size",
+	"ui.tui.tabs":               "TUI tab selection",
 }
 
 // envVarMapping maps config keys to their environment variable equivalents.
@@ -131,7 +131,7 @@ func configListCmd() *cobra.Command {
 				rows = append(rows, []string{e.Key, e.Value, e.Source, e.Description})
 			}
 
-			th := theme.Default()
+			th := pdctheme.Resolve(cfg.UI.Theme)
 			headerStyle := lipgloss.NewStyle().Bold(true).Padding(0, 1)
 			keyStyle := th.Blue.Padding(0, 1)
 			valueStyle := lipgloss.NewStyle().Padding(0, 1)
@@ -205,7 +205,7 @@ func configSetCmd() *cobra.Command {
 		Use:               "set <key> <value>",
 		Short:             "Add or update a setting",
 		Args:              cobra.ExactArgs(2),
-		ValidArgsFunction: completeConfigKeys,
+		ValidArgsFunction: completeConfigSetValues,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, val := args[0], args[1]
 			if !slices.Contains(configKeys, key) {
@@ -315,10 +315,10 @@ func configToMap(cfg *config.Config) map[string]string {
 		"defaults.service":          cfg.Service,
 		"defaults.interactive":      strconv.FormatBool(cfg.Interactive),
 		"defaults.update_channel":   cfg.UpdateChannel,
-		"tui.theme":                 cfg.TUI.Theme,
-		"tui.show_resolved":         strconv.FormatBool(cfg.TUI.ShowResolved),
-		"tui.page_size":             strconv.Itoa(cfg.TUI.PageSize),
-		"tui.tabs":                  strings.Join(cfg.TUI.Tabs, ","),
+		"ui.theme":                  cfg.UI.Theme,
+		"ui.tui.show_resolved":      strconv.FormatBool(cfg.UI.TUI.ShowResolved),
+		"ui.tui.page_size":          strconv.Itoa(cfg.UI.TUI.PageSize),
+		"ui.tui.tabs":               strings.Join(cfg.UI.TUI.Tabs, ","),
 	}
 	return m
 }
@@ -342,7 +342,7 @@ func configSourcesFromFile(path string) map[string]struct{} {
 }
 
 // flattenTOML recursively walks a decoded TOML map and populates keys
-// in dot notation (e.g. "defaults.format", "tui.tabs").
+// in dot notation (e.g. "defaults.format", "ui.tui.tabs").
 func flattenTOML(prefix string, m map[string]any, result map[string]struct{}) {
 	for k, v := range m {
 		fullKey := k
@@ -366,19 +366,19 @@ func parseConfigValue(key, val string) (any, error) {
 			return nil, fmt.Errorf("refresh_interval must be a positive integer, got %s", val)
 		}
 		return n, nil
-	case "tui.page_size":
+	case "ui.tui.page_size":
 		n, err := strconv.Atoi(val)
 		if err != nil || n < 1 {
 			return nil, fmt.Errorf("page_size must be a positive integer, got %s", val)
 		}
 		return n, nil
-	case "defaults.interactive", "tui.show_resolved":
+	case "defaults.interactive", "ui.tui.show_resolved":
 		b, err := strconv.ParseBool(val)
 		if err != nil {
 			return nil, fmt.Errorf("%s must be true or false, got %s", key, val)
 		}
 		return b, nil
-	case "tui.tabs":
+	case "ui.tui.tabs":
 		tabs := strings.Split(val, ",")
 		cleaned := make([]string, 0, len(tabs))
 		for _, t := range tabs {
@@ -397,26 +397,34 @@ func parseConfigValue(key, val string) (any, error) {
 }
 
 // modifyConfigFile reads a TOML file (creating it if absent), sets the key
-// in the correct section and writes back.
+// at the correct nested path and writes back.
 func modifyConfigFile(cfgPath, key string, value any) error {
 	raw, err := readTOMLFile(cfgPath)
 	if err != nil {
 		return err
 	}
 
-	section, leaf := splitConfigKey(key)
-	if section == "" {
-		raw[leaf] = value
-	} else {
-		sec, ok := raw[section].(map[string]any)
-		if !ok {
-			sec = make(map[string]any)
-			raw[section] = sec
-		}
-		sec[leaf] = value
-	}
+	parts := splitConfigKey(key)
+	setNestedKey(raw, parts, value)
 
 	return writeTOMLFile(cfgPath, raw)
+}
+
+// setNestedKey walks a dot-notation path through nested maps, creating
+// intermediate maps as needed, and sets the leaf value.
+func setNestedKey(m map[string]any, parts []string, value any) {
+	for i, p := range parts {
+		if i == len(parts)-1 {
+			m[p] = value
+			return
+		}
+		sub, ok := m[p].(map[string]any)
+		if !ok {
+			sub = make(map[string]any)
+			m[p] = sub
+		}
+		m = sub
+	}
 }
 
 // removeConfigKey removes a key from the TOML file and cleans up empty sections.
@@ -427,17 +435,8 @@ func removeConfigKey(cfgPath string, key string) error {
 		return err
 	}
 
-	section, leaf := splitConfigKey(key)
-	if section == "" {
-		delete(raw, leaf)
-	} else {
-		if sec, ok := raw[section].(map[string]any); ok {
-			delete(sec, leaf)
-			if len(sec) == 0 {
-				delete(raw, section)
-			}
-		}
-	}
+	parts := splitConfigKey(key)
+	deleteNestedKey(raw, parts)
 
 	if len(raw) == 0 {
 		if err := os.Remove(cfgPath); err == nil {
@@ -449,13 +448,27 @@ func removeConfigKey(cfgPath string, key string) error {
 	return writeTOMLFile(cfgPath, raw)
 }
 
-// splitConfigKey splits a user-facing dot-notation key into section and leaf.
-// Top-level keys return ("", key). Dotted keys return ("section", "leaf").
-func splitConfigKey(key string) (section, leaf string) {
-	if before, after, ok := strings.Cut(key, "."); ok {
-		return before, after
+// deleteNestedKey walks a dot-notation path, deletes the leaf, and
+// removes empty parent maps on the way back up.
+func deleteNestedKey(m map[string]any, parts []string) {
+	if len(parts) == 1 {
+		delete(m, parts[0])
+		return
 	}
-	return "", key
+	sub, ok := m[parts[0]].(map[string]any)
+	if !ok {
+		return
+	}
+	deleteNestedKey(sub, parts[1:])
+	if len(sub) == 0 {
+		delete(m, parts[0])
+	}
+}
+
+// splitConfigKey splits a user-facing dot-notation key into path
+// segments. For example "ui.tui.tabs" returns ["ui", "tui", "tabs"].
+func splitConfigKey(key string) []string {
+	return strings.Split(key, ".")
 }
 
 // readTOMLFile reads and decodes a TOML file. Returns an empty map if the file
@@ -506,4 +519,30 @@ func completeConfigKeys(_ *cobra.Command, _ []string, _ string) ([]string, cobra
 		completions[i] = key + "\t" + configDescriptions[key]
 	}
 	return completions, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeConfigSetValues provides tab completion for config set.
+// First arg completes key names; second arg completes valid values
+// for keys that have a known set (e.g. ui.theme).
+func completeConfigSetValues(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		completions := make([]string, len(configKeys))
+		for i, key := range configKeys {
+			completions[i] = key + "\t" + configDescriptions[key]
+		}
+		return completions, cobra.ShellCompDirectiveNoFileComp
+	}
+	if len(args) == 1 {
+		switch args[0] {
+		case "ui.theme":
+			return pdctheme.PresetNames(), cobra.ShellCompDirectiveNoFileComp
+		case "defaults.format":
+			return []string{"table", "json"}, cobra.ShellCompDirectiveNoFileComp
+		case "defaults.interactive", "ui.tui.show_resolved":
+			return []string{"true", "false"}, cobra.ShellCompDirectiveNoFileComp
+		case "defaults.update_channel":
+			return []string{"stable", "dev"}, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+	return nil, cobra.ShellCompDirectiveNoFileComp
 }

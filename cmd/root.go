@@ -192,7 +192,7 @@ func setup() error {
 	// Shell completion subcommand (for Homebrew: pdc completion <shell>).
 	// Also disables cobra's built-in completion subcommand.
 	rootCmd.AddCommand(clib.CompletionCommand(rootCmd, func() *complete.Generator {
-		gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(rootCmd))
+		gen := complete.NewGenerator("pdc", complete.WithOrder(complete.OrderKeep)).FromFlags(clib.FlagMeta(rootCmd))
 		gen.Subs = clib.Subcommands(rootCmd)
 		return gen
 	}))
@@ -224,7 +224,7 @@ func setup() error {
 		}
 	}
 
-	gen := complete.NewGenerator("pdc").FromFlags(clib.FlagMeta(rootCmd))
+	gen := complete.NewGenerator("pdc", complete.WithOrder(complete.OrderKeep)).FromFlags(clib.FlagMeta(rootCmd))
 	gen.Subs = clib.Subcommands(rootCmd)
 	handled, err := flags.Handle(gen, completionHandler(token, cfg, apiOpts...), complete.WithArgs(positional))
 	if err != nil {
@@ -415,6 +415,9 @@ func init() {
 		&cobra.Group{ID: "resources", Title: "Resources"},
 		&cobra.Group{ID: "config", Title: "Configuration"},
 	)
+
+	// Enable PDC_THEME env var for theme selection.
+	theme.SetEnvPrefix("PDC")
 
 	// Themed help rendering.
 	th := theme.Default().With(

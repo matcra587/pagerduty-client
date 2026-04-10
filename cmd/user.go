@@ -7,12 +7,14 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -66,14 +68,19 @@ $ pdc user list`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(users)}
 			return output.RenderAgentJSON(w, "user list", compact.ResourceUser, users, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, users, isTTY)
+			return output.RenderJSON(w, users, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -115,11 +122,16 @@ $ pdc user show PUSER01`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "user show", compact.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, user, isTTY)
+			return output.RenderJSON(w, user, th)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -129,7 +141,7 @@ $ pdc user show PUSER01`,
 				{"Role", user.Role},
 				{"Time Zone", user.Timezone},
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -160,11 +172,16 @@ $ pdc user me`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "user me", compact.ResourceUser, user, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, user, isTTY)
+			return output.RenderJSON(w, user, th)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -174,7 +191,7 @@ $ pdc user me`,
 				{"Role", user.Role},
 				{"Time Zone", user.Timezone},
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }

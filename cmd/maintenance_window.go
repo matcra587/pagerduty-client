@@ -8,12 +8,14 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -81,14 +83,19 @@ $ pdc maintenance-window list --service S1`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(windows)}
 			return output.RenderAgentJSON(w, "maintenance-window list", compact.ResourceMaintenanceWindow, windows, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, windows, isTTY)
+			return output.RenderJSON(w, windows, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -130,11 +137,16 @@ $ pdc maintenance-window show PW98YIO`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "maintenance-window show", compact.ResourceMaintenanceWindow, mw, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, mw, isTTY)
+			return output.RenderJSON(w, mw, th)
 		default:
 			svcNames := make([]string, len(mw.Services))
 			for i, s := range mw.Services {
@@ -160,7 +172,7 @@ $ pdc maintenance-window show PW98YIO`,
 				{"Services", strings.Join(svcNames, ", ")},
 				{"Teams", strings.Join(teamNames, ", ")},
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }

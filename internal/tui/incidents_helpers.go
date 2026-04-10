@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/glamour/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/gechr/clib/human"
@@ -156,45 +155,6 @@ func wordWrap(text string, width int, indent string) string {
 		sb.WriteString("\n")
 	}
 	return sb.String()
-}
-
-var (
-	glamourCachedWidth    int
-	glamourCachedRenderer *glamour.TermRenderer
-)
-
-func cachedGlamourRenderer(width int) *glamour.TermRenderer {
-	if width == glamourCachedWidth && glamourCachedRenderer != nil {
-		return glamourCachedRenderer
-	}
-	r, err := glamour.NewTermRenderer(
-		glamour.WithStylePath("dracula"),
-		glamour.WithWordWrap(width),
-	)
-	if err != nil {
-		return nil
-	}
-	glamourCachedWidth = width
-	glamourCachedRenderer = r
-	return r
-}
-
-func renderMarkdown(text string, width int) string {
-	if text == "" {
-		return ""
-	}
-	if width <= 0 {
-		width = 80
-	}
-	r := cachedGlamourRenderer(width)
-	if r == nil {
-		return wordWrap(text, width-4, "    ")
-	}
-	rendered, err := r.Render(text)
-	if err != nil || strings.TrimSpace(rendered) == "" {
-		return wordWrap(text, width-4, "    ")
-	}
-	return strings.TrimRight(rendered, "\n")
 }
 
 func truncate(s string, n int) string {

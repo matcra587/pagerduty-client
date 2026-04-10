@@ -114,8 +114,8 @@ func renderTagPills(f integration.Field, width int) string {
 	}
 
 	pillStyle := lipgloss.NewStyle().
-		Background(theme.ColorSelectedBg).
-		Foreground(theme.ColorStatusBarFg).
+		Foreground(theme.Theme.Blue.GetForeground()).
+		Bold(true).
 		Padding(0, 1)
 
 	tags := strings.Split(f.Value, ",")

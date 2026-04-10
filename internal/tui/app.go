@@ -912,7 +912,7 @@ func (a App) View() tea.View {
 	headerBorder := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
-		BorderForeground(theme.ColorOverlayBorder).
+		BorderForeground(theme.Theme.Dim.GetForeground()).
 		Width(a.width)
 	header = headerBorder.Render(header)
 

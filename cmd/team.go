@@ -6,11 +6,13 @@ import (
 
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -55,14 +57,19 @@ $ pdc team list`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(teams)}
 			return output.RenderAgentJSON(w, "team list", compact.ResourceTeam, teams, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, teams, isTTY)
+			return output.RenderJSON(w, teams, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -104,11 +111,16 @@ $ pdc team show PTEAM01`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "team show", compact.ResourceTeam, team, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, team, isTTY)
+			return output.RenderJSON(w, team, th)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -116,7 +128,7 @@ $ pdc team show PTEAM01`,
 				{"Name", team.Name},
 				{"Description", team.Description},
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }

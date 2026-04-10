@@ -7,6 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
+	"github.com/matcra587/pagerduty-client/internal/tui/components"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
@@ -194,7 +195,7 @@ func (tv teamsView) renderList() string {
 		)
 
 		if i == tv.cursor {
-			sb.WriteString(theme.SelectedRow.Render(row))
+			sb.WriteString(components.PersistBgFull(row, theme.CursorBg, tv.width))
 		} else {
 			sb.WriteString(row)
 		}

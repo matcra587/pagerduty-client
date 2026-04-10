@@ -9,12 +9,14 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -74,14 +76,19 @@ $ pdc escalation-policy list --team T1`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(policies)}
 			return output.RenderAgentJSON(w, "escalation-policy list", compact.ResourceEscalationPolicy, policies, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, policies, isTTY)
+			return output.RenderJSON(w, policies, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -123,11 +130,16 @@ $ pdc escalation-policy show PABC123`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "escalation-policy show", compact.ResourceEscalationPolicy, ep, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, ep, isTTY)
+			return output.RenderJSON(w, ep, th)
 		default:
 			teamIDs := make([]string, len(ep.Teams))
 			for i, t := range ep.Teams {
@@ -142,14 +154,14 @@ $ pdc escalation-policy show PABC123`,
 				{"Num Loops", strconv.FormatUint(uint64(ep.NumLoops), 10)},
 				{"Teams", strings.Join(teamIDs, ", ")},
 			}
-			if err := output.RenderTable(w, detailHeaders, detailRows, isTTY); err != nil {
+			if err := output.RenderTable(w, detailHeaders, detailRows, th); err != nil {
 				return err
 			}
 
 			if len(ep.EscalationRules) > 0 {
 				fmt.Fprintln(w)
 				ruleHeaders, ruleRows := escalationRuleRows(ep.EscalationRules)
-				return output.RenderTable(w, ruleHeaders, ruleRows, isTTY)
+				return output.RenderTable(w, ruleHeaders, ruleRows, th)
 			}
 			return nil
 		}

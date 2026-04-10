@@ -12,6 +12,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -51,20 +52,21 @@ $ pdc ability list -f json`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(abilities)}
 			return output.RenderAgentJSON(out, "ability list", compact.ResourceNone, abilities, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(out, abilities, isTTY)
+			return output.RenderJSON(out, abilities, th)
 		default:
 			items := make([]string, len(abilities))
 			for i, a := range abilities {
 				items[i] = a.Display
-			}
-			var th *theme.Theme
-			if isTTY {
-				th = theme.Default()
 			}
 			w := terminal.Width(os.Stdout)
 			return output.RenderColumns(out, items, w, th)
@@ -108,11 +110,16 @@ $ pdc ability test teams`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(out, "ability test", compact.ResourceNone, data, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(out, data, isTTY)
+			return output.RenderJSON(out, data, th)
 		default:
 			if available {
 				clog.Info().Str("ability", name).Msg("available")

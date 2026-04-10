@@ -8,12 +8,14 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -96,14 +98,19 @@ $ pdc oncall --schedule PSCHED01`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(oncalls)}
 			return output.RenderAgentJSON(w, "oncall", compact.ResourceOnCall, oncalls, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, oncalls, isTTY)
+			return output.RenderJSON(w, oncalls, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }

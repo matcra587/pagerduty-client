@@ -7,20 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
-)
-
-// Column styles for coloured table output.
-var (
-	headerStyle = lipgloss.NewStyle().Bold(true)
-	dimStyle    = lipgloss.NewStyle().Faint(true)
-
-	statusStyles = map[string]lipgloss.Style{
-		"triggered":    lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
-		"acknowledged": lipgloss.NewStyle().Foreground(lipgloss.Color("3")), // yellow
-		"resolved":     lipgloss.NewStyle().Foreground(lipgloss.Color("2")), // green
-		"high":         lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
-		"low":          lipgloss.NewStyle().Foreground(lipgloss.Color("3")), // yellow
-	}
+	"github.com/gechr/clib/theme"
 )
 
 const (
@@ -28,10 +15,23 @@ const (
 	maxCellW = 60 // max cell width before truncation
 )
 
+// statusStylesFromTheme builds a style map for status and urgency
+// values from the resolved theme.
+func statusStylesFromTheme(th *theme.Theme) map[string]lipgloss.Style {
+	return map[string]lipgloss.Style{
+		"triggered":    lipgloss.NewStyle().Foreground(th.Red.GetForeground()),
+		"acknowledged": lipgloss.NewStyle().Foreground(th.Yellow.GetForeground()),
+		"resolved":     lipgloss.NewStyle().Foreground(th.Green.GetForeground()),
+		"high":         lipgloss.NewStyle().Foreground(th.Red.GetForeground()),
+		"low":          lipgloss.NewStyle().Foreground(th.Yellow.GetForeground()),
+	}
+}
+
 // RenderTable writes a column-aligned text table to w.
-// When colour is true, headers are bold and status/urgency values
-// are coloured. Cell values are sanitised and long values are truncated.
-func RenderTable(w io.Writer, headers []string, rows [][]string, colour bool) error {
+// When th is non-nil, headers are bold and status/urgency values
+// use theme colours. Cell values are sanitised and long values
+// are truncated.
+func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme) error {
 	if len(headers) == 0 {
 		return nil
 	}
@@ -71,6 +71,15 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, colour bool) er
 		}
 	}
 
+	colour := th != nil
+	var styles map[string]lipgloss.Style
+	var headerStyle, dimStyle lipgloss.Style
+	if colour {
+		styles = statusStylesFromTheme(th)
+		headerStyle = lipgloss.NewStyle().Bold(true)
+		dimStyle = lipgloss.NewStyle().Faint(true)
+	}
+
 	// Render header row.
 	var sb strings.Builder
 	for i, h := range headers {
@@ -98,7 +107,7 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, colour bool) er
 			padded := fmt.Sprintf("%-*s", widths[i], cell)
 
 			if colour && (i == statusCol || i == urgencyCol) {
-				if s, ok := statusStyles[cell]; ok {
+				if s, ok := styles[cell]; ok {
 					sb.WriteString(s.Render(padded))
 					continue
 				}

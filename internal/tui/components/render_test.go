@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -122,17 +121,9 @@ func TestRenderOverlay_MinWidthRespected(t *testing.T) {
 	require.GreaterOrEqual(t, lipgloss.Width(out), minW)
 }
 
-func TestRenderOverlay_MultiLineBgApplied(t *testing.T) {
+func TestRenderOverlay_NoBgEscape(t *testing.T) {
 	content := "line one\nline two\nline three"
 	out := RenderOverlay(content, 0)
-
-	bg := ColorToANSIBg(theme.ColorOverlayBg)
-	// Content lines (not border lines) must carry the overlay bg escape.
-	var matched int
-	for line := range strings.SplitSeq(out, "\n") {
-		if strings.Contains(line, bg) {
-			matched++
-		}
-	}
-	assert.GreaterOrEqual(t, matched, 3, "at least 3 lines should contain overlay bg escape")
+	// Overlay should not inject a background escape sequence.
+	assert.NotContains(t, out, "\x1b[48;", "overlay should have no explicit background")
 }

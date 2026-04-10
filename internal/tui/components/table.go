@@ -116,7 +116,7 @@ func (t Table) renderRow(idx int) string {
 	line := strings.Join(cells, " ")
 
 	if idx == t.Selected {
-		return theme.SelectedRow.Render(line)
+		return PersistBgFull(line, theme.CursorBg, t.Width)
 	}
 	return line
 }

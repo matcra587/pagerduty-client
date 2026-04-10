@@ -48,7 +48,7 @@ func (s StatusBar) View() tea.View {
 
 	// Build the labelled separator: ── ? help ──────────── ↻ 22s ──
 	helpLabel := theme.HelpKey.Render("?") + " " + theme.HelpDesc.Render("help")
-	borderStyle := lipgloss.NewStyle().Foreground(theme.ColorOverlayBorder)
+	borderStyle := theme.HelpDesc
 	sep := LabelledBorder(s.Width, borderStyle, helpLabel, refresh)
 
 	// Hint bar with keybindings.

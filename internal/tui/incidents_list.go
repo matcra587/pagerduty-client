@@ -453,10 +453,10 @@ func (m incidentList) renderRowFromIncident(inc pagerduty.Incident, isCursor boo
 	row := strings.Join(parts, " ")
 
 	if isCursor {
-		return components.PersistBg(row, components.ColorToANSIBg(theme.ColorHighlightBg))
+		return components.PersistBgFull(row, theme.CursorBg, m.width)
 	}
 	if isSelected {
-		return components.PersistBg(row, components.ColorToANSIBg(theme.ColorSelectedBg))
+		return components.PersistBgFull(row, theme.SelectedBg, m.width)
 	}
 
 	return row

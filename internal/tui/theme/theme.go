@@ -2,7 +2,9 @@
 package theme
 
 import (
+	"fmt"
 	"hash/fnv"
+	"image/color"
 	"strings"
 	"sync"
 
@@ -93,24 +95,11 @@ var PillWarning = Pill.Foreground(Theme.Yellow.GetForeground())
 // PillDim is a pill for inactive or resolved counts.
 var PillDim = Pill.Faint(true)
 
-// UI chrome colours - project-specific, no clib equivalent.
+// UI chrome colours — derived from the active clib theme in applyChrome.
 var (
-	// ColorStatusBarFg is the status bar foreground colour.
-	ColorStatusBarFg = lipgloss.Color("#E0E0E0")
-	// ColorTitleFg is the title text foreground colour.
-	ColorTitleFg = lipgloss.Color("#FFFFFF")
-	// ColorHighlightBg is the background colour for highlighted items.
-	ColorHighlightBg = lipgloss.Color("#2D2D44")
-	// ColorHighlightFg is the foreground colour for highlighted items.
-	ColorHighlightFg = lipgloss.Color("#FFFFFF")
-	// ColorHeaderFg is the header text foreground colour.
-	ColorHeaderFg = lipgloss.Color("#A0A0C0")
-	// ColorOverlayBg is the overlay background colour.
-	ColorOverlayBg = lipgloss.Color("#222233")
-	// ColorOverlayBorder is the overlay border colour.
-	ColorOverlayBorder = lipgloss.Color("#7F849C")
-	// ColorSelectedBg is the background colour for selected items.
-	ColorSelectedBg = lipgloss.Color("#313244")
+	ColorStatusBarFg = Theme.MarkdownText.GetForeground()
+	ColorTitleFg     = Theme.MarkdownText.GetForeground()
+	ColorHeaderFg    = Theme.Blue.GetForeground()
 )
 
 // TableHeader is the style for table column headers.
@@ -120,11 +109,14 @@ var TableHeader = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderBottom(true)
 
-// SelectedRow is the style for the active/selected table row.
-var SelectedRow = lipgloss.NewStyle().
-	Background(ColorHighlightBg).
-	Foreground(ColorHighlightFg).
-	Bold(true)
+// CursorBg is a raw ANSI background escape for the cursor row.
+// A subtle tint derived from the theme's Blue colour — dark enough
+// that existing foreground text remains readable. Set by applyChrome.
+var CursorBg = tintBg(Theme.Blue.GetForeground(), 0.15)
+
+// SelectedBg is a raw ANSI background escape for multi-selected rows.
+// A subtle tint derived from the theme's Green colour. Set by applyChrome.
+var SelectedBg = tintBg(Theme.Green.GetForeground(), 0.12)
 
 // Title is the style for section and panel titles.
 var Title = lipgloss.NewStyle().
@@ -134,16 +126,15 @@ var Title = lipgloss.NewStyle().
 
 // HelpOverlay is the outer container style for the help overlay.
 var HelpOverlay = lipgloss.NewStyle().
-	Background(ColorOverlayBg).
 	Border(lipgloss.RoundedBorder()).
-	BorderForeground(ColorOverlayBorder).
+	BorderForeground(Theme.Dim.GetForeground()).
 	Padding(1, 2)
 
 // HelpKey is the style for keybinding key labels.
 var HelpKey = lipgloss.NewStyle().Foreground(Theme.Yellow.GetForeground()).Bold(true)
 
 // HelpDesc is the style for keybinding descriptions.
-var HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg).Faint(true)
+var HelpDesc = *Theme.Dim
 
 // Detail view styles - derived from clib theme colours.
 var (
@@ -201,21 +192,16 @@ func applyTheme(t *clibtheme.Theme) {
 		Bold(true).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true)
-	SelectedRow = lipgloss.NewStyle().
-		Background(ColorHighlightBg).
-		Foreground(ColorHighlightFg).
-		Bold(true)
 	Title = lipgloss.NewStyle().
 		Foreground(ColorTitleFg).
 		Bold(true).
 		Padding(0, 1)
 	HelpOverlay = lipgloss.NewStyle().
-		Background(ColorOverlayBg).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ColorOverlayBorder).
+		BorderForeground(t.Dim.GetForeground()).
 		Padding(1, 2)
 	HelpKey = lipgloss.NewStyle().Foreground(t.Yellow.GetForeground()).Bold(true)
-	HelpDesc = lipgloss.NewStyle().Foreground(ColorStatusBarFg).Faint(true)
+	HelpDesc = *t.Dim
 
 	// Pill styles.
 	PillDanger = Pill.Foreground(t.Red.GetForeground()).Bold(true)
@@ -233,46 +219,26 @@ func applyTheme(t *clibtheme.Theme) {
 	Active = lipgloss.NewStyle().Foreground(t.Green.GetForeground()).Bold(true)
 }
 
-// applyChrome sets UI chrome colours based on the active theme. The light
-// theme needs inverted chrome (dark text on light backgrounds) while dark
-// and high-contrast share the same dark-background chrome.
-func applyChrome(t *clibtheme.Theme) {
-	if isLightTheme(t) {
-		// Light theme chrome.
-		ColorStatusBarFg = lipgloss.Color("#2E3440")
-		ColorTitleFg = lipgloss.Color("#2E3440")
-		ColorHighlightBg = lipgloss.Color("#C8CED8")
-		ColorHighlightFg = lipgloss.Color("#2E3440")
-		ColorHeaderFg = lipgloss.Color("#4C566A")
-		ColorOverlayBg = lipgloss.Color("#ECEFF4")
-		ColorOverlayBorder = lipgloss.Color("#81A1C1")
-		ColorSelectedBg = lipgloss.Color("#D8E8D8")
-	} else {
-		// Dark / high-contrast theme chrome.
-		ColorStatusBarFg = lipgloss.Color("#E0E0E0")
-		ColorTitleFg = lipgloss.Color("#FFFFFF")
-		ColorHighlightBg = lipgloss.Color("#2D2D44")
-		ColorHighlightFg = lipgloss.Color("#FFFFFF")
-		ColorHeaderFg = lipgloss.Color("#A0A0C0")
-		ColorOverlayBg = lipgloss.Color("#222233")
-		ColorOverlayBorder = lipgloss.Color("#7F849C")
-		ColorSelectedBg = lipgloss.Color("#313244")
-	}
+// tintBg produces a raw ANSI 24-bit background escape by mixing a
+// colour with black at the given intensity (0–1). Low intensity
+// values produce barely-visible tints that don't fight foreground
+// text — the same technique prl uses for cursor row highlighting.
+func tintBg(c color.Color, intensity float64) string {
+	r, g, b, _ := c.RGBA()
+	return fmt.Sprintf("\x1b[48;2;%d;%d;%dm",
+		int(float64(r>>8)*intensity),
+		int(float64(g>>8)*intensity),
+		int(float64(b>>8)*intensity),
+	)
 }
 
-// isLightTheme returns true if the theme uses a light background. Known
-// light presets are matched by name via Theme.String(). Unknown themes
-// fall back to a luminance heuristic on the MarkdownText foreground.
-func isLightTheme(t *clibtheme.Theme) bool {
-	switch t.String() {
-	case "catppuccin-latte":
-		return true
-	default:
-		fg := t.MarkdownText.GetForeground()
-		r, g, b, _ := fg.RGBA()
-		luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-		return luminance < 0.5
-	}
+// applyChrome derives UI chrome colours from the active clib theme.
+func applyChrome(t *clibtheme.Theme) {
+	ColorStatusBarFg = t.MarkdownText.GetForeground()
+	ColorTitleFg = t.MarkdownText.GetForeground()
+	ColorHeaderFg = t.Blue.GetForeground()
+	CursorBg = tintBg(t.Blue.GetForeground(), 0.15)
+	SelectedBg = tintBg(t.Green.GetForeground(), 0.12)
 }
 
 // EntityColor returns a consistent colour for a named entity by hashing

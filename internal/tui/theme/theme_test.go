@@ -64,32 +64,19 @@ func TestApply_UpdatesDerivedStyles(t *testing.T) {
 	}
 }
 
-func TestApply_LightChromeColors(t *testing.T) {
+func TestApply_ChromeDerivedFromTheme(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("catppuccin-latte"))
+	th := theme.Resolve("dracula")
+	theme.Apply(th)
 	t.Cleanup(func() {
 		theme.ResetForTest()
 		theme.Apply(theme.Resolve("default"))
 	})
 
-	r, g, b, _ := theme.ColorOverlayBg.RGBA()
-	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-	assert.Greater(t, luminance, 0.5, "light chrome overlay background should be bright")
-}
-
-func TestApply_DarkChromeColors(t *testing.T) {
-	theme.ResetForTest()
-	// default theme's MarkdownText has high luminance (~0.87), which
-	// triggers the dark-background chrome path in applyChrome.
-	theme.Apply(theme.Resolve("default"))
-	t.Cleanup(func() {
-		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
-	})
-
-	r, g, b, _ := theme.ColorOverlayBg.RGBA()
-	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 65535
-	assert.Less(t, luminance, 0.5, "dark chrome overlay background should be dark")
+	assert.Equal(t, th.Blue.GetForeground(), theme.ColorHeaderFg,
+		"header fg should match theme blue")
+	assert.Equal(t, th.MarkdownText.GetForeground(), theme.ColorStatusBarFg,
+		"status bar fg should match theme markdown text")
 }
 
 func TestApply_SecondCallIsNoop(t *testing.T) {

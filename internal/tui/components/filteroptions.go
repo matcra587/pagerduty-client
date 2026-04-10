@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )
 
@@ -230,7 +229,7 @@ func (f FilterOptions) View() tea.View {
 		}
 	}
 
-	dim := lipgloss.NewStyle().Foreground(theme.ColorOverlayBorder)
+	dim := theme.HelpDesc
 
 	for i, row := range f.rows {
 		cursor := "  "

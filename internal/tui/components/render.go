@@ -4,18 +4,23 @@ import (
 	"fmt"
 	"image/color"
 	"strings"
+
+	"charm.land/lipgloss/v2"
 )
 
 // resetBg is the SGR 49 escape that restores the terminal's default background.
 const resetBg = "\x1b[49m"
 
-// PersistBg re-applies an ANSI background escape after every SGR sequence
-// in line, preventing lipgloss Render resets from clearing the container's
-// background. Inspired by prl's injectLineBackground.
-//
-// Safe for multi-byte UTF-8: ANSI escapes use only ASCII bytes (0x1B,
-// 0x5B, 0x30-0x39, 0x3B, 0x6D). UTF-8 continuation bytes (0x80-0xBF)
-// never match these, so byte-level scanning cannot split a codepoint.
+// PersistBgFull right-pads the line with spaces to the given width
+// then applies PersistBg so the background spans the full terminal row.
+func PersistBgFull(line, bg string, width int) string {
+	lineW := lipgloss.Width(line)
+	if lineW < width {
+		line += strings.Repeat(" ", width-lineW)
+	}
+	return PersistBg(line, bg)
+}
+
 func PersistBg(line, bg string) string {
 	if bg == "" {
 		return line

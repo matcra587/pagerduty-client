@@ -16,6 +16,7 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
@@ -24,6 +25,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -153,14 +155,19 @@ $ pdc incident list --team PTEAM01`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(incidents)}
 			return output.RenderAgentJSON(w, "incident list", compact.ResourceIncident, incidents, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, incidents, isTTY)
+			return output.RenderJSON(w, incidents, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -220,14 +227,19 @@ $ pdc incident show --alerts --payload P000001`,
 				IsTTY:     isTTY,
 			})
 
+			var th *theme.Theme
+			if isTTY {
+				th = pdctheme.Resolve(cfg.UI.Theme)
+			}
+
 			switch format {
 			case output.FormatAgentJSON:
 				meta := agent.Metadata{Total: len(alertList)}
 				return output.RenderAgentJSON(w, "incident show --alerts", compact.ResourceAlert, alertList, &meta, nil)
 			case output.FormatJSON:
-				return output.RenderJSON(w, alertList, isTTY)
+				return output.RenderJSON(w, alertList, th)
 			default:
-				return output.RenderTable(w, headers, rows, isTTY)
+				return output.RenderTable(w, headers, rows, th)
 			}
 		}
 		if payload {
@@ -242,13 +254,18 @@ $ pdc incident show --alerts --payload P000001`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		enriched := enrichIncident(ctx, client, incident)
 
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "incident show", compact.ResourceIncident, enriched, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, enriched, isTTY)
+			return output.RenderJSON(w, enriched, th)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -282,7 +299,7 @@ $ pdc incident show --alerts --payload P000001`,
 					rows = append(rows, []string{f.Label, f.Value})
 				}
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -620,14 +637,19 @@ $ pdc incident note list P000001`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(notes)}
 			return output.RenderAgentJSON(w, "incident note list", compact.ResourceNote, notes, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, notes, isTTY)
+			return output.RenderJSON(w, notes, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -685,14 +707,19 @@ $ pdc incident log --since 7d P000001`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(entries)}
 			return output.RenderAgentJSON(w, "incident log", compact.ResourceLogEntry, entries, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, entries, isTTY)
+			return output.RenderJSON(w, entries, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -892,13 +919,18 @@ func showIncidentPayload(ctx context.Context, w io.Writer, client *api.Client, d
 		IsTTY:     isTTY,
 	})
 
+	var th *theme.Theme
+	if isTTY {
+		th = pdctheme.Resolve(cfg.UI.Theme)
+	}
+
 	switch format {
 	case output.FormatAgentJSON:
 		data := payloadResult(summary, body)
 		return output.RenderAgentJSON(w, "incident show --payload", compact.ResourceNone, data, nil, nil)
 	case output.FormatJSON:
 		data := payloadResult(summary, body)
-		return output.RenderJSON(w, data, isTTY)
+		return output.RenderJSON(w, data, th)
 	default:
 		return renderPayloadText(w, summary, body)
 	}

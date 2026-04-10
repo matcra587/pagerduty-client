@@ -126,7 +126,7 @@ func (ts TeamSwitcher) View() tea.View {
 			name := truncateStr(t.Name, 30)
 			line := "  " + name
 			if i == ts.cursor {
-				line = theme.SelectedRow.Render("> " + name)
+				line = PersistBg("> "+name, theme.CursorBg)
 			}
 			sb.WriteString(line + "\n")
 		}

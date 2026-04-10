@@ -7,12 +7,14 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -71,14 +73,19 @@ $ pdc service list --team PTEAM01`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(services)}
 			return output.RenderAgentJSON(w, "service list", compact.ResourceService, services, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, services, isTTY)
+			return output.RenderJSON(w, services, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -120,11 +127,16 @@ $ pdc service show PSVC001`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "service show", compact.ResourceService, service, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, service, isTTY)
+			return output.RenderJSON(w, service, th)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -133,7 +145,7 @@ $ pdc service show PSVC001`,
 				{"Status", service.Status},
 				{"Description", service.Description},
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }

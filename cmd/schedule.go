@@ -8,11 +8,13 @@ import (
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -56,14 +58,19 @@ $ pdc schedule list --query primary`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			meta := agent.Metadata{Total: len(schedules)}
 			return output.RenderAgentJSON(w, "schedule list", compact.ResourceSchedule, schedules, &meta, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, schedules, isTTY)
+			return output.RenderJSON(w, schedules, th)
 		default:
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }
@@ -105,11 +112,16 @@ $ pdc schedule show PSCHED01`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		switch format {
 		case output.FormatAgentJSON:
 			return output.RenderAgentJSON(w, "schedule show", compact.ResourceSchedule, schedule, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, schedule, isTTY)
+			return output.RenderJSON(w, schedule, th)
 		default:
 			headers := []string{"Field", "Value"}
 			rows := [][]string{
@@ -118,7 +130,7 @@ $ pdc schedule show PSCHED01`,
 				{"Time Zone", schedule.TimeZone},
 				{"Description", schedule.Description},
 			}
-			return output.RenderTable(w, headers, rows, isTTY)
+			return output.RenderTable(w, headers, rows, th)
 		}
 	},
 }

@@ -5,11 +5,13 @@ import (
 	"os"
 
 	"github.com/gechr/clib/terminal"
+	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
 
@@ -93,6 +95,11 @@ $ pdc status -f json`,
 			IsTTY:     isTTY,
 		})
 
+		var th *theme.Theme
+		if isTTY {
+			th = pdctheme.Resolve(cfg.UI.Theme)
+		}
+
 		if format == output.FormatAgentJSON || format == output.FormatJSON {
 			data := map[string]any{
 				"api_reachable":   apiReachable,
@@ -109,7 +116,7 @@ $ pdc status -f json`,
 			if format == output.FormatAgentJSON {
 				return output.RenderAgentJSON(w, "status", compact.ResourceNone, data, nil, nil)
 			}
-			return output.RenderJSON(w, data, isTTY)
+			return output.RenderJSON(w, data, th)
 		}
 
 		// Table output already rendered via clog above.

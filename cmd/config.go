@@ -391,6 +391,11 @@ func parseConfigValue(key, val string) (any, error) {
 			return nil, errors.New("tabs must contain at least one value")
 		}
 		return cleaned, nil
+	case "ui.theme":
+		if !slices.Contains(pdctheme.PresetNames(), val) {
+			return nil, fmt.Errorf("unknown theme %q, valid themes: %s", val, strings.Join(pdctheme.PresetNames(), ", "))
+		}
+		return val, nil
 	default:
 		return val, nil
 	}

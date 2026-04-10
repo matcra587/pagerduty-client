@@ -95,6 +95,9 @@ func TestParseConfigValue(t *testing.T) {
 		{name: "tabs multiple", key: "ui.tui.tabs", val: "incidents,services,teams", want: []string{"incidents", "services", "teams"}},
 		{name: "tabs with spaces", key: "ui.tui.tabs", val: "incidents, services", want: []string{"incidents", "services"}},
 		{name: "tabs empty", key: "ui.tui.tabs", val: "", wantErr: true},
+		{name: "theme valid", key: "ui.theme", val: "dracula", want: "dracula"},
+		{name: "theme invalid", key: "ui.theme", val: "tokyonightasd", wantErr: true},
+		{name: "theme empty", key: "ui.theme", val: "", wantErr: true},
 	}
 
 	for _, tt := range tests {

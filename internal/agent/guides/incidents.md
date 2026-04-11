@@ -99,6 +99,14 @@ Stop escalation while investigating. Does not resolve:
 pdc incident ack PINCID
 ```
 
+## Escalate
+
+Escalate to the next level in the incident's escalation policy:
+
+```text
+pdc incident escalate PINCID
+```
+
 ## Resolve
 
 ```text
@@ -171,17 +179,29 @@ pdc incident urgency PINCID low
 pdc incident title PINCID "Updated incident title"
 ```
 
+## Set priority
+
+```text
+pdc incident priority PINCID P1
+```
+
+Clear the priority:
+
+```text
+pdc incident priority PINCID none
+```
+
 ## Common patterns
 
 **Find stale acknowledged incidents** - list acknowledged incidents,
-check how long each has been open, escalate or resolve:
+check how long each has been open, escalate (`pdc incident escalate`) or resolve:
 
 ```text
 pdc incident list --status acknowledged
 ```
 
 Inspect each result's `created_at`. If older than your threshold,
-reassign or resolve.
+escalate or resolve.
 
 **Bulk operations across a team** - list all triggered incidents for a
 team, then acknowledge or resolve each:
@@ -199,6 +219,12 @@ notes:
 pdc incident show PINCID --alerts --payload
 pdc incident log PINCID
 pdc incident note list PINCID
+```
+
+Jump to the source system:
+
+```text
+pdc incident show PINCID --open-external
 ```
 
 ## Agent output
@@ -231,7 +257,10 @@ Use `--format json` for the full unmodified PagerDuty API response.
 | `--overview` | log | summary view |
 | `--alerts` | show | include attached alerts |
 | `--payload` | show | include full alert payloads |
-| `--from` | ack, resolve, snooze, reassign, merge, note add | acting user email |
+| `--detailed` | show | show all integration fields |
+| `--open` | show | open incident in browser |
+| `--open-external` | show | open external integration link |
+| `--from` | ack, resolve, snooze, reassign, merge, note add, escalate, priority | acting user email |
 | `--duration` | snooze | Go duration string (e.g. 4h, 30m) |
 | `--content` | note add | note text |
 | `--note` | resolve | resolution note |

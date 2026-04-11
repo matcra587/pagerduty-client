@@ -7,6 +7,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
+	"github.com/gechr/clib/ansi"
 	"github.com/gechr/clib/theme"
 )
 
@@ -27,11 +28,30 @@ func statusStylesFromTheme(th *theme.Theme) map[string]lipgloss.Style {
 	}
 }
 
+// TableOption configures optional RenderTable behaviour.
+type TableOption func(*tableOpts)
+
+type tableOpts struct {
+	linkFn func(col int, value string) string
+}
+
+// WithLinkFunc adds OSC8 hyperlinks to table cells. The function
+// receives the column index and the raw (sanitised) cell value.
+// Return a URL to wrap the cell as a hyperlink, or empty string
+// to skip.
+func WithLinkFunc(fn func(col int, value string) string) TableOption {
+	return func(o *tableOpts) { o.linkFn = fn }
+}
+
 // RenderTable writes a column-aligned text table to w.
 // When th is non-nil, headers are bold and status/urgency values
 // use theme colours. Cell values are sanitised and long values
 // are truncated.
-func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme) error {
+func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme, opts ...TableOption) error {
+	var cfg tableOpts
+	for _, o := range opts {
+		o(&cfg)
+	}
 	if len(headers) == 0 {
 		return nil
 	}
@@ -80,6 +100,11 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme
 		dimStyle = lipgloss.NewStyle().Faint(true)
 	}
 
+	var a *ansi.ANSI
+	if colour && cfg.linkFn != nil {
+		a = ansi.Force()
+	}
+
 	// Render header row.
 	var sb strings.Builder
 	for i, h := range headers {
@@ -108,15 +133,19 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme
 
 			if colour && (i == statusCol || i == urgencyCol) {
 				if s, ok := styles[cell]; ok {
-					sb.WriteString(s.Render(padded))
-					continue
+					padded = s.Render(padded)
+				} else {
+					padded = dimStyle.Render(padded)
+				}
+			} else if colour {
+				padded = dimStyle.Render(padded)
+			}
+			if a != nil {
+				if url := cfg.linkFn(i, cell); url != "" {
+					padded = a.Hyperlink(url, padded)
 				}
 			}
-			if colour {
-				sb.WriteString(dimStyle.Render(padded))
-			} else {
-				sb.WriteString(padded)
-			}
+			sb.WriteString(padded)
 		}
 		sb.WriteString("\n")
 	}

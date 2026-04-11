@@ -4,8 +4,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"os/exec"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +18,7 @@ import (
 	"github.com/gechr/clib/ansi"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/browser"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/matcra587/pagerduty-client/internal/tui/components"
@@ -1492,18 +1491,7 @@ type browserOpenedMsg struct{ err error }
 
 func openBrowser(ctx context.Context, url string) tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		defer cancel()
-		var cmd *exec.Cmd
-		switch runtime.GOOS {
-		case "darwin":
-			cmd = exec.CommandContext(ctx, "open", url) //nolint:gosec // URL validated by caller
-		case "windows":
-			cmd = exec.CommandContext(ctx, "rundll32", "url.dll,FileProtocolHandler", url) //nolint:gosec // URL validated by caller
-		default:
-			cmd = exec.CommandContext(ctx, "xdg-open", url) //nolint:gosec // URL validated by caller
-		}
-		return browserOpenedMsg{err: cmd.Run()}
+		return browserOpenedMsg{err: browser.Open(ctx, url)}
 	}
 }
 
@@ -1520,30 +1508,7 @@ func (a App) resolveExternalLink() string {
 		return ""
 	}
 
-	// Check user-configured custom fields first.
-	if a.cfg != nil {
-		for _, cf := range a.cfg.CustomFields {
-			if cf.Display != "link" {
-				continue
-			}
-			val, ok := resolveFieldPath(body, cf.Path)
-			if !ok {
-				continue
-			}
-			s := fmt.Sprintf("%v", val)
-			if s != "" && s != "<nil>" {
-				return s
-			}
-		}
-	}
-
-	// Fall back to integration-detected links.
-	summary := integration.Detect(body)
-	if len(summary.Links) > 0 {
-		return summary.Links[0].URL
-	}
-
-	return ""
+	return integration.ResolveExternalLink(a.cfg, body)
 }
 
 var ageDurations = map[string]time.Duration{

@@ -14,12 +14,15 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/PagerDuty/go-pagerduty"
+	"github.com/gechr/clib/ansi"
 	clib "github.com/gechr/clib/cli/cobra"
+	"github.com/gechr/clib/human"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
+	"github.com/matcra587/pagerduty-client/internal/browser"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/integration"
@@ -167,7 +170,13 @@ $ pdc incident list --team PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, incidents, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			linkFn := output.WithLinkFunc(func(col int, val string) string {
+				if col == 0 {
+					return incidentURL(strings.TrimSpace(val))
+				}
+				return ""
+			})
+			return output.RenderTable(w, headers, rows, th, linkFn)
 		}
 	},
 }
@@ -261,46 +270,172 @@ $ pdc incident show --alerts --payload P000001`,
 
 		enriched := enrichIncident(ctx, client, incident)
 
+		var renderErr error
+
 		switch format {
 		case output.FormatAgentJSON:
-			return output.RenderAgentJSON(w, "incident show", compact.ResourceIncident, enriched, nil, nil)
+			renderErr = output.RenderAgentJSON(w, "incident show", compact.ResourceIncident, enriched, nil, nil)
 		case output.FormatJSON:
-			return output.RenderJSON(w, enriched, th)
+			renderErr = output.RenderJSON(w, enriched, th)
 		default:
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", incident.ID},
-				{"Title", incident.Title},
-				{"Status", incident.Status},
-				{"Urgency", incident.Urgency},
-				{"Service", incident.Service.Summary},
-				{"Created", incident.CreatedAt},
+			var a *ansi.ANSI
+			if th != nil {
+				a = ansi.Force()
 			}
+
+			// ID — OSC8 hyperlink when TTY.
+			idVal := output.Sanitize(incident.ID)
+			if a != nil {
+				idVal = a.Hyperlink(incidentURL(incident.ID), idVal)
+			}
+
+			// Status — colour by state.
+			statusVal := output.Sanitize(incident.Status)
+			if th != nil {
+				switch incident.Status {
+				case "triggered":
+					statusVal = th.Red.Render(statusVal)
+				case "acknowledged":
+					statusVal = th.Yellow.Render(statusVal)
+				case "resolved":
+					statusVal = th.Green.Faint(true).Render(statusVal)
+				}
+			}
+
+			// Priority — colour by severity.
+			priorityVal := output.Sanitize(formatPriority(incident.Priority, incident.Urgency))
+			if th != nil {
+				pname := formatPriority(incident.Priority, incident.Urgency)
+				switch pname {
+				case "P1", "P2":
+					priorityVal = th.Red.Render(priorityVal)
+				case "P3":
+					priorityVal = th.Yellow.Render(priorityVal)
+				default:
+					priorityVal = th.Dim.Render(priorityVal)
+				}
+			}
+
+			// Urgency — colour by level.
+			urgencyVal := output.Sanitize(incident.Urgency)
+			if th != nil {
+				switch incident.Urgency {
+				case "high":
+					urgencyVal = th.Red.Render(urgencyVal)
+				case "low":
+					urgencyVal = th.Yellow.Render(urgencyVal)
+				}
+			}
+
+			// Created — relative + absolute when TTY.
+			createdVal := output.Sanitize(incident.CreatedAt)
+			if th != nil {
+				if t, err := time.Parse(time.RFC3339, incident.CreatedAt); err == nil {
+					createdVal = human.FormatTimeAgoCompact(t) + " (" + output.Sanitize(incident.CreatedAt) + ")"
+				}
+			}
+
+			rows := []showRow{
+				{"ID", idVal},
+				{"Title", output.Sanitize(incident.Title)},
+				{"Status", statusVal},
+				{"Priority", priorityVal},
+				{"Urgency", urgencyVal},
+				{"Service", output.Sanitize(incident.Service.Summary)},
+			}
+			if incident.EscalationPolicy.Summary != "" {
+				rows = append(rows, showRow{"Escalation", output.Sanitize(incident.EscalationPolicy.Summary)})
+			}
+			rows = append(rows, showRow{"Created", createdVal})
 			if incident.IncidentKey != "" {
-				rows = append(rows, []string{"Incident Key", incident.IncidentKey})
+				rows = append(rows, showRow{"Incident Key", output.Sanitize(incident.IncidentKey)})
 			}
-			rows = append(rows, []string{"Alerts", fmt.Sprintf("%d triggered, %d resolved", incident.AlertCounts.Triggered, incident.AlertCounts.Resolved)})
+			rows = append(rows, showRow{"Alerts", formatAlertCounts(incident.AlertCounts.Triggered, incident.AlertCounts.Resolved)})
+
+			// Assignees — entity colours when TTY.
+			assigneeText := formatAssignees(incident.Assignments)
+			if assigneeText != "" {
+				if th != nil {
+					names := make([]string, 0, len(incident.Assignments))
+					for _, asgn := range incident.Assignments {
+						if asgn.Assignee.Summary != "" {
+							names = append(names, output.Sanitize(asgn.Assignee.Summary))
+						}
+					}
+					assigneeText = pdctheme.RenderEntityNames(names)
+				} else {
+					assigneeText = output.Sanitize(assigneeText)
+				}
+				rows = append(rows, showRow{"Assignees", assigneeText})
+			}
+
 			if incident.LastStatusChangeBy.Summary != "" {
-				rows = append(rows, []string{"Last Changed By", incident.LastStatusChangeBy.Summary})
+				rows = append(rows, showRow{"Last Changed By", output.Sanitize(incident.LastStatusChangeBy.Summary)})
 			}
 			if len(incident.Teams) > 0 {
 				teamNames := make([]string, len(incident.Teams))
 				for i, t := range incident.Teams {
-					teamNames[i] = t.Summary
+					teamNames[i] = output.Sanitize(t.Summary)
 				}
-				rows = append(rows, []string{"Teams", strings.Join(teamNames, ", ")})
+				rows = append(rows, showRow{"Teams", strings.Join(teamNames, ", ")})
 			}
+
+			// Conference bridge fields.
+			if incident.ConferenceBridge != nil && incident.ConferenceBridge.ConferenceURL != "" {
+				bridgeURL := output.Sanitize(incident.ConferenceBridge.ConferenceURL)
+				if a != nil {
+					bridgeURL = a.Hyperlink(incident.ConferenceBridge.ConferenceURL, bridgeURL)
+				}
+				rows = append(rows, showRow{"Bridge URL", bridgeURL})
+			}
+			if incident.ConferenceBridge != nil && incident.ConferenceBridge.ConferenceNumber != "" {
+				rows = append(rows, showRow{"Bridge Number", output.Sanitize(incident.ConferenceBridge.ConferenceNumber)})
+			}
+
+			// Integration fields.
 			if enriched.Integration != nil {
-				rows = append(rows, []string{"Source", enriched.Integration.Source})
+				rows = append(rows, showRow{"Source", output.Sanitize(enriched.Integration.Source)})
 				for _, f := range enriched.Integration.Fields {
 					if !detailed && isVerboseField(f.Label) {
 						continue
 					}
-					rows = append(rows, []string{f.Label, f.Value})
+					rows = append(rows, showRow{f.Label, output.Sanitize(f.Value)})
 				}
 			}
-			return output.RenderTable(w, headers, rows, th)
+
+			// Description last — can be multi-line.
+			if incident.Description != "" {
+				rows = append(rows, showRow{"Description", output.Sanitize(incident.Description)})
+			}
+
+			renderErr = renderShowDetail(w, rows, th)
 		}
+		if renderErr != nil {
+			return renderErr
+		}
+
+		openFlag, _ := cmd.Flags().GetBool("open")
+		openExtFlag, _ := cmd.Flags().GetBool("open-external")
+
+		if (openFlag || openExtFlag) && !det.Active {
+			var url string
+			if openExtFlag {
+				var links []payloadLink
+				if enriched.Integration != nil {
+					links = enriched.Integration.Links
+				}
+				url = resolveShowURL(cfg, enriched.alertBody, links, args[0])
+			} else {
+				url = incidentURL(args[0])
+			}
+			if err := browser.Open(ctx, url); err != nil {
+				clog.Warn().Err(err).Msg("failed to open browser")
+			}
+		} else if (openFlag || openExtFlag) && det.Active {
+			clog.Debug().Msg("--open ignored in agent mode")
+		}
+
+		return nil
 	},
 }
 
@@ -1042,10 +1177,11 @@ type payloadLink struct {
 }
 
 // enrichedIncident wraps an incident with parsed integration fields
-// for JSON output.
+// for JSON output. alertBody is retained for --open-external.
 type enrichedIncident struct {
 	*pagerduty.Incident
 	Integration *integrationSummary `json:"integration,omitempty"`
+	alertBody   map[string]any
 }
 
 // integrationSummary holds parsed fields from an alert body.
@@ -1096,6 +1232,7 @@ func enrichIncident(ctx context.Context, client *api.Client, incident *pagerduty
 	if len(body) == 0 {
 		return result
 	}
+	result.alertBody = body
 
 	summary := integration.Detect(body)
 	if summary.Source == "" {
@@ -1205,6 +1342,90 @@ func incidentRows(incidents []pagerduty.Incident) ([]string, [][]string) {
 
 func incidentURL(id string) string {
 	return "https://app.pagerduty.com/incidents/" + id
+}
+
+// resolveShowURL picks the best URL for --open-external: custom
+// field link, integration-detected link, or PagerDuty incident URL.
+func resolveShowURL(cfg *config.Config, alertBody map[string]any, links []payloadLink, incidentID string) string {
+	if alertBody != nil {
+		if url := integration.ResolveExternalLink(cfg, alertBody); url != "" {
+			return url
+		}
+	}
+	for _, l := range links {
+		if integration.IsHTTP(l.URL) {
+			return l.URL
+		}
+	}
+	return incidentURL(incidentID)
+}
+
+// formatAssignees extracts the Summary from each assignment's Assignee
+// and joins them with ", ". Empty summaries are skipped.
+func formatAssignees(assignments []pagerduty.Assignment) string {
+	var names []string
+	for _, a := range assignments {
+		if a.Assignee.Summary != "" {
+			names = append(names, a.Assignee.Summary)
+		}
+	}
+	return strings.Join(names, ", ")
+}
+
+// formatAlertCounts returns a summary string like "5 total, 3 triggered, 2 resolved".
+func formatAlertCounts(triggered, resolved uint) string {
+	return fmt.Sprintf("%d total, %d triggered, %d resolved", triggered+resolved, triggered, resolved)
+}
+
+// formatPriority returns the priority name when set, or the urgency
+// string as a fallback.
+func formatPriority(priority *pagerduty.Priority, urgency string) string {
+	if priority != nil && priority.Name != "" {
+		return priority.Name
+	}
+	return urgency
+}
+
+// showRow is a label/value pair for the incident detail renderer.
+type showRow struct {
+	Label string
+	Value string
+}
+
+// renderShowDetail writes a 2-column detail view with aligned labels.
+// When th is non-nil, labels are bold and unstyled values are dimmed.
+// Values that already contain ANSI escapes (pre-styled by the caller)
+// are passed through without dimming.
+func renderShowDetail(w io.Writer, rows []showRow, th *theme.Theme) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	maxLabel := 0
+	for _, r := range rows {
+		if n := len(r.Label); n > maxLabel {
+			maxLabel = n
+		}
+	}
+
+	for _, r := range rows {
+		label := r.Label
+		value := r.Value
+
+		if th != nil {
+			label = th.Bold.Render(fmt.Sprintf("%-*s", maxLabel, label))
+			if !strings.Contains(value, "\x1b") {
+				value = th.Dim.Render(value)
+			}
+		} else {
+			label = fmt.Sprintf("%-*s", maxLabel, label)
+		}
+
+		if _, err := fmt.Fprintf(w, "  %s  %s\n", label, value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func alertRows(alerts []pagerduty.IncidentAlert) ([]string, [][]string) {
@@ -1425,6 +1646,16 @@ func init() {
 	clib.Extend(sf.Lookup("detailed"), clib.FlagExtra{
 		Group: "Output",
 		Terse: "show all integration fields",
+	})
+	sf.Bool("open", false, "Open incident in browser")
+	clib.Extend(sf.Lookup("open"), clib.FlagExtra{
+		Group: "Output",
+		Terse: "open in browser",
+	})
+	sf.Bool("open-external", false, "Open external integration link in browser")
+	clib.Extend(sf.Lookup("open-external"), clib.FlagExtra{
+		Group: "Output",
+		Terse: "open external link in browser",
 	})
 
 	// shared --from flag

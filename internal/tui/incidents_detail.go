@@ -490,7 +490,7 @@ func (m incidentDetail) configuredFieldsView(body map[string]any) string {
 	var sb strings.Builder
 	wrote := false
 	for _, f := range m.cfg.CustomFields {
-		val, ok := resolveFieldPath(body, f.Path)
+		val, ok := integration.ResolveFieldPath(body, f.Path)
 		if !ok || val == nil {
 			continue
 		}
@@ -513,32 +513,6 @@ func (m incidentDetail) configuredFieldsView(body map[string]any) string {
 		return ""
 	}
 	return sb.String()
-}
-
-func resolveFieldPath(body map[string]any, path string) (any, bool) {
-	if val, ok := walkPath(body, path); ok {
-		return val, true
-	}
-	if cef, ok := body["cef_details"].(map[string]any); ok {
-		return walkPath(cef, path)
-	}
-	return nil, false
-}
-
-func walkPath(root map[string]any, path string) (any, bool) {
-	parts := strings.Split(path, ".")
-	var current any = root
-	for _, part := range parts {
-		m, ok := current.(map[string]any)
-		if !ok {
-			return nil, false
-		}
-		current, ok = m[part]
-		if !ok {
-			return nil, false
-		}
-	}
-	return current, true
 }
 
 func (m incidentDetail) alertsSection() string {

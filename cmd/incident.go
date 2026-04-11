@@ -812,6 +812,43 @@ $ pdc incident title P000001 "Database connection pool exhausted"`,
 	},
 }
 
+var incidentEscalateCmd = &cobra.Command{
+	Use:         "escalate <id>",
+	Short:       "Escalate to the next escalation policy level",
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
+		from, err := resolveFromEmail(cmd)
+		if err != nil {
+			return err
+		}
+
+		if err := client.EscalateIncident(ctx, args[0], from); err != nil {
+			return fmt.Errorf("escalating incident: %w", err)
+		}
+
+		if det.Active {
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident escalate", compact.ResourceNone, map[string]string{"id": args[0]}, nil, nil)
+		}
+		clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident escalated")
+		return nil
+	},
+}
+
 var incidentResolveAlertCmd = &cobra.Command{
 	Use:         "resolve-alert <incident-id> <alert-id>...",
 	Short:       "Resolve one or more alerts within an incident",
@@ -1197,6 +1234,7 @@ func init() {
 	incidentCmd.AddCommand(incidentLogCmd)
 	incidentCmd.AddCommand(incidentUrgencyCmd)
 	incidentCmd.AddCommand(incidentTitleCmd)
+	incidentCmd.AddCommand(incidentEscalateCmd)
 	incidentCmd.AddCommand(incidentResolveAlertCmd)
 
 	logF := incidentLogCmd.Flags()
@@ -1314,7 +1352,8 @@ func init() {
 	for _, sub := range []*cobra.Command{
 		incidentAckCmd, incidentResolveCmd, incidentSnoozeCmd,
 		incidentReassignCmd, incidentMergeCmd, incidentNoteAddCmd,
-		incidentUrgencyCmd, incidentTitleCmd, incidentResolveAlertCmd,
+		incidentUrgencyCmd, incidentTitleCmd, incidentEscalateCmd,
+		incidentResolveAlertCmd,
 	} {
 		sub.Flags().String("from", "", "Email of the acting user (defaults to current API token user)")
 		clib.Extend(sub.Flags().Lookup("from"), clib.FlagExtra{

@@ -599,6 +599,70 @@ func TestEscalateIncident_Level0(t *testing.T) {
 	assert.True(t, reassigned, "expected reassign PUT to be called")
 }
 
+func TestEscalateIncident_EmptyFrom(t *testing.T) {
+	t.Parallel()
+	client := NewClient("test-token")
+	err := client.EscalateIncident(context.Background(), "P1", "")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "from email is required")
+}
+
+func TestEscalateIncident_NoEscalationPolicy(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("GET /incidents/P1", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"incident": {
+				"id": "P1",
+				"escalation_policy": {"id": ""},
+				"escalation_level": 1
+			}
+		}`))
+	})
+
+	client := NewClient("test-token", WithBaseURL(server.URL))
+	err := client.EscalateIncident(context.Background(), "P1", "user@example.com")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "incident has no escalation policy")
+}
+
+func TestEscalateIncident_NoTargetsOnNextLevel(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("GET /incidents/P1", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"incident": {
+				"id": "P1",
+				"escalation_policy": {"id": "EP1"},
+				"escalation_level": 1
+			}
+		}`))
+	})
+
+	mux.HandleFunc("GET /escalation_policies/EP1", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"escalation_policy": {
+				"id": "EP1",
+				"escalation_rules": [
+					{"id": "R1", "targets": [{"id": "U1", "type": "user_reference"}]},
+					{"id": "R2", "targets": []}
+				]
+			}
+		}`))
+	})
+
+	client := NewClient("test-token", WithBaseURL(server.URL))
+	err := client.EscalateIncident(context.Background(), "P1", "user@example.com")
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "next escalation level has no targets")
+}
+
 func TestAddIncidentNote(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()

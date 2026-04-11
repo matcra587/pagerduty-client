@@ -812,6 +812,62 @@ $ pdc incident title P000001 "Database connection pool exhausted"`,
 	},
 }
 
+var incidentPriorityCmd = &cobra.Command{
+	Use:         "priority <id> <priority-name|none>",
+	Short:       "Set or clear incident priority",
+	Args:        cobra.ExactArgs(2),
+	Annotations: map[string]string{"clib": "dynamic-args='incident,priority'"},
+	Example: `# Set priority to P1
+$ pdc incident priority P000001 P1
+
+# Clear priority
+$ pdc incident priority P000001 none`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx := cmd.Context()
+		client := ClientFromContext(cmd)
+		det := AgentFromContext(cmd)
+
+		r := ResolverFromContext(cmd)
+		if r != nil {
+			rid, matches, fnErr := r.Incident(ctx, args[0])
+			resolved, resolveErr := resolveOrPick(!det.Active, rid, matches, fnErr)
+			if resolveErr != nil {
+				return resolveErr
+			}
+			args[0] = resolved
+		}
+
+		from, err := resolveFromEmail(cmd)
+		if err != nil {
+			return err
+		}
+
+		priorities, err := client.ListPriorities(ctx)
+		if err != nil {
+			return fmt.Errorf("fetching priorities: %w", err)
+		}
+
+		priorityID, err := matchPriority(args[1], priorities)
+		if err != nil {
+			return err
+		}
+
+		if _, err := client.UpdateIncident(ctx, args[0], from, api.UpdateOpts{Priority: &priorityID}); err != nil {
+			return fmt.Errorf("setting priority: %w", err)
+		}
+
+		if det.Active {
+			return output.RenderAgentJSON(cmd.OutOrStdout(), "incident priority", compact.ResourceNone, map[string]string{"id": args[0], "priority": args[1]}, nil, nil)
+		}
+		if strings.EqualFold(args[1], "none") {
+			clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident priority cleared")
+		} else {
+			clog.Info().Link("incident", incidentURL(args[0]), args[0]).Msg("Incident priority set to " + args[1])
+		}
+		return nil
+	},
+}
+
 var incidentEscalateCmd = &cobra.Command{
 	Use:         "escalate <id>",
 	Short:       "Escalate to the next escalation policy level",
@@ -1213,6 +1269,28 @@ func logEntrySummary(e pagerduty.LogEntry) string {
 	return ""
 }
 
+// matchPriority resolves a priority name to its ID. "none" (case-insensitive)
+// clears the priority. Returns an error if no priorities are configured or the
+// name does not match any configured priority.
+func matchPriority(name string, priorities []pagerduty.Priority) (string, error) {
+	if len(priorities) == 0 {
+		return "", errors.New("no priorities configured in this PagerDuty account")
+	}
+	if strings.EqualFold(name, "none") {
+		return "", nil
+	}
+	for _, p := range priorities {
+		if strings.EqualFold(p.Name, name) {
+			return p.ID, nil
+		}
+	}
+	names := make([]string, len(priorities))
+	for i, p := range priorities {
+		names[i] = p.Name
+	}
+	return "", fmt.Errorf("unknown priority %q; valid priorities: %s, none", name, strings.Join(names, ", "))
+}
+
 func init() {
 	rootCmd.AddCommand(incidentCmd)
 	incidentCmd.AddCommand(incidentListCmd)
@@ -1235,6 +1313,7 @@ func init() {
 	incidentCmd.AddCommand(incidentUrgencyCmd)
 	incidentCmd.AddCommand(incidentTitleCmd)
 	incidentCmd.AddCommand(incidentEscalateCmd)
+	incidentCmd.AddCommand(incidentPriorityCmd)
 	incidentCmd.AddCommand(incidentResolveAlertCmd)
 
 	logF := incidentLogCmd.Flags()
@@ -1353,7 +1432,7 @@ func init() {
 		incidentAckCmd, incidentResolveCmd, incidentSnoozeCmd,
 		incidentReassignCmd, incidentMergeCmd, incidentNoteAddCmd,
 		incidentUrgencyCmd, incidentTitleCmd, incidentEscalateCmd,
-		incidentResolveAlertCmd,
+		incidentPriorityCmd, incidentResolveAlertCmd,
 	} {
 		sub.Flags().String("from", "", "Email of the acting user (defaults to current API token user)")
 		clib.Extend(sub.Flags().Lookup("from"), clib.FlagExtra{

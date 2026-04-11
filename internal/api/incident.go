@@ -279,31 +279,6 @@ func (c *Client) ListPriorities(ctx context.Context) ([]pagerduty.Priority, erro
 	return resp.Priorities, nil
 }
 
-// UpdatePriority sets the priority on an incident.
-func (c *Client) UpdatePriority(ctx context.Context, id, from, priorityID string) error {
-	type priorityRef struct {
-		ID   string `json:"id"`
-		Type string `json:"type"`
-	}
-	type incidentUpdate struct {
-		ID       string      `json:"id"`
-		Type     string      `json:"type"`
-		Priority priorityRef `json:"priority"`
-	}
-
-	payload := map[string][]incidentUpdate{
-		"incidents": {
-			{
-				ID:       id,
-				Type:     "incident_reference",
-				Priority: priorityRef{ID: priorityID, Type: "priority_reference"},
-			},
-		},
-	}
-	_, err := c.putFrom(ctx, "/incidents", payload, from)
-	return err
-}
-
 // UpdateOpts holds optional fields for incident update.
 // Nil pointer = field not changed, non-nil = set to value.
 type UpdateOpts struct {

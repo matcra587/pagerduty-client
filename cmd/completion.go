@@ -127,6 +127,15 @@ func completionHandler(token string, cfg *config.Config, opts ...api.Option) com
 			for _, w := range windows {
 				printCompletion(w.ID, w.Description)
 			}
+		case "priority":
+			priorities, err := client.ListPriorities(ctx)
+			if err != nil {
+				return
+			}
+			for _, p := range priorities {
+				printCompletion(p.Name, p.Name)
+			}
+			printCompletion("none", "clear priority")
 		case "urgency":
 			_, _ = fmt.Println("high")
 			_, _ = fmt.Println("low")

@@ -1353,7 +1353,7 @@ func (a App) updatePriorityCmd(incidentID, priorityName string) tea.Cmd {
 		if priorityID == "" {
 			return incidentErrMsg{op: "priority", err: fmt.Errorf("priority %q not found", priorityName)}
 		}
-		if err := client.UpdatePriority(ctx, incidentID, from, priorityID); err != nil {
+		if _, err := client.UpdateIncident(ctx, incidentID, from, api.UpdateOpts{Priority: &priorityID}); err != nil {
 			return incidentErrMsg{op: "priority", err: err}
 		}
 		return IncidentPriorityUpdated{ID: incidentID}

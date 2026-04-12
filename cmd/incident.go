@@ -198,8 +198,8 @@ var incidentShowCmd = &cobra.Command{
 	Example: `# Show incident details
 $ pdc incident show P000001
 
-# Include alert payloads
-$ pdc incident show --alerts --payload P000001`,
+# List alerts attached to the incident
+$ pdc incident show --alerts P000001`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)
@@ -223,11 +223,7 @@ $ pdc incident show --alerts --payload P000001`,
 		clog.Debug().Elapsed("duration").Str("id", args[0]).Msg("fetched incident")
 
 		alerts, _ := cmd.Flags().GetBool("alerts")
-		payload, _ := cmd.Flags().GetBool("payload")
 		detailed, _ := cmd.Flags().GetBool("detailed")
-		if alerts && payload {
-			return errors.New("--alerts and --payload are mutually exclusive")
-		}
 		if alerts {
 			alertList, err := client.ListIncidentAlerts(ctx, args[0])
 			if err != nil {
@@ -267,10 +263,6 @@ $ pdc incident show --alerts --payload P000001`,
 				return tbl.Render()
 			}
 		}
-		if payload {
-			return showIncidentPayload(cmd.Context(), cmd.OutOrStdout(), client, det, cfg, incident)
-		}
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -1163,45 +1155,6 @@ func parseFromEmail(email string) (string, error) {
 	return a.Address, nil
 }
 
-// showIncidentPayload fetches the first alert's raw body payload, runs
-// integration detection and displays the source, extracted fields and raw JSON.
-func showIncidentPayload(ctx context.Context, w io.Writer, client *api.Client, det agent.DetectionResult, cfg *config.Config, incident *pagerduty.Incident) error {
-	alerts, err := client.ListIncidentAlerts(ctx, incident.ID)
-	if err != nil {
-		return fmt.Errorf("fetching alerts: %w", err)
-	}
-	if len(alerts) == 0 {
-		clog.Warn().Str("incident", incident.ID).Msg("no alerts found")
-		return nil
-	}
-
-	body := alerts[0].Body
-	summary := integration.Detect(body)
-
-	isTTY := terminal.Is(os.Stdout)
-	format := output.DetectFormat(output.FormatOpts{
-		AgentMode: det.Active,
-		Format:    cfg.Format,
-		IsTTY:     isTTY,
-	})
-
-	var th *theme.Theme
-	if isTTY {
-		th = pdctheme.Resolve(cfg.UI.Theme)
-	}
-
-	switch format {
-	case output.FormatAgentJSON:
-		data := payloadResult(summary, body)
-		return output.RenderAgentJSON(w, "incident show --payload", compact.ResourceNone, data, nil, nil)
-	case output.FormatJSON:
-		data := payloadResult(summary, body)
-		return output.RenderJSON(w, data, th)
-	default:
-		return renderPayloadText(w, summary, body)
-	}
-}
-
 // payloadField is a JSON-serialisable field extracted from an alert body.
 type payloadField struct {
 	Label string `json:"label"`
@@ -1263,19 +1216,33 @@ func enrichIncident(ctx context.Context, client *api.Client, incident *pagerduty
 		return result
 	}
 	if len(alerts) == 0 {
+		clog.Debug().Str("incident", incident.ID).Msg("no alerts attached, skipping enrichment")
 		return result
 	}
 
 	body := alerts[0].Body
 	if len(body) == 0 {
+		clog.Debug().Str("incident", incident.ID).Str("alert", alerts[0].ID).Msg("first alert has empty body")
 		return result
 	}
 	result.alertBody = body
 
+	if bodyJSON, marshalErr := json.Marshal(body); marshalErr == nil {
+		clog.Debug().Str("incident", incident.ID).RawJSON("body", bodyJSON).Msg("raw alert body")
+	}
+
 	summary := integration.Detect(body)
 	if summary.Source == "" {
+		clog.Debug().Str("incident", incident.ID).Msg("no integration source detected")
 		return result
 	}
+
+	clog.Debug().
+		Str("incident", incident.ID).
+		Str("source", summary.Source).
+		Int("fields", len(summary.Fields)).
+		Int("links", len(summary.Links)).
+		Msg("integration detected")
 
 	is := &integrationSummary{Source: summary.Source}
 	for _, f := range summary.Fields {
@@ -1287,60 +1254,6 @@ func enrichIncident(ctx context.Context, client *api.Client, incident *pagerduty
 	result.Integration = is
 
 	return result
-}
-
-// payloadResult builds a structured result for JSON/agent output.
-func payloadResult(summary integration.Summary, body map[string]any) map[string]any {
-	fields := make([]payloadField, len(summary.Fields))
-	for i, f := range summary.Fields {
-		fields[i] = payloadField{Label: f.Label, Value: f.Value}
-	}
-	links := make([]payloadLink, len(summary.Links))
-	for i, l := range summary.Links {
-		links[i] = payloadLink{Label: l.Label, URL: l.URL}
-	}
-	return map[string]any{
-		"source": summary.Source,
-		"fields": fields,
-		"links":  links,
-		"body":   body,
-	}
-}
-
-// renderPayloadText writes human-readable alert payload output.
-func renderPayloadText(w io.Writer, summary integration.Summary, body map[string]any) error {
-	_, _ = fmt.Fprintf(w, "Detected source: %s\n\n", summary.Source)
-
-	if len(summary.Fields) > 0 {
-		_, _ = fmt.Fprintln(w, "Extracted fields:")
-		for _, f := range summary.Fields {
-			val := f.Value
-			if len(val) > 80 {
-				val = val[:77] + "..."
-			}
-			_, _ = fmt.Fprintf(w, "  %-16s %s\n", f.Label+":", val)
-		}
-		_, _ = fmt.Fprintln(w)
-	}
-
-	for _, l := range summary.Links {
-		_, _ = fmt.Fprintf(w, "  %s: %s\n", l.Label, l.URL)
-	}
-	if len(summary.Links) > 0 {
-		_, _ = fmt.Fprintln(w)
-	}
-
-	raw, err := json.MarshalIndent(body, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshalling body: %w", err)
-	}
-	_, _ = fmt.Fprintln(w, "Raw alert body:")
-	_, _ = fmt.Fprintln(w, string(raw))
-
-	_, _ = fmt.Fprintln(w)
-	_, _ = fmt.Fprintln(w, "Tip: if fields are missing, configure custom_fields in your config file.")
-
-	return nil
 }
 
 // expandSinceShorthand converts shorthand duration values (7d, 30d, 60d, 90d)
@@ -1636,11 +1549,6 @@ func init() {
 	clib.Extend(sf.Lookup("alerts"), clib.FlagExtra{
 		Group: "Output",
 		Terse: "show grouped alerts",
-	})
-	sf.Bool("payload", false, "Include raw alert event payload with integration detection")
-	clib.Extend(sf.Lookup("payload"), clib.FlagExtra{
-		Group: "Output",
-		Terse: "show alert event payload",
 	})
 	sf.Bool("detailed", false, "Show all integration fields in table output")
 	clib.Extend(sf.Lookup("detailed"), clib.FlagExtra{

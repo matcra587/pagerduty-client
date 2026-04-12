@@ -9,6 +9,8 @@ import (
 	"github.com/gechr/clib/theme"
 )
 
+const colGap = 2 // spaces between columns
+
 // RenderColumns writes items in a multi-column flow layout similar to ls.
 // Items fill down each column before moving to the next. When th is non-nil,
 // items are styled with the theme's Orange colour.

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PagerDuty/go-pagerduty"
+	"charm.land/lipgloss/v2"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -14,6 +14,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -63,8 +64,6 @@ $ pdc service list --team PTEAM01`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(services)).Msg("listed services")
 
-		headers, rows := serviceRows(services)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -85,7 +84,15 @@ $ pdc service list --team PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, services, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("Status").StyleMap(serviceStatusStyles(th)))
+			tbl.AddCol(table.Col("Description").Flex())
+			for _, s := range services {
+				tbl.Row(s.ID, s.Name, s.Status, s.Description)
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -138,25 +145,29 @@ $ pdc service show PSVC001`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, service, th)
 		default:
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", service.ID},
-				{"Name", service.Name},
-				{"Status", service.Status},
-				{"Description", service.Description},
-			}
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", service.ID)
+			tbl.Row("Name", service.Name)
+			tbl.Row("Status", service.Status)
+			tbl.Row("Description", service.Description)
+			return tbl.Render()
 		}
 	},
 }
 
-func serviceRows(services []pagerduty.Service) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Status", "Description"}
-	rows := make([][]string, len(services))
-	for i, s := range services {
-		rows[i] = []string{s.ID, s.Name, s.Status, s.Description}
+func serviceStatusStyles(th *theme.Theme) map[string]lipgloss.Style {
+	if th == nil {
+		return nil
 	}
-	return headers, rows
+	return map[string]lipgloss.Style{
+		"active":      lipgloss.NewStyle().Foreground(th.Green.GetForeground()),
+		"warning":     lipgloss.NewStyle().Foreground(th.Yellow.GetForeground()),
+		"critical":    lipgloss.NewStyle().Foreground(th.Red.GetForeground()),
+		"maintenance": lipgloss.NewStyle().Foreground(th.Blue.GetForeground()),
+		"disabled":    lipgloss.NewStyle().Faint(true),
+	}
 }
 
 func init() {

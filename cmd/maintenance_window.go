@@ -5,7 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -15,6 +14,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -73,8 +73,6 @@ $ pdc maintenance-window list --service S1`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(windows)).Msg("listed maintenance windows")
 
-		headers, rows := maintenanceWindowRows(windows)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -95,7 +93,20 @@ $ pdc maintenance-window list --service S1`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, windows, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("Description").Flex())
+			tbl.AddCol(table.Col("Start").TimeAgo())
+			tbl.AddCol(table.Col("End").TimeAgo())
+			tbl.AddCol(table.Col("Services").Flex())
+			for _, mw := range windows {
+				svcNames := make([]string, len(mw.Services))
+				for j, s := range mw.Services {
+					svcNames[j] = s.Summary
+				}
+				tbl.Row(mw.ID, mw.Description, mw.StartTime, mw.EndTime, strings.Join(svcNames, ", "))
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -162,38 +173,19 @@ $ pdc maintenance-window show PW98YIO`,
 				createdBy = mw.CreatedBy.Summary
 			}
 
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", mw.ID},
-				{"Description", mw.Description},
-				{"Start", mw.StartTime},
-				{"End", mw.EndTime},
-				{"Created By", createdBy},
-				{"Services", strings.Join(svcNames, ", ")},
-				{"Teams", strings.Join(teamNames, ", ")},
-			}
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", mw.ID)
+			tbl.Row("Description", mw.Description)
+			tbl.Row("Start", mw.StartTime)
+			tbl.Row("End", mw.EndTime)
+			tbl.Row("Created By", createdBy)
+			tbl.Row("Services", strings.Join(svcNames, ", "))
+			tbl.Row("Teams", strings.Join(teamNames, ", "))
+			return tbl.Render()
 		}
 	},
-}
-
-func maintenanceWindowRows(windows []pagerduty.MaintenanceWindow) ([]string, [][]string) {
-	headers := []string{"ID", "Description", "Start", "End", "Services"}
-	rows := make([][]string, len(windows))
-	for i, w := range windows {
-		svcNames := make([]string, len(w.Services))
-		for j, s := range w.Services {
-			svcNames[j] = s.Summary
-		}
-		rows[i] = []string{
-			w.ID,
-			w.Description,
-			w.StartTime,
-			w.EndTime,
-			strings.Join(svcNames, ", "),
-		}
-	}
-	return headers, rows
 }
 
 func init() {

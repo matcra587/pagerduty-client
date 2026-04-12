@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"charm.land/huh/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	"github.com/gechr/clib/ansi"
 	clib "github.com/gechr/clib/cli/cobra"
@@ -28,6 +29,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -148,8 +150,6 @@ $ pdc incident list --team PTEAM01`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(incidents)).Msg("listed incidents")
 
-		headers, rows := incidentRows(incidents)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -170,13 +170,22 @@ $ pdc incident list --team PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, incidents, th)
 		default:
-			linkFn := output.WithLinkFunc(func(col int, val string) string {
-				if col == 0 {
-					return incidentURL(strings.TrimSpace(val))
-				}
-				return ""
-			})
-			return output.RenderTable(w, headers, rows, th, linkFn)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return incidentURL(strings.TrimSpace(v))
+			}))
+			tbl.AddCol(table.Col("Title").Flex().Normal())
+			tbl.AddCol(table.Col("Status").StyleMap(statusStyles(th)))
+			tbl.AddCol(table.Col("Urgency").StyleMap(urgencyStyles(th)))
+			tbl.AddCol(table.Col("Service").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}))
+			tbl.AddCol(table.Col("Created").TimeAgo())
+			for _, inc := range incidents {
+				tbl.Row(inc.ID, inc.Title, inc.Status, inc.Urgency,
+					inc.Service.Summary, inc.CreatedAt)
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -226,8 +235,6 @@ $ pdc incident show --alerts --payload P000001`,
 			}
 			clog.Debug().Elapsed("duration").Int("count", len(alertList)).Msg("listed alerts")
 
-			headers, rows := alertRows(alertList)
-
 			w := cmd.OutOrStdout()
 			isTTY := terminal.Is(os.Stdout)
 			format := output.DetectFormat(output.FormatOpts{
@@ -248,7 +255,16 @@ $ pdc incident show --alerts --payload P000001`,
 			case output.FormatJSON:
 				return output.RenderJSON(w, alertList, th)
 			default:
-				return output.RenderTable(w, headers, rows, th)
+				tbl := table.New(w, th)
+				tbl.AddCol(table.Col("ID"))
+				tbl.AddCol(table.Col("Status").StyleMap(statusStyles(th)))
+				tbl.AddCol(table.Col("Severity"))
+				tbl.AddCol(table.Col("Summary").Flex())
+				tbl.AddCol(table.Col("Created").TimeAgo())
+				for _, a := range alertList {
+					tbl.Row(a.ID, a.Status, a.Severity, a.Summary, a.CreatedAt)
+				}
+				return tbl.Render()
 			}
 		}
 		if payload {
@@ -762,8 +778,6 @@ $ pdc incident note list P000001`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(notes)).Msg("listed notes")
 
-		headers, rows := noteRows(notes)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -784,7 +798,17 @@ $ pdc incident note list P000001`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, notes, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("User").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}))
+			tbl.AddCol(table.Col("Content").Flex())
+			tbl.AddCol(table.Col("Created").TimeAgo())
+			for _, n := range notes {
+				tbl.Row(n.ID, n.User.Summary, n.Content, n.CreatedAt)
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -832,8 +856,6 @@ $ pdc incident log --since 7d P000001`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(entries)).Msg("listed log entries")
 
-		headers, rows := logEntryRows(entries)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -854,7 +876,18 @@ $ pdc incident log --since 7d P000001`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, entries, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Time").TimeAgo())
+			tbl.AddCol(table.Col("Type"))
+			tbl.AddCol(table.Col("Agent").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}))
+			tbl.AddCol(table.Col("Summary").Flex())
+			for _, e := range entries {
+				entryType := strings.TrimSuffix(e.Type, "_log_entry")
+				tbl.Row(e.CreatedAt, entryType, e.Agent.Summary, logEntrySummary(e))
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -1324,26 +1357,6 @@ func expandSinceShorthand(s string) string {
 	return time.Now().UTC().Add(-dur).Format(time.RFC3339)
 }
 
-func incidentRows(incidents []pagerduty.Incident) ([]string, [][]string) {
-	headers := []string{"ID", "Title", "Status", "Urgency", "Service", "Created"}
-	rows := make([][]string, len(incidents))
-	for i, inc := range incidents {
-		created := inc.CreatedAt
-		if t, err := time.Parse(time.RFC3339, inc.CreatedAt); err == nil {
-			created = human.FormatTimeAgoCompact(t)
-		}
-		rows[i] = []string{
-			inc.ID,
-			inc.Title,
-			inc.Status,
-			inc.Urgency,
-			inc.Service.Summary,
-			created,
-		}
-	}
-	return headers, rows
-}
-
 func incidentURL(id string) string {
 	return "https://app.pagerduty.com/incidents/" + id
 }
@@ -1432,48 +1445,25 @@ func renderShowDetail(w io.Writer, rows []showRow, th *theme.Theme) error {
 	return nil
 }
 
-func alertRows(alerts []pagerduty.IncidentAlert) ([]string, [][]string) {
-	headers := []string{"ID", "Status", "Severity", "Summary", "Created"}
-	rows := make([][]string, len(alerts))
-	for i, a := range alerts {
-		rows[i] = []string{
-			a.ID,
-			a.Status,
-			a.Severity,
-			a.Summary,
-			a.CreatedAt,
-		}
+func statusStyles(th *theme.Theme) map[string]lipgloss.Style {
+	if th == nil {
+		return nil
 	}
-	return headers, rows
+	return map[string]lipgloss.Style{
+		"triggered":    lipgloss.NewStyle().Foreground(th.Red.GetForeground()),
+		"acknowledged": lipgloss.NewStyle().Foreground(th.Yellow.GetForeground()),
+		"resolved":     lipgloss.NewStyle().Foreground(th.Green.GetForeground()),
+	}
 }
 
-func noteRows(notes []pagerduty.IncidentNote) ([]string, [][]string) {
-	headers := []string{"ID", "User", "Content", "Created"}
-	rows := make([][]string, len(notes))
-	for i, n := range notes {
-		rows[i] = []string{
-			n.ID,
-			n.User.Summary,
-			n.Content,
-			n.CreatedAt,
-		}
+func urgencyStyles(th *theme.Theme) map[string]lipgloss.Style {
+	if th == nil {
+		return nil
 	}
-	return headers, rows
-}
-
-func logEntryRows(entries []pagerduty.LogEntry) ([]string, [][]string) {
-	headers := []string{"Time", "Type", "Agent", "Summary"}
-	rows := make([][]string, len(entries))
-	for i, e := range entries {
-		entryType := strings.TrimSuffix(e.Type, "_log_entry")
-		rows[i] = []string{
-			e.CreatedAt,
-			entryType,
-			e.Agent.Summary,
-			logEntrySummary(e),
-		}
+	return map[string]lipgloss.Style{
+		"high": lipgloss.NewStyle().Foreground(th.Red.GetForeground()),
+		"low":  lipgloss.NewStyle().Foreground(th.Yellow.GetForeground()),
 	}
-	return headers, rows
 }
 
 func logEntrySummary(e pagerduty.LogEntry) string {

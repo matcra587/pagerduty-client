@@ -3,8 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
-	"github.com/PagerDuty/go-pagerduty"
+	"charm.land/lipgloss/v2"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -14,6 +15,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -58,8 +60,6 @@ $ pdc user list`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(users)).Msg("listed users")
 
-		headers, rows := userRows(users)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -80,7 +80,17 @@ $ pdc user list`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, users, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("Name").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}).Flex())
+			tbl.AddCol(table.Col("Email"))
+			tbl.AddCol(table.Col("Role"))
+			for _, u := range users {
+				tbl.Row(u.ID, u.Name, u.Email, u.Role)
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -133,15 +143,15 @@ $ pdc user show PUSER01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, user, th)
 		default:
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", user.ID},
-				{"Name", user.Name},
-				{"Email", user.Email},
-				{"Role", user.Role},
-				{"Time Zone", user.Timezone},
-			}
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", user.ID)
+			tbl.Row("Name", user.Name)
+			tbl.Row("Email", user.Email)
+			tbl.Row("Role", user.Role)
+			tbl.Row("Time Zone", user.Timezone)
+			return tbl.Render()
 		}
 	},
 }
@@ -183,26 +193,17 @@ $ pdc user me`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, user, th)
 		default:
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", user.ID},
-				{"Name", user.Name},
-				{"Email", user.Email},
-				{"Role", user.Role},
-				{"Time Zone", user.Timezone},
-			}
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", user.ID)
+			tbl.Row("Name", user.Name)
+			tbl.Row("Email", user.Email)
+			tbl.Row("Role", user.Role)
+			tbl.Row("Time Zone", user.Timezone)
+			return tbl.Render()
 		}
 	},
-}
-
-func userRows(users []pagerduty.User) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Email", "Role"}
-	rows := make([][]string, len(users))
-	for i, u := range users {
-		rows[i] = []string{u.ID, u.Name, u.Email, u.Role}
-	}
-	return headers, rows
 }
 
 func init() {

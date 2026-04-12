@@ -12,6 +12,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -43,12 +44,6 @@ $ pdc team list`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(teams)).Msg("listed teams")
 
-		headers := []string{"ID", "Name", "Description"}
-		rows := make([][]string, len(teams))
-		for i, t := range teams {
-			rows[i] = []string{t.ID, t.Name, t.Description}
-		}
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -69,7 +64,14 @@ $ pdc team list`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, teams, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("Description").Flex())
+			for _, t := range teams {
+				tbl.Row(t.ID, t.Name, t.Description)
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -122,13 +124,13 @@ $ pdc team show PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, team, th)
 		default:
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", team.ID},
-				{"Name", team.Name},
-				{"Description", team.Description},
-			}
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", team.ID)
+			tbl.Row("Name", team.Name)
+			tbl.Row("Description", team.Description)
+			return tbl.Render()
 		}
 	},
 }

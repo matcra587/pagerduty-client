@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -14,6 +13,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -48,8 +48,6 @@ $ pdc schedule list --query primary`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(schedules)).Msg("listed schedules")
 
-		headers, rows := scheduleRows(schedules)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -70,7 +68,15 @@ $ pdc schedule list --query primary`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, schedules, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("Time Zone"))
+			tbl.AddCol(table.Col("Description").Flex())
+			for _, s := range schedules {
+				tbl.Row(s.ID, s.Name, s.TimeZone, s.Description)
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -123,14 +129,14 @@ $ pdc schedule show PSCHED01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, schedule, th)
 		default:
-			headers := []string{"Field", "Value"}
-			rows := [][]string{
-				{"ID", schedule.ID},
-				{"Name", schedule.Name},
-				{"Time Zone", schedule.TimeZone},
-				{"Description", schedule.Description},
-			}
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", schedule.ID)
+			tbl.Row("Name", schedule.Name)
+			tbl.Row("Time Zone", schedule.TimeZone)
+			tbl.Row("Description", schedule.Description)
+			return tbl.Render()
 		}
 	},
 }
@@ -204,15 +210,6 @@ $ pdc schedule override --user PUSER01 --start 2024-01-15T09:00:00Z --end 2024-0
 		clog.Info().Str("schedule", args[0]).Msg("Override created")
 		return nil
 	},
-}
-
-func scheduleRows(schedules []pagerduty.Schedule) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Time Zone", "Description"}
-	rows := make([][]string, len(schedules))
-	for i, s := range schedules {
-		rows[i] = []string{s.ID, s.Name, s.TimeZone, s.Description}
-	}
-	return headers, rows
 }
 
 func init() {

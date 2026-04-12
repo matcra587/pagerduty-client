@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
+	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
@@ -15,6 +17,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -88,8 +91,6 @@ $ pdc oncall --schedule PSCHED01`,
 			oncalls = filtered
 		}
 
-		headers, rows := oncallRows(oncalls)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -110,25 +111,28 @@ $ pdc oncall --schedule PSCHED01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, oncalls, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("User").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}))
+			tbl.AddCol(table.Col("Schedule").Flex())
+			tbl.AddCol(table.Col("Escalation Policy").Flex())
+			tbl.AddCol(table.Col("Level"))
+			tbl.AddCol(table.Col("Start").TimeAgo())
+			tbl.AddCol(table.Col("End").TimeAgo())
+			for _, oc := range oncalls {
+				tbl.Row(
+					oc.User.Summary,
+					oc.Schedule.Summary,
+					oc.EscalationPolicy.Summary,
+					strconv.FormatUint(uint64(oc.EscalationLevel), 10),
+					oc.Start,
+					oc.End,
+				)
+			}
+			return tbl.Render()
 		}
 	},
-}
-
-func oncallRows(oncalls []pagerduty.OnCall) ([]string, [][]string) {
-	headers := []string{"User", "Schedule", "Escalation Policy", "Level", "Start", "End"}
-	rows := make([][]string, len(oncalls))
-	for i, oc := range oncalls {
-		rows[i] = []string{
-			oc.User.Summary,
-			oc.Schedule.Summary,
-			oc.EscalationPolicy.Summary,
-			strconv.FormatUint(uint64(oc.EscalationLevel), 10),
-			oc.Start,
-			oc.End,
-		}
-	}
-	return headers, rows
 }
 
 func init() {

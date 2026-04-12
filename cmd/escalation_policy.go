@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PagerDuty/go-pagerduty"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -16,6 +15,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/spf13/cobra"
 )
@@ -66,8 +66,6 @@ $ pdc escalation-policy list --team T1`,
 		}
 		clog.Debug().Elapsed("duration").Int("count", len(policies)).Msg("listed escalation policies")
 
-		headers, rows := escalationPolicyRows(policies)
-
 		w := cmd.OutOrStdout()
 		isTTY := terminal.Is(os.Stdout)
 		format := output.DetectFormat(output.FormatOpts{
@@ -88,7 +86,19 @@ $ pdc escalation-policy list --team T1`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, policies, th)
 		default:
-			return output.RenderTable(w, headers, rows, th)
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("Num Loops"))
+			tbl.AddCol(table.Col("Teams"))
+			for _, p := range policies {
+				teamIDs := make([]string, len(p.Teams))
+				for j, t := range p.Teams {
+					teamIDs[j] = t.ID
+				}
+				tbl.Row(p.ID, p.Name, strconv.FormatUint(uint64(p.NumLoops), 10), strings.Join(teamIDs, ", "))
+			}
+			return tbl.Render()
 		}
 	},
 }
@@ -146,69 +156,41 @@ $ pdc escalation-policy show PABC123`,
 				teamIDs[i] = t.ID
 			}
 
-			detailHeaders := []string{"Field", "Value"}
-			detailRows := [][]string{
-				{"ID", ep.ID},
-				{"Name", ep.Name},
-				{"Description", ep.Description},
-				{"Num Loops", strconv.FormatUint(uint64(ep.NumLoops), 10)},
-				{"Teams", strings.Join(teamIDs, ", ")},
-			}
-			if err := output.RenderTable(w, detailHeaders, detailRows, th); err != nil {
+			tbl := table.New(w, th)
+			tbl.AddCol(table.Col("Field").Bold())
+			tbl.AddCol(table.Col("Value").Flex())
+			tbl.Row("ID", ep.ID)
+			tbl.Row("Name", ep.Name)
+			tbl.Row("Description", ep.Description)
+			tbl.Row("Num Loops", strconv.FormatUint(uint64(ep.NumLoops), 10))
+			tbl.Row("Teams", strings.Join(teamIDs, ", "))
+			if err := tbl.Render(); err != nil {
 				return err
 			}
 
 			if len(ep.EscalationRules) > 0 {
 				fmt.Fprintln(w)
-				ruleHeaders, ruleRows := escalationRuleRows(ep.EscalationRules)
-				return output.RenderTable(w, ruleHeaders, ruleRows, th)
+				rtbl := table.New(w, th)
+				rtbl.AddCol(table.Col("Level"))
+				rtbl.AddCol(table.Col("Delay"))
+				rtbl.AddCol(table.Col("Targets").Flex())
+				for i, r := range ep.EscalationRules {
+					targets := make([]string, len(r.Targets))
+					for j, t := range r.Targets {
+						typeName := strings.TrimSuffix(t.Type, "_reference")
+						if t.Summary != "" {
+							targets[j] = fmt.Sprintf("%s (%s)", t.Summary, typeName)
+						} else {
+							targets[j] = fmt.Sprintf("%s (%s)", t.ID, typeName)
+						}
+					}
+					rtbl.Row(strconv.Itoa(i+1), fmt.Sprintf("%d min", r.Delay), strings.Join(targets, ", "))
+				}
+				return rtbl.Render()
 			}
 			return nil
 		}
 	},
-}
-
-func escalationPolicyRows(policies []pagerduty.EscalationPolicy) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Num Loops", "Teams"}
-	rows := make([][]string, len(policies))
-	for i, p := range policies {
-		teamIDs := make([]string, len(p.Teams))
-		for j, t := range p.Teams {
-			teamIDs[j] = t.ID
-		}
-		rows[i] = []string{
-			p.ID,
-			p.Name,
-			strconv.FormatUint(uint64(p.NumLoops), 10),
-			strings.Join(teamIDs, ", "),
-		}
-	}
-	return headers, rows
-}
-
-// escalationRuleRows converts escalation rules into table rows.
-// Each target is formatted as "Summary (type)" with the _reference
-// suffix stripped from the type.
-func escalationRuleRows(rules []pagerduty.EscalationRule) ([]string, [][]string) {
-	headers := []string{"Level", "Delay", "Targets"}
-	rows := make([][]string, len(rules))
-	for i, r := range rules {
-		targets := make([]string, len(r.Targets))
-		for j, t := range r.Targets {
-			typeName := strings.TrimSuffix(t.Type, "_reference")
-			if t.Summary != "" {
-				targets[j] = fmt.Sprintf("%s (%s)", t.Summary, typeName)
-			} else {
-				targets[j] = fmt.Sprintf("%s (%s)", t.ID, typeName)
-			}
-		}
-		rows[i] = []string{
-			strconv.Itoa(i + 1),
-			fmt.Sprintf("%d min", r.Delay),
-			strings.Join(targets, ", "),
-		}
-	}
-	return headers, rows
 }
 
 func init() {

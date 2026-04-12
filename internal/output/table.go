@@ -97,7 +97,7 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme
 	if colour {
 		styles = statusStylesFromTheme(th)
 		headerStyle = lipgloss.NewStyle().Bold(true)
-		dimStyle = lipgloss.NewStyle().Faint(true)
+		dimStyle = *th.Dim
 	}
 
 	var a *ansi.ANSI
@@ -131,19 +131,24 @@ func RenderTable(w io.Writer, headers []string, rows [][]string, th *theme.Theme
 			}
 			padded := fmt.Sprintf("%-*s", widths[i], cell)
 
+			var linkURL string
+			if cfg.linkFn != nil {
+				linkURL = cfg.linkFn(i, cell)
+			}
+
 			if colour && (i == statusCol || i == urgencyCol) {
 				if s, ok := styles[cell]; ok {
 					padded = s.Render(padded)
 				} else {
 					padded = dimStyle.Render(padded)
 				}
+			} else if colour && linkURL != "" {
+				padded = lipgloss.NewStyle().Underline(true).Render(padded)
 			} else if colour {
 				padded = dimStyle.Render(padded)
 			}
-			if a != nil {
-				if url := cfg.linkFn(i, cell); url != "" {
-					padded = a.Hyperlink(url, padded)
-				}
+			if a != nil && linkURL != "" {
+				padded = a.Hyperlink(linkURL, padded)
 			}
 			sb.WriteString(padded)
 		}

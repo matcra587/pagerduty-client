@@ -1328,13 +1328,17 @@ func incidentRows(incidents []pagerduty.Incident) ([]string, [][]string) {
 	headers := []string{"ID", "Title", "Status", "Urgency", "Service", "Created"}
 	rows := make([][]string, len(incidents))
 	for i, inc := range incidents {
+		created := inc.CreatedAt
+		if t, err := time.Parse(time.RFC3339, inc.CreatedAt); err == nil {
+			created = human.FormatTimeAgoCompact(t)
+		}
 		rows[i] = []string{
 			inc.ID,
 			inc.Title,
 			inc.Status,
 			inc.Urgency,
 			inc.Service.Summary,
-			inc.CreatedAt,
+			created,
 		}
 	}
 	return headers, rows

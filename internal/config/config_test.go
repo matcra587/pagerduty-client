@@ -116,6 +116,21 @@ team = "PFILETEAM"
 	assert.Equal(t, "PENVTEAM", cfg.Team)
 }
 
+func TestLoad_ThemeEnvOverridesFile(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.toml")
+	toml := `
+[ui]
+theme = "catppuccin-mocha"
+`
+	require.NoError(t, os.WriteFile(cfgPath, []byte(toml), 0o600))
+	t.Setenv("PDC_THEME", "dracula")
+
+	cfg, err := config.Load(config.WithPath(cfgPath))
+	require.NoError(t, err)
+	assert.Equal(t, "dracula", cfg.UI.Theme)
+}
+
 func TestLoad_OptionOverridesEnv(t *testing.T) {
 	t.Setenv("PDC_TEAM", "PENVTEAM")
 

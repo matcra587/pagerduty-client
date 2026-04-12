@@ -247,4 +247,7 @@ func applyEnv(cfg *Config) {
 	if v := os.Getenv("PDC_UPDATE_CHANNEL"); v != "" {
 		cfg.UpdateChannel = v
 	}
+	if v := os.Getenv("PDC_THEME"); v != "" {
+		cfg.UI.Theme = v
+	}
 }

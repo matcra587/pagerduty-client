@@ -72,11 +72,15 @@ pdc service show PSVCID
 
 ## Flag reference
 
-| Flag | Purpose |
-|------|---------|
-| `--team` | Filter by team ID (repeatable) |
-| `--query` | Search by service name |
-| `--sort` | Sort order: name, name:asc, name:desc |
+For the exhaustive, up-to-date flag list run:
+
+```text
+pdc agent schema
+```
+
+This returns the command tree and all flags as JSON. Use
+`--compact` for smaller output. The schema is authoritative and
+always matches the installed binary.
 
 ## Output fields
 

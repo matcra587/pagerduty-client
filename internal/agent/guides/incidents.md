@@ -242,29 +242,15 @@ Use `--format json` for the full unmodified PagerDuty API response.
 
 ## Flag reference
 
-| Flag | Commands | Values |
-|------|----------|--------|
-| `--status` | list | triggered, acknowledged, resolved (repeatable) |
-| `--urgency` | list | high, low (repeatable) |
-| `--team` | list | team ID (repeatable) |
-| `--service` | list | service ID (repeatable) |
-| `--user` | list, reassign | user ID (repeatable) |
-| `--schedule` | list | schedule ID (repeatable) |
-| `--all` | list | include all statuses |
-| `--sort` | list | sort order |
-| `--since` | list, log | start time (ISO 8601) |
-| `--until` | list, log | end time (ISO 8601) |
-| `--overview` | log | summary view |
-| `--alerts` | show | include attached alerts |
-| `--payload` | show | include full alert payloads |
-| `--detailed` | show | show all integration fields |
-| `--open` | show | open incident in browser |
-| `--open-external` | show | open external integration link |
-| `--from` | ack, resolve, snooze, reassign, merge, note add, escalate, priority | acting user email |
-| `--duration` | snooze | Go duration string (e.g. 4h, 30m) |
-| `--content` | note add | note text |
-| `--note` | resolve | resolution note |
-| `--source` | merge | source incident ID (repeatable) |
+For the exhaustive, up-to-date flag list run:
+
+```text
+pdc agent schema
+```
+
+This returns the command tree and all flags as JSON. Use
+`--compact` for smaller output. The schema is authoritative and
+always matches the installed binary.
 
 ## Rules
 

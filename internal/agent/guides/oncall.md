@@ -67,13 +67,15 @@ Check the `level` field in the output. Level 1 = primary.
 
 ## Flag reference
 
-| Flag | Purpose |
-|------|---------|
-| `--team` | Filter by team ID (repeatable) |
-| `--schedule` | Filter by schedule ID (repeatable) |
-| `--escalation-policy` | Filter by escalation policy ID (repeatable) |
-| `--since` | Start of time window (ISO 8601) |
-| `--until` | End of time window (ISO 8601) |
+For the exhaustive, up-to-date flag list run:
+
+```text
+pdc agent schema
+```
+
+This returns the command tree and all flags as JSON. Use
+`--compact` for smaller output. The schema is authoritative and
+always matches the installed binary.
 
 ## Output fields
 

@@ -6,6 +6,7 @@ package table
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -13,23 +14,30 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/gechr/clib/ansi"
 	"github.com/gechr/clib/human"
+	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
 	"github.com/matcra587/pagerduty-client/internal/output"
 )
 
 const (
 	colGap   = 2  // spaces between columns
-	maxCellW = 60 // max cell width before truncation
+	maxCellW = 60 // max cell width for fixed columns
+	minFlexW = 10 // minimum width per flex column after truncation
 )
+
+// termWidth returns the current terminal width. Package-level
+// variable so tests can override it without a real TTY.
+var termWidth = func() int { return terminal.Width(os.Stdout) }
 
 // Table is a builder-pattern table renderer. Create one with [New],
 // add columns with [Table.AddCol], append rows with [Table.Row],
 // and call [Table.Render] to write the output.
 type Table struct {
-	cols []Column
-	rows [][]string
-	th   *theme.Theme
-	w    io.Writer
+	cols      []Column
+	rows      [][]string
+	th        *theme.Theme
+	w         io.Writer
+	unbounded bool
 }
 
 // New creates a table that writes to w. When th is non-nil, the
@@ -46,6 +54,10 @@ func (t *Table) AddCol(c Column) *Table { t.cols = append(t.cols, c); return t }
 // ignored; missing values are treated as empty strings.
 func (t *Table) Row(values ...string) *Table { t.rows = append(t.rows, values); return t }
 
+// Unbounded disables flex column truncation. Flex cells render
+// at their full natural width regardless of terminal size.
+func (t *Table) Unbounded() *Table { t.unbounded = true; return t }
+
 // Render writes the formatted table to the configured writer. The
 // output includes a header row followed by data rows, with columns
 // padded to align. Returns any write error.
@@ -54,14 +66,14 @@ func (t *Table) Render() error {
 		return nil
 	}
 
-	// Phase 1: sanitise, format TimeAgo, and truncate cells.
+	// Phase 1: sanitise, collapse whitespace, format TimeAgo,
+	// truncate fixed columns to maxCellW.
 	for _, row := range t.rows {
 		for j := range row {
 			if j >= len(t.cols) {
 				break
 			}
 			cell := output.Sanitize(row[j])
-			// Collapse whitespace — table cells must be single-line.
 			cell = strings.Join(strings.Fields(cell), " ")
 			if t.cols[j].timeAgo {
 				if ts, err := time.Parse(time.RFC3339, cell); err == nil {
@@ -72,7 +84,6 @@ func (t *Table) Render() error {
 					}
 				}
 			}
-			// Flex columns get their full width; fixed columns truncate.
 			if !t.cols[j].flex && xansi.StringWidth(cell) > maxCellW {
 				cell = xansi.Truncate(cell, maxCellW-3, "...")
 			}
@@ -80,15 +91,57 @@ func (t *Table) Render() error {
 		}
 	}
 
-	// Phase 2: measure column widths from display width.
+	// Phase 2a: measure fixed column widths.
 	widths := make([]int, len(t.cols))
+	flexCount := 0
 	for i, c := range t.cols {
 		widths[i] = xansi.StringWidth(c.header)
+		if c.flex {
+			flexCount++
+		}
 	}
 	for _, row := range t.rows {
 		for i, cell := range row {
-			if i >= len(widths) {
-				break
+			if i >= len(widths) || t.cols[i].flex {
+				continue
+			}
+			if w := xansi.StringWidth(cell); w > widths[i] {
+				widths[i] = w
+			}
+		}
+	}
+
+	// Phase 2b: distribute remaining terminal width across flex
+	// columns. Skipped when Unbounded() or piped (termW == 0).
+	if !t.unbounded && t.th != nil && flexCount > 0 {
+		if termW := termWidth(); termW > 0 {
+			fixedTotal := 0
+			for i, c := range t.cols {
+				if !c.flex {
+					fixedTotal += widths[i]
+				}
+			}
+			gaps := (len(t.cols) - 1) * colGap
+			available := termW - fixedTotal - gaps
+			perFlex := max(available/flexCount, minFlexW)
+			for _, row := range t.rows {
+				for j := range row {
+					if j >= len(t.cols) || !t.cols[j].flex {
+						continue
+					}
+					if xansi.StringWidth(row[j]) > perFlex {
+						row[j] = xansi.Truncate(row[j], perFlex-3, "...")
+					}
+				}
+			}
+		}
+	}
+
+	// Phase 2c: measure flex column widths from (possibly truncated) cells.
+	for _, row := range t.rows {
+		for i, cell := range row {
+			if i >= len(widths) || !t.cols[i].flex {
+				continue
 			}
 			if w := xansi.StringWidth(cell); w > widths[i] {
 				widths[i] = w

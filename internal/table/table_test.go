@@ -7,10 +7,20 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	xansi "github.com/charmbracelet/x/ansi"
 	"github.com/gechr/clib/theme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// withTermWidth temporarily sets the package termWidth function
+// for the duration of the test. Not parallel-safe.
+func withTermWidth(t *testing.T, w int) {
+	t.Helper()
+	orig := termWidth
+	termWidth = func() int { return w }
+	t.Cleanup(func() { termWidth = orig })
+}
 
 func TestRender_PlainText(t *testing.T) {
 	t.Parallel()
@@ -279,4 +289,97 @@ func TestCol_BuilderMethods(t *testing.T) {
 		c := Col("Z").TimeAgo()
 		assert.True(t, c.timeAgo)
 	})
+}
+
+func TestRender_Flex_TruncatesOnTTY(t *testing.T) {
+	withTermWidth(t, 80)
+	th := theme.Default()
+	var buf bytes.Buffer
+	tbl := New(&buf, th)
+	tbl.AddCol(Col("ID"))
+	tbl.AddCol(Col("Title").Flex())
+	long := strings.Repeat("x", 200)
+	tbl.Row("P1", long)
+	require.NoError(t, tbl.Render())
+
+	out := xansi.Strip(buf.String())
+	assert.Contains(t, out, "...")
+	assert.NotContains(t, out, long)
+}
+
+func TestRender_Flex_PipedNoTruncation(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	tbl := New(&buf, nil) // nil theme = piped mode
+	tbl.AddCol(Col("ID"))
+	tbl.AddCol(Col("Title").Flex())
+	long := strings.Repeat("x", 200)
+	tbl.Row("P1", long)
+	require.NoError(t, tbl.Render())
+	assert.Contains(t, buf.String(), long)
+}
+
+func TestRender_Flex_UnboundedIgnoresTerminal(t *testing.T) {
+	withTermWidth(t, 80)
+	th := theme.Default()
+	var buf bytes.Buffer
+	tbl := New(&buf, th).Unbounded()
+	tbl.AddCol(Col("ID"))
+	tbl.AddCol(Col("Title").Flex())
+	long := strings.Repeat("x", 200)
+	tbl.Row("P1", long)
+	require.NoError(t, tbl.Render())
+
+	out := xansi.Strip(buf.String())
+	assert.Contains(t, out, long)
+}
+
+func TestRender_Flex_MultiFlexDistributes(t *testing.T) {
+	withTermWidth(t, 100)
+	th := theme.Default()
+	var buf bytes.Buffer
+	tbl := New(&buf, th)
+	tbl.AddCol(Col("ID"))
+	tbl.AddCol(Col("A").Flex())
+	tbl.AddCol(Col("B").Flex())
+	longA := strings.Repeat("a", 200)
+	longB := strings.Repeat("b", 200)
+	tbl.Row("P1", longA, longB)
+	require.NoError(t, tbl.Render())
+
+	out := xansi.Strip(buf.String())
+	// Both flex columns truncated (distributed).
+	assert.Contains(t, out, "...")
+	assert.NotContains(t, out, longA)
+	assert.NotContains(t, out, longB)
+}
+
+func TestRender_Flex_NarrowTerminalClampsToMin(t *testing.T) {
+	withTermWidth(t, 20) // smaller than fixed columns
+	th := theme.Default()
+	var buf bytes.Buffer
+	tbl := New(&buf, th)
+	tbl.AddCol(Col("ID"))
+	tbl.AddCol(Col("Title").Flex())
+	tbl.Row("P000001", strings.Repeat("x", 50))
+	require.NoError(t, tbl.Render())
+
+	// Flex gets clamped to minFlexW = 10, so content truncates.
+	out := xansi.Strip(buf.String())
+	assert.Contains(t, out, "...")
+}
+
+func TestRender_Flex_WithTimeAgo(t *testing.T) {
+	withTermWidth(t, 80)
+	th := theme.Default()
+	var buf bytes.Buffer
+	tbl := New(&buf, th)
+	tbl.AddCol(Col("ID"))
+	tbl.AddCol(Col("When").TimeAgo().Flex())
+	tbl.Row("P1", "2020-01-01T00:00:00Z")
+	require.NoError(t, tbl.Render())
+
+	out := xansi.Strip(buf.String())
+	assert.Contains(t, out, "ago")
+	assert.NotContains(t, out, "2020-01-01")
 }

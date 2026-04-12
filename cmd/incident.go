@@ -170,7 +170,7 @@ $ pdc incident list --team PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, incidents, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return incidentURL(strings.TrimSpace(v))
 			}))
@@ -255,7 +255,7 @@ $ pdc incident show --alerts --payload P000001`,
 			case output.FormatJSON:
 				return output.RenderJSON(w, alertList, th)
 			default:
-				tbl := table.New(w, th)
+				tbl := tableForCmd(cmd, w, th)
 				tbl.AddCol(table.Col("ID"))
 				tbl.AddCol(table.Col("Status").StyleMap(statusStyles(th)))
 				tbl.AddCol(table.Col("Severity"))
@@ -803,7 +803,7 @@ $ pdc incident note list P000001`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, notes, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID"))
 			tbl.AddCol(table.Col("User").Style(func(v string) lipgloss.Style {
 				return pdctheme.EntityColor(strings.TrimSpace(v))
@@ -881,7 +881,7 @@ $ pdc incident log --since 7d P000001`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, entries, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Time").TimeAgo())
 			tbl.AddCol(table.Col("Type"))
 			tbl.AddCol(table.Col("Agent").Style(func(v string) lipgloss.Style {

@@ -66,7 +66,7 @@ $ pdc team list`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, teams, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return "https://app.pagerduty.com/teams/" + strings.TrimSpace(v)
 			}))
@@ -130,7 +130,7 @@ $ pdc team show PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, team, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", team.ID)

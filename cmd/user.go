@@ -80,7 +80,7 @@ $ pdc user list`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, users, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return "https://app.pagerduty.com/users/" + strings.TrimSpace(v)
 			}))
@@ -145,7 +145,7 @@ $ pdc user show PUSER01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, user, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", user.ID)
@@ -195,7 +195,7 @@ $ pdc user me`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, user, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", user.ID)

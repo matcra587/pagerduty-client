@@ -85,7 +85,7 @@ $ pdc service list --team PTEAM01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, services, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return "https://app.pagerduty.com/services/" + strings.TrimSpace(v)
 			}))
@@ -150,7 +150,7 @@ $ pdc service show PSVC001`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, service, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", service.ID)

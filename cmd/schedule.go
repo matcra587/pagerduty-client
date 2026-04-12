@@ -70,7 +70,7 @@ $ pdc schedule list --query primary`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, schedules, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return "https://app.pagerduty.com/schedules/" + strings.TrimSpace(v)
 			}))
@@ -135,7 +135,7 @@ $ pdc schedule show PSCHED01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, schedule, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", schedule.ID)

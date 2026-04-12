@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/credential"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
+	"github.com/matcra587/pagerduty-client/internal/table"
 	"github.com/matcra587/pagerduty-client/internal/tui"
 	"github.com/matcra587/pagerduty-client/internal/update"
 	"github.com/matcra587/pagerduty-client/internal/version"
@@ -350,6 +352,7 @@ func init() {
 	pf.StringP("config", "c", "", "Config file path (default: $XDG_CONFIG_HOME/pagerduty-client/config.toml)")
 	pf.BoolP("debug", "d", false, "Enable debug output")
 	pf.String("color", "auto", `Colour mode: "auto", "always", or "never"`)
+	pf.Bool("full", false, "Disable width-based truncation in list output")
 
 	// Flag metadata for themed help rendering.
 	clib.Extend(pf.Lookup("token"), clib.FlagExtra{
@@ -406,6 +409,10 @@ func init() {
 		EnumTerse:   []string{"detect terminal", "force colour", "no colour"},
 		EnumDefault: "auto",
 		Terse:       "colour mode",
+	})
+	clib.Extend(pf.Lookup("full"), clib.FlagExtra{
+		Group: "Output",
+		Terse: "show full content",
 	})
 
 	rootCmd.MarkFlagsMutuallyExclusive("token", "token-file")
@@ -465,6 +472,22 @@ func UserEmailFromContext(cmd *cobra.Command) string {
 func UpdateResultFromContext(cmd *cobra.Command) update.CheckResult {
 	v, _ := cmd.Context().Value(updateResultKey).(update.CheckResult)
 	return v
+}
+
+// FullFromContext returns the --full flag value.
+func FullFromContext(cmd *cobra.Command) bool {
+	v, _ := cmd.Flags().GetBool("full")
+	return v
+}
+
+// tableForCmd returns a new table builder for a command, applying
+// the --full flag. Use instead of table.New() at list/show call sites.
+func tableForCmd(cmd *cobra.Command, w io.Writer, th *theme.Theme) *table.Table {
+	t := table.New(w, th)
+	if FullFromContext(cmd) {
+		t.Unbounded()
+	}
+	return t
 }
 
 // resolveToken determines the API token from available sources in precedence order:

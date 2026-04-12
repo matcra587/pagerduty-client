@@ -111,7 +111,7 @@ $ pdc oncall --schedule PSCHED01`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, oncalls, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("User").Style(func(v string) lipgloss.Style {
 				return pdctheme.EntityColor(strings.TrimSpace(v))
 			}))

@@ -93,7 +93,7 @@ $ pdc maintenance-window list --service S1`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, windows, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return "https://app.pagerduty.com/maintenance_windows/" + strings.TrimSpace(v)
 			}))
@@ -175,7 +175,7 @@ $ pdc maintenance-window show PW98YIO`,
 				createdBy = mw.CreatedBy.Summary
 			}
 
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", mw.ID)

@@ -87,7 +87,7 @@ $ pdc escalation-policy list --team T1`,
 		case output.FormatJSON:
 			return output.RenderJSON(w, policies, th)
 		default:
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("ID").Link(func(v string) string {
 				return "https://app.pagerduty.com/escalation_policies/" + strings.TrimSpace(v)
 			}))
@@ -161,7 +161,7 @@ $ pdc escalation-policy show PABC123`,
 				teamIDs[i] = t.ID
 			}
 
-			tbl := table.New(w, th)
+			tbl := tableForCmd(cmd, w, th)
 			tbl.AddCol(table.Col("Field").Bold())
 			tbl.AddCol(table.Col("Value").Flex())
 			tbl.Row("ID", ep.ID)
@@ -175,7 +175,7 @@ $ pdc escalation-policy show PABC123`,
 
 			if len(ep.EscalationRules) > 0 {
 				fmt.Fprintln(w)
-				rtbl := table.New(w, th)
+				rtbl := tableForCmd(cmd, w, th)
 				rtbl.AddCol(table.Col("Level"))
 				rtbl.AddCol(table.Col("Delay"))
 				rtbl.AddCol(table.Col("Targets").Flex())

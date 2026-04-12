@@ -35,14 +35,14 @@ services, custom fields, workflows) remain uncovered.
 
 ## Incidents
 
-Covers the core incident lifecycle: list, view, acknowledge, resolve, snooze, reassign, merge, set urgency, set title and add notes.
+Covers the core incident lifecycle: list, view, acknowledge, escalate, resolve, snooze, reassign, merge, set urgency, set title, set priority and add notes.
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
 | GET | `/incidents` | Implemented | `pdc incident list`, TUI |
 | POST | `/incidents` | Not implemented | - |
-| PUT | `/incidents` | Implemented | `pdc incident ack`, `resolve`, `reassign`, `urgency`, `title`, TUI |
-| GET | `/incidents/{id}` | Implemented | `pdc incident show`, TUI |
+| PUT | `/incidents` | Implemented | `pdc incident ack`, `resolve`, `reassign`, `urgency`, `title`, `priority`, `escalate`, TUI |
+| GET | `/incidents/{id}` | Implemented | `pdc incident show`, `pdc incident escalate`, TUI |
 | PUT | `/incidents/{id}` | Not implemented | - |
 | GET | `/incidents/{id}/business_services/impacts` | Not implemented | - |
 | PUT | `/incidents/{id}/business_services/{business_service_id}/impacts` | Not implemented | - |
@@ -67,7 +67,7 @@ Covers the core incident lifecycle: list, view, acknowledge, resolve, snooze, re
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/incidents/{id}/alerts` | Implemented | `pdc incident show --alerts`, `pdc incident show --payload`, TUI |
+| GET | `/incidents/{id}/alerts` | Implemented | `pdc incident show --alerts`, `pdc incident show` (for integration enrichment), TUI |
 | PUT | `/incidents/{id}/alerts` | Implemented | `pdc incident resolve-alert` |
 | GET | `/incidents/{id}/alerts/{alert_id}` | Implemented | API only |
 | PUT | `/incidents/{id}/alerts/{alert_id}` | Not implemented | - |
@@ -189,7 +189,7 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 | GET | `/escalation_policies` | Implemented | `pdc escalation-policy list`, TUI |
 | POST | `/escalation_policies` | Not implemented | - |
 | DELETE | `/escalation_policies/{id}` | Not implemented | - |
-| GET | `/escalation_policies/{id}` | Implemented | `pdc escalation-policy show`, TUI |
+| GET | `/escalation_policies/{id}` | Implemented | `pdc escalation-policy show`, `pdc incident escalate`, TUI |
 | PUT | `/escalation_policies/{id}` | Not implemented | - |
 | GET | `/escalation_policies/{id}/audit/records` | Not implemented | - |
 
@@ -197,7 +197,7 @@ The Service Custom Fields endpoints (10 endpoints under `/services/custom_fields
 
 | Method | Path | Status | Used by |
 |---|---|---|---|
-| GET | `/priorities` | Implemented | TUI |
+| GET | `/priorities` | Implemented | `pdc incident priority` (validation and completion), TUI |
 
 ## Abilities
 

@@ -51,11 +51,16 @@ Tools split across two managers:
 
 ```text
 cmd/                 Cobra command definitions (wiring only, no business logic)
+internal/agent/      Agent mode detection, envelope format, embedded guides
 internal/api/        PagerDuty REST v2 client (own HTTP layer, go-pagerduty types)
+internal/browser/    Cross-platform browser launcher (shared by TUI and --open flags)
+internal/compact/    JSON projection and field weighting for agent envelopes
 internal/config/     Configuration management (koanf, TOML, env)
 internal/credential/ Credential providers (keyring, future: 1password, vault)
-internal/output/     Output formatting (table, JSON with chroma highlighting, agent envelope)
-internal/agent/      Agent mode detection, envelope format, embedded guides
+internal/integration/ Alert payload normalisation (CloudWatch, Datadog, GCP, Prometheus)
+internal/output/     Output formatting (format detection, JSON, agent envelope, sanitise)
+internal/resolve/    Fuzzy ID and name resolvers for completions
+internal/table/      Builder-pattern table renderer with styling, links and truncation
 internal/tui/        Bubble Tea TUI (dashboard, incidents, components)
 ```
 
@@ -91,6 +96,11 @@ The `pdc config init` wizard validates the token and stores it in the keyring.
   Use simple GET + decode, not `paginate()`.
 - `depguard` bans `log` and `log/slog` imports. Use `gechr/clog`.
 - Validate emails with `net/mail.ParseAddress`, not hand-rolled checks.
+- `--payload` on `incident show` was removed in favour of `--debug` / `PDC_DEBUG=1`.
+  For integration-detection debug output, run the show command with debug mode enabled.
+- Table rendering goes through `internal/table/` not `internal/output/`.
+  `internal/output/` keeps format detection, JSON highlighting, agent envelope and
+  ASCII sanitisation. Table styling is the builder's responsibility.
 
 ## Rules Files (.claude/rules/)
 

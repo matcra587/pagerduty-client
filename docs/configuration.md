@@ -16,15 +16,17 @@ process listings.
 
 | Variable | Purpose |
 |----------|---------|
-| `PDC_TOKEN` | API token (overrides keyring) |
-| `PDC_TEAM` | Default team name or ID |
-| `PDC_SERVICE` | Default service name or ID |
-| `PDC_EMAIL` | Acting user email for write operations |
-| `PDC_FORMAT` | Output format: table or json |
 | `PDC_BASE_URL` | API base URL (default: `https://api.pagerduty.com`) |
 | `PDC_DEBUG` | Enable debug output (1 or true) |
+| `PDC_EMAIL` | Acting user email for write operations |
+| `PDC_FORMAT` | Output format: table or json |
 | `PDC_INTERACTIVE` | Launch TUI by default (1 or true) |
 | `PDC_LOG_LEVEL` | Log verbosity: trace, debug, info, warn, error (handled by clog) |
+| `PDC_SERVICE` | Default service name or ID |
+| `PDC_TEAM` | Default team name or ID |
+| `PDC_THEME` | Colour theme: dracula, monokai, monochrome, catppuccin-latte/frappe/macchiato/mocha, default (overrides [ui] theme) |
+| `PDC_TOKEN` | API token (overrides keyring) |
+| `PDC_UPDATE_CHANNEL` | Update channel: stable or dev (overrides [defaults] update_channel) |
 
 Environment variables override config file values.
 Command-line flags override both.
@@ -43,11 +45,19 @@ email = ""                 # acting user email
 interactive = false        # launch TUI by default
 refresh_interval = 30      # polling interval in seconds
 
-[tui]
-theme = "dark"             # dark, light or high-contrast
+[ui]
+theme = "dracula"          # see docs/output.md for preset list
+
+[ui.tui]
 show_resolved = false      # show resolved incidents in TUI
 # page_size = 50           # incidents per page
+# tabs = ["incidents", "escalation-policies", "services", "teams"]
 ```
+
+## Output
+
+Colour theme, formats, truncation behaviour and agent mode are
+documented separately. See [docs/output.md](output.md).
 
 ## Precedence
 

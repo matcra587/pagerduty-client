@@ -47,6 +47,9 @@ See [docs/installation.md](docs/installation.md) for details.
 pdc config init                  # First-run setup (token, defaults)
 pdc incident list                # List incidents (table on TTY, JSON for agents)
 pdc incident ack P000001         # Acknowledge an incident
+pdc incident escalate P000001    # Escalate to the next level
+pdc incident priority P000001 P1 # Set priority (or "none" to clear)
+pdc incident show P000001 --open # Open incident in browser
 pdc oncall                       # Who is on call
 pdc -i                           # TUI dashboard
 pdc update                       # Self-update to latest release
@@ -76,7 +79,7 @@ schema discovery and embedded operational guides.
 
 | Resource | List | Get | Update |
 |----------|------|-----|--------|
-| Incidents | yes | yes | ack, resolve, snooze, merge, reassign, note, urgency, title, resolve-alert |
+| Incidents | yes | yes | ack, escalate, resolve, snooze, merge, reassign, note, urgency, title, priority, resolve-alert |
 | Services | yes | yes | - |
 | Users | yes | yes | - |
 | Teams | yes | yes | - |
@@ -91,7 +94,7 @@ schema discovery and embedded operational guides.
 Launch with `pdc -i` or set `interactive = true` in config.
 
 Four tabs: Incidents, Escalation Policies, Services and Teams.
-Tabs are configurable via `[tui] tabs` in config.toml.
+Tabs are configurable via `[ui.tui] tabs` in config.toml.
 
 The Incidents tab polls for live data and supports keyboard-driven
 actions: acknowledge, resolve, snooze, escalate, reassign, merge,
@@ -106,6 +109,7 @@ reference.
 
 *   [Installation](docs/installation.md) - install methods, updating, shell completion
 *   [Configuration](docs/configuration.md) - config file, env vars, credentials
+*   [Output](docs/output.md) - formats, themes, colours, hyperlinks, truncation
 *   [Agent mode](docs/agent-mode.md) - detection, envelope format, guides
 *   [Project layout](docs/project-layout.md) - package structure and design decisions
 *   [Releasing](docs/releasing.md) - version scheme, tagging, GoReleaser

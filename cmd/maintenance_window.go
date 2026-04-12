@@ -94,7 +94,9 @@ $ pdc maintenance-window list --service S1`,
 			return output.RenderJSON(w, windows, th)
 		default:
 			tbl := table.New(w, th)
-			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return "https://app.pagerduty.com/maintenance_windows/" + strings.TrimSpace(v)
+			}))
 			tbl.AddCol(table.Col("Description").Flex())
 			tbl.AddCol(table.Col("Start").TimeAgo())
 			tbl.AddCol(table.Col("End").TimeAgo())

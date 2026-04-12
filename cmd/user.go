@@ -81,7 +81,9 @@ $ pdc user list`,
 			return output.RenderJSON(w, users, th)
 		default:
 			tbl := table.New(w, th)
-			tbl.AddCol(table.Col("ID"))
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return "https://app.pagerduty.com/users/" + strings.TrimSpace(v)
+			}))
 			tbl.AddCol(table.Col("Name").Style(func(v string) lipgloss.Style {
 				return pdctheme.EntityColor(strings.TrimSpace(v))
 			}).Flex())

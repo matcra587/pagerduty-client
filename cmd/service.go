@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	clib "github.com/gechr/clib/cli/cobra"
@@ -85,8 +86,12 @@ $ pdc service list --team PTEAM01`,
 			return output.RenderJSON(w, services, th)
 		default:
 			tbl := table.New(w, th)
-			tbl.AddCol(table.Col("ID"))
-			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return "https://app.pagerduty.com/services/" + strings.TrimSpace(v)
+			}))
+			tbl.AddCol(table.Col("Name").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}))
 			tbl.AddCol(table.Col("Status").StyleMap(serviceStatusStyles(th)))
 			tbl.AddCol(table.Col("Description").Flex())
 			for _, s := range services {

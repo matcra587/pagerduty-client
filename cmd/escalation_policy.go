@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"charm.land/lipgloss/v2"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -87,8 +88,12 @@ $ pdc escalation-policy list --team T1`,
 			return output.RenderJSON(w, policies, th)
 		default:
 			tbl := table.New(w, th)
-			tbl.AddCol(table.Col("ID"))
-			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return "https://app.pagerduty.com/escalation_policies/" + strings.TrimSpace(v)
+			}))
+			tbl.AddCol(table.Col("Name").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}).Flex())
 			tbl.AddCol(table.Col("Num Loops"))
 			tbl.AddCol(table.Col("Teams"))
 			for _, p := range policies {

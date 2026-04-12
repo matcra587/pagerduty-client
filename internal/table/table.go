@@ -61,12 +61,19 @@ func (t *Table) Render() error {
 				break
 			}
 			cell := output.Sanitize(row[j])
+			// Collapse whitespace — table cells must be single-line.
+			cell = strings.Join(strings.Fields(cell), " ")
 			if t.cols[j].timeAgo {
 				if ts, err := time.Parse(time.RFC3339, cell); err == nil {
-					cell = human.FormatTimeAgoCompact(ts)
+					if t.th != nil {
+						cell = t.th.RenderTimeAgoCompact(ts, true)
+					} else {
+						cell = human.FormatTimeAgoCompact(ts)
+					}
 				}
 			}
-			if xansi.StringWidth(cell) > maxCellW {
+			// Flex columns get their full width; fixed columns truncate.
+			if !t.cols[j].flex && xansi.StringWidth(cell) > maxCellW {
 				cell = xansi.Truncate(cell, maxCellW-3, "...")
 			}
 			row[j] = cell

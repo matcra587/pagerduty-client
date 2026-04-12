@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
+	"charm.land/lipgloss/v2"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -69,8 +71,12 @@ $ pdc schedule list --query primary`,
 			return output.RenderJSON(w, schedules, th)
 		default:
 			tbl := table.New(w, th)
-			tbl.AddCol(table.Col("ID"))
-			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return "https://app.pagerduty.com/schedules/" + strings.TrimSpace(v)
+			}))
+			tbl.AddCol(table.Col("Name").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}).Flex())
 			tbl.AddCol(table.Col("Time Zone"))
 			tbl.AddCol(table.Col("Description").Flex())
 			for _, s := range schedules {

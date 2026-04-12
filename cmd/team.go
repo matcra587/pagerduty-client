@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"charm.land/lipgloss/v2"
 	clib "github.com/gechr/clib/cli/cobra"
 	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
@@ -65,8 +67,12 @@ $ pdc team list`,
 			return output.RenderJSON(w, teams, th)
 		default:
 			tbl := table.New(w, th)
-			tbl.AddCol(table.Col("ID"))
-			tbl.AddCol(table.Col("Name").Flex())
+			tbl.AddCol(table.Col("ID").Link(func(v string) string {
+				return "https://app.pagerduty.com/teams/" + strings.TrimSpace(v)
+			}))
+			tbl.AddCol(table.Col("Name").Style(func(v string) lipgloss.Style {
+				return pdctheme.EntityColor(strings.TrimSpace(v))
+			}))
 			tbl.AddCol(table.Col("Description").Flex())
 			for _, t := range teams {
 				tbl.Row(t.ID, t.Name, t.Description)

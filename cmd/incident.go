@@ -440,7 +440,12 @@ $ pdc incident show --alerts --payload P000001`,
 				if enriched.Integration != nil {
 					links = enriched.Integration.Links
 				}
-				url = resolveShowURL(cfg, enriched.alertBody, links, args[0])
+				ext, ok := resolveExternalURL(cfg, enriched.alertBody, links)
+				if !ok {
+					clog.Warn().Msg("no external link found for this incident")
+					return nil
+				}
+				url = ext
 			} else {
 				url = incidentURL(args[0])
 			}
@@ -1361,20 +1366,21 @@ func incidentURL(id string) string {
 	return "https://app.pagerduty.com/incidents/" + id
 }
 
-// resolveShowURL picks the best URL for --open-external: custom
-// field link, integration-detected link, or PagerDuty incident URL.
-func resolveShowURL(cfg *config.Config, alertBody map[string]any, links []payloadLink, incidentID string) string {
+// resolveExternalURL finds the integration-detected external URL
+// for an incident. Returns the URL and true when a link is found,
+// empty string and false otherwise.
+func resolveExternalURL(cfg *config.Config, alertBody map[string]any, links []payloadLink) (string, bool) {
 	if alertBody != nil {
 		if url := integration.ResolveExternalLink(cfg, alertBody); url != "" {
-			return url
+			return url, true
 		}
 	}
 	for _, l := range links {
 		if integration.IsHTTP(l.URL) {
-			return l.URL
+			return l.URL, true
 		}
 	}
-	return incidentURL(incidentID)
+	return "", false
 }
 
 // formatAssignees extracts the Summary from each assignment's Assignee

@@ -25,11 +25,34 @@ type Match struct {
 // Resolver resolves user input (ID or partial name) to a PagerDuty resource ID.
 type Resolver struct {
 	client *api.Client
+	cache  map[string][]Match
 }
 
 // New returns a Resolver backed by the given API client.
 func New(client *api.Client) *Resolver {
-	return &Resolver{client: client}
+	return &Resolver{
+		client: client,
+		cache:  make(map[string][]Match),
+	}
+}
+
+func (r *Resolver) candidates(
+	ctx context.Context,
+	kind string,
+	fetch func(context.Context) ([]Match, error),
+) ([]Match, error) {
+	if candidates, ok := r.cache[kind]; ok {
+		return candidates, nil
+	}
+
+	candidates, err := fetch(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	r.cache[kind] = candidates
+
+	return candidates, nil
 }
 
 // resolve is the core logic shared by all resource methods.
@@ -45,7 +68,7 @@ func (r *Resolver) resolve(
 		return input, nil, nil
 	}
 
-	candidates, err := fetch(ctx)
+	candidates, err := r.candidates(ctx, kind, fetch)
 	if err != nil {
 		return "", nil, fmt.Errorf("listing %ss: %w", kind, err)
 	}

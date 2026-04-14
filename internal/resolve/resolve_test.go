@@ -22,8 +22,6 @@ func TestResolve_IDPassthrough(t *testing.T) {
 func TestResolve_IDPatternVariants(t *testing.T) {
 	t.Parallel()
 
-	r := New(nil)
-
 	tests := []struct {
 		input string
 		isID  bool
@@ -48,6 +46,7 @@ func TestResolve_IDPatternVariants(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()
+			r := New(nil)
 
 			id, _, err := r.resolve(context.Background(), "test", tt.input, func(context.Context) ([]Match, error) {
 				if tt.isID {
@@ -118,4 +117,65 @@ func TestResolve_ZeroMatches(t *testing.T) {
 	_, _, err := r.resolve(context.Background(), "service", "zzzznothing", fetch)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, `no service matching "zzzznothing"`)
+}
+
+func TestResolve_CachesCandidatesByKind(t *testing.T) {
+	t.Parallel()
+
+	r := New(nil)
+
+	var calls int
+	fetch := func(context.Context) ([]Match, error) {
+		calls++
+		return []Match{
+			{ID: "PTEAM001", Name: "Database"},
+			{ID: "PTEAM002", Name: "Auth"},
+		}, nil
+	}
+
+	id, matches, err := r.resolve(context.Background(), "team", "database", fetch)
+	require.NoError(t, err)
+	assert.Equal(t, "PTEAM001", id)
+	assert.Nil(t, matches)
+
+	id, matches, err = r.resolve(context.Background(), "team", "auth", fetch)
+	require.NoError(t, err)
+	assert.Equal(t, "PTEAM002", id)
+	assert.Nil(t, matches)
+	assert.Equal(t, 1, calls)
+}
+
+func TestResolve_DoesNotShareCandidatesAcrossKinds(t *testing.T) {
+	t.Parallel()
+
+	r := New(nil)
+
+	teamCalls := 0
+	teamFetch := func(context.Context) ([]Match, error) {
+		teamCalls++
+		return []Match{
+			{ID: "PTEAM001", Name: "Database Team"},
+		}, nil
+	}
+
+	serviceCalls := 0
+	serviceFetch := func(context.Context) ([]Match, error) {
+		serviceCalls++
+		return []Match{
+			{ID: "PSVC001", Name: "Database Service"},
+		}, nil
+	}
+
+	id, matches, err := r.resolve(context.Background(), "team", "database", teamFetch)
+	require.NoError(t, err)
+	assert.Equal(t, "PTEAM001", id)
+	assert.Nil(t, matches)
+
+	id, matches, err = r.resolve(context.Background(), "service", "database", serviceFetch)
+	require.NoError(t, err)
+	assert.Equal(t, "PSVC001", id)
+	assert.Nil(t, matches)
+
+	assert.Equal(t, 1, teamCalls)
+	assert.Equal(t, 1, serviceCalls)
 }

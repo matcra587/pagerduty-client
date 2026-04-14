@@ -15,6 +15,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDecodePaginatedPage(t *testing.T) {
+	t.Parallel()
+
+	type item struct {
+		ID string `json:"id"`
+	}
+
+	body := []byte(`{"items":[{"id":"1"},{"id":"2"}],"limit":2,"offset":4,"more":true,"total":6}`)
+
+	page, err := decodePaginatedPage[item](body, "items")
+
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), page.Limit)
+	assert.Equal(t, uint(4), page.Offset)
+	assert.True(t, page.More)
+	require.Len(t, page.Items, 2)
+	assert.Equal(t, "1", page.Items[0].ID)
+	assert.Equal(t, "2", page.Items[1].ID)
+	assert.True(t, page.HasItemsKey)
+}
+
 func TestPaginateAll(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()
@@ -186,4 +207,36 @@ func TestPaginateMalformedEnvelope(t *testing.T) {
 
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "decoding pagination envelope")
+}
+
+func TestPaginateStopsWhenItemsKeyMissing(t *testing.T) {
+	t.Parallel()
+
+	requestCount := 0
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	mux.HandleFunc("/items", func(w http.ResponseWriter, _ *http.Request) {
+		requestCount++
+		_, _ = w.Write([]byte(`{"limit":25,"offset":0,"more":true,"total":100}`))
+	})
+
+	c := NewClient("test-token", WithBaseURL(server.URL))
+
+	type item struct {
+		ID string `json:"id"`
+	}
+
+	var all []item
+	err := paginate(context.Background(), c, paginateRequest{
+		path: "/items",
+		key:  "items",
+	}, func(items []item) {
+		all = append(all, items...)
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, requestCount)
+	assert.Empty(t, all)
 }

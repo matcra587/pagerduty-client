@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-
-	"github.com/PagerDuty/go-pagerduty"
 )
 
 const defaultPageSize = 100
@@ -16,6 +14,14 @@ const defaultPageSize = 100
 const pdOffsetCap = 10_000
 
 type paginateOption func(*paginateConfig)
+
+type decodedPage[T any] struct {
+	Limit       uint
+	Offset      uint
+	More        bool
+	Items       []T
+	HasItemsKey bool
+}
 
 type paginateConfig struct {
 	maxResults int
@@ -31,6 +37,42 @@ type paginateRequest struct {
 	path   string
 	params url.Values
 	key    string
+}
+
+func decodePaginatedPage[T any](body []byte, key string) (decodedPage[T], error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return decodedPage[T]{}, fmt.Errorf("decoding response: %w", err)
+	}
+
+	var page decodedPage[T]
+	if rawLimit, ok := raw["limit"]; ok {
+		if err := json.Unmarshal(rawLimit, &page.Limit); err != nil {
+			return page, fmt.Errorf("decoding pagination envelope: %w", err)
+		}
+	}
+	if rawOffset, ok := raw["offset"]; ok {
+		if err := json.Unmarshal(rawOffset, &page.Offset); err != nil {
+			return page, fmt.Errorf("decoding pagination envelope: %w", err)
+		}
+	}
+	if rawMore, ok := raw["more"]; ok {
+		if err := json.Unmarshal(rawMore, &page.More); err != nil {
+			return page, fmt.Errorf("decoding pagination envelope: %w", err)
+		}
+	}
+
+	rawItems, ok := raw[key]
+	page.HasItemsKey = ok
+	if !ok {
+		return page, nil
+	}
+
+	if err := json.Unmarshal(rawItems, &page.Items); err != nil {
+		return page, fmt.Errorf("decoding %s: %w", key, err)
+	}
+
+	return page, nil
 }
 
 func paginate[T any](ctx context.Context, c *Client, req paginateRequest, collect func([]T), opts ...paginateOption) error {
@@ -65,33 +107,18 @@ func paginate[T any](ctx context.Context, c *Client, req paginateRequest, collec
 			return err
 		}
 
-		// Unmarshal envelope fields (limit, offset, more) using the
-		// go-pagerduty type. Unknown fields (the data array) are ignored.
-		var envelope pagerduty.APIListObject
-		if err := json.Unmarshal(body, &envelope); err != nil {
-			return fmt.Errorf("decoding pagination envelope: %w", err)
+		page, err := decodePaginatedPage[T](body, req.key)
+		if err != nil {
+			return err
 		}
-
-		if envelope.Limit == 0 {
+		if page.Limit == 0 {
 			return errors.New("invalid pagination response: limit is 0")
 		}
-
-		// Extract the data array by dynamic key.
-		var raw map[string]json.RawMessage
-		if err := json.Unmarshal(body, &raw); err != nil {
-			return fmt.Errorf("decoding response: %w", err)
-		}
-
-		rawItems, ok := raw[req.key]
-		if !ok {
+		if !page.HasItemsKey {
 			break
 		}
 
-		var items []T
-		if err := json.Unmarshal(rawItems, &items); err != nil {
-			return fmt.Errorf("decoding %s: %w", req.key, err)
-		}
-
+		items := page.Items
 		if cfg.maxResults > 0 {
 			remaining := cfg.maxResults - collected
 			if len(items) > remaining {
@@ -108,11 +135,11 @@ func paginate[T any](ctx context.Context, c *Client, req paginateRequest, collec
 			break
 		}
 
-		if !envelope.More {
+		if !page.More {
 			break
 		}
 
-		offset = int(envelope.Offset) + int(envelope.Limit) //nolint:gosec // PD offset capped at 10,000
+		offset = int(page.Offset) + int(page.Limit) //nolint:gosec // PD offset capped at 10,000
 		if offset >= pdOffsetCap {
 			break
 		}

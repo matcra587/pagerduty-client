@@ -110,8 +110,9 @@ $ pdc agent guide triage
 
 # Print the on-call guide
 $ pdc agent guide oncall`,
-	Args:      cobra.ExactArgs(1),
-	ValidArgs: agent.GuideNames,
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='guide'"},
+	ValidArgs:   agent.GuideNames,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		content, err := agent.Guide(args[0])
 		if err != nil {

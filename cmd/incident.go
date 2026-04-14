@@ -937,7 +937,7 @@ var incidentTitleCmd = &cobra.Command{
 	Use:         "title <id> <new-title>",
 	Short:       "Set incident title",
 	Args:        cobra.ExactArgs(2),
-	Annotations: map[string]string{"clib": "dynamic-args='incident'"},
+	Annotations: map[string]string{"clib": "dynamic-args='incident,freeform'"},
 	Example: `# Update the incident title
 $ pdc incident title P000001 "Database connection pool exhausted"`,
 	RunE: func(cmd *cobra.Command, args []string) error {

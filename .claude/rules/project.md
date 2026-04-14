@@ -218,6 +218,22 @@ When adding a new subcommand with positional args:
 
 1. Add `Annotations: map[string]string{"clib": "dynamic-args='<kind>'"}`.
 2. Add a handler `case` in `completionHandler` if the kind is new.
+
+Important completion rules:
+
+- `clib.Subcommands(rootCmd)` does not read Cobra `ValidArgs` or
+  `ValidArgsFunction` for positional args. If shell completion should
+  work for a positional arg, add `dynamic-args` even when Cobra
+  completion is also configured.
+- `dynamic-args` is positional metadata. The final kind repeats for
+  remaining positional args. If a later arg is freeform text, add an
+  explicit sentinel such as `freeform` instead of letting the previous
+  completion kind repeat.
+- Handle static completion kinds in `completionHandler` before the
+  token-gated PagerDuty API cases. Examples: config keys, config
+  values, embedded agent guides, and freeform sentinels.
+- When adding or changing positional completion, update both the
+  command metadata tests and the runtime completion handler tests.
 3. Add `Complete: "predictor=<kind>"` on any flag that takes a
    resource ID (via `clib.FlagExtra`).
 4. Reinstall completions: `pdc --install-completion`.

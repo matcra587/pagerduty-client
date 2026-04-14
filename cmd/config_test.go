@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	clibcobra "github.com/gechr/clib/cli/cobra"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/credential"
 	"github.com/spf13/cobra"
@@ -332,4 +333,40 @@ func TestCompleteConfigSetValues_ThemePresets(t *testing.T) {
 	assert.Contains(t, completions, "dracula")
 	assert.Contains(t, completions, "monochrome")
 	assert.Contains(t, completions, "catppuccin-mocha")
+}
+
+func TestConfigSetCmd_SubcommandsExposeDynamicArgs(t *testing.T) {
+	t.Parallel()
+
+	root := &cobra.Command{Use: "config"}
+	root.AddCommand(configSetCmd())
+
+	subs := clibcobra.Subcommands(root)
+	require.Len(t, subs, 1)
+	assert.Equal(t, "set", subs[0].Name)
+	assert.Equal(t, []string{"config_key", "config_value"}, subs[0].DynamicArgs)
+}
+
+func TestConfigGetCmd_SubcommandsExposeDynamicArgs(t *testing.T) {
+	t.Parallel()
+
+	root := &cobra.Command{Use: "config"}
+	root.AddCommand(configGetCmd())
+
+	subs := clibcobra.Subcommands(root)
+	require.Len(t, subs, 1)
+	assert.Equal(t, "get", subs[0].Name)
+	assert.Equal(t, []string{"config_key"}, subs[0].DynamicArgs)
+}
+
+func TestConfigUnsetCmd_SubcommandsExposeDynamicArgs(t *testing.T) {
+	t.Parallel()
+
+	root := &cobra.Command{Use: "config"}
+	root.AddCommand(configUnsetCmd())
+
+	subs := clibcobra.Subcommands(root)
+	require.Len(t, subs, 1)
+	assert.Equal(t, "unset", subs[0].Name)
+	assert.Equal(t, []string{"config_key"}, subs[0].DynamicArgs)
 }

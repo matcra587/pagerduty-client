@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clib/complete"
+	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/config"
 )
@@ -33,13 +34,6 @@ func completionHandler(token string, cfg *config.Config, opts ...api.Option) com
 	}
 
 	return func(shell, kind string, args []string) {
-		if token == "" {
-			return
-		}
-		client := api.NewClient(token, opts...)
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
 		// printCompletion prints a completion candidate. Fish receives
 		// "ID\tDescription"; other shells receive bare IDs.
 		printCompletion := func(id, desc string) {
@@ -49,6 +43,34 @@ func completionHandler(token string, cfg *config.Config, opts ...api.Option) com
 				_, _ = fmt.Println(id)
 			}
 		}
+
+		switch kind {
+		case "config_key":
+			for _, completion := range configKeys {
+				printCompletion(completion, configDescriptions[completion])
+			}
+			return
+		case "config_value":
+			completions, _ := completeConfigSetValues(nil, args, "")
+			for _, completion := range completions {
+				printCompletion(completion, "")
+			}
+			return
+		case "guide":
+			for _, completion := range agent.GuideNames {
+				printCompletion(completion, "")
+			}
+			return
+		case "freeform":
+			return
+		}
+
+		if token == "" {
+			return
+		}
+		client := api.NewClient(token, opts...)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		switch kind {
 		case "team":
@@ -136,6 +158,14 @@ func completionHandler(token string, cfg *config.Config, opts ...api.Option) com
 				printCompletion(p.Name, p.Name)
 			}
 			printCompletion("none", "clear priority")
+		case "ability":
+			abilities, err := client.ListAbilities(ctx)
+			if err != nil {
+				return
+			}
+			for _, a := range abilities {
+				printCompletion(a.Name, a.Display)
+			}
 		case "urgency":
 			_, _ = fmt.Println("high")
 			_, _ = fmt.Println("low")

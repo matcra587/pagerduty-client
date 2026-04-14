@@ -75,14 +75,15 @@ $ pdc ability list -f json`,
 }
 
 var abilityTestCmd = &cobra.Command{
-	Use:   "test <ability>",
-	Short: "Test if account has an ability",
+	Use:         "test <ability>",
+	Short:       "Test if account has an ability",
 	Example: `# Check if account has SSO
 $ pdc ability test sso
 
 # Check for teams support
 $ pdc ability test teams`,
-	Args: cobra.ExactArgs(1),
+	Args:        cobra.ExactArgs(1),
+	Annotations: map[string]string{"clib": "dynamic-args='ability'"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 		client := ClientFromContext(cmd)

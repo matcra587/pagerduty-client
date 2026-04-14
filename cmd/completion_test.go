@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gechr/clib/complete"
+	"github.com/matcra587/pagerduty-client/internal/agent"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/stretchr/testify/assert"
@@ -66,6 +67,12 @@ func TestCompletionHandler(t *testing.T) {
 	mux.HandleFunc("GET /maintenance_windows", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"maintenance_windows": [{"id": "MW1", "description": "Deploy window"}, {"id": "MW2", "description": "DB migration"}], "limit": 100, "offset": 0, "more": false}`))
 	})
+	mux.HandleFunc("GET /priorities", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"priorities": [{"id": "PRIO1", "name": "P1", "description": "Critical"}, {"id": "PRIO2", "name": "P2", "description": "High"}]}`))
+	})
+	mux.HandleFunc("GET /abilities", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"abilities":["sso","teams"]}`))
+	})
 
 	handler := completionHandler("test-token", nil, api.WithBaseURL(server.URL))
 
@@ -85,6 +92,8 @@ func TestCompletionHandler(t *testing.T) {
 		{name: "schedule IDs", shell: "zsh", kind: "schedule", expected: []string{"SCH1"}},
 		{name: "escalation policy IDs", shell: "zsh", kind: "escalation_policy", expected: []string{"EP1", "EP2"}},
 		{name: "maintenance window IDs", shell: "zsh", kind: "maintenance_window", expected: []string{"MW1", "MW2"}},
+		{name: "priority names", shell: "zsh", kind: "priority", expected: []string{"P1", "P2", "none"}},
+		{name: "ability names", shell: "zsh", kind: "ability", expected: []string{"sso", "teams"}},
 		{name: "urgency static", shell: "zsh", kind: "urgency", expected: []string{"high", "low"}},
 		{name: "unknown kind", shell: "zsh", kind: "bogus"},
 
@@ -97,6 +106,8 @@ func TestCompletionHandler(t *testing.T) {
 		{name: "fish alert descriptions", shell: "fish", kind: "alert", args: []string{"P1"}, expected: []string{"A1\tHost unreachable"}},
 		{name: "fish escalation policy descriptions", shell: "fish", kind: "escalation_policy", expected: []string{"EP1\tPlatform", "EP2\tMobile"}},
 		{name: "fish maintenance window descriptions", shell: "fish", kind: "maintenance_window", expected: []string{"MW1\tDeploy window", "MW2\tDB migration"}},
+		{name: "fish priority descriptions", shell: "fish", kind: "priority", expected: []string{"P1\tP1", "P2\tP2", "none\tclear priority"}},
+		{name: "fish ability descriptions", shell: "fish", kind: "ability", expected: []string{"sso\tSSO", "teams\tTeams"}},
 		{name: "fish urgency no descriptions", shell: "fish", kind: "urgency", expected: []string{"high", "low"}},
 	}
 
@@ -116,6 +127,32 @@ func TestCompletionHandler_NoToken(t *testing.T) {
 	handler := completionHandler("", nil)
 	got := captureCompletion(t, handler, "zsh", "incident", nil)
 	assert.Empty(t, got)
+}
+
+func TestCompletionHandler_ConfigCompletionsWithoutToken(t *testing.T) {
+	handler := completionHandler("", nil)
+
+	t.Run("config keys", func(t *testing.T) {
+		got := captureCompletion(t, handler, "zsh", "config_key", nil)
+		assert.Contains(t, got, "ui.theme")
+		assert.Contains(t, got, "defaults.format")
+	})
+
+	t.Run("config values", func(t *testing.T) {
+		got := captureCompletion(t, handler, "zsh", "config_value", []string{"ui.theme"})
+		assert.Contains(t, got, "dracula")
+		assert.Contains(t, got, "monochrome")
+	})
+
+	t.Run("guide names", func(t *testing.T) {
+		got := captureCompletion(t, handler, "zsh", "guide", nil)
+		assert.ElementsMatch(t, agent.GuideNames, got)
+	})
+
+	t.Run("freeform returns no completions", func(t *testing.T) {
+		got := captureCompletion(t, handler, "zsh", "freeform", []string{"P1"})
+		assert.Empty(t, got)
+	})
 }
 
 func TestCompletionHandler_ConfigFilters(t *testing.T) {

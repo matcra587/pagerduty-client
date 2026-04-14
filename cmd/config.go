@@ -170,6 +170,7 @@ func configGetCmd() *cobra.Command {
 		Use:               "get <key>",
 		Short:             "Show a configuration value",
 		Args:              cobra.ExactArgs(1),
+		Annotations:       map[string]string{"clib": "dynamic-args='config_key'"},
 		ValidArgsFunction: completeConfigKeys,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath := configPathFromFlags(cmd)
@@ -205,6 +206,7 @@ func configSetCmd() *cobra.Command {
 		Use:               "set <key> <value>",
 		Short:             "Add or update a setting",
 		Args:              cobra.ExactArgs(2),
+		Annotations:       map[string]string{"clib": "dynamic-args='config_key, config_value'"},
 		ValidArgsFunction: completeConfigSetValues,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, val := args[0], args[1]
@@ -241,6 +243,7 @@ func configUnsetCmd() *cobra.Command {
 		Aliases:           []string{"rm", "remove"},
 		Short:             "Remove a setting",
 		Args:              cobra.ExactArgs(1),
+		Annotations:       map[string]string{"clib": "dynamic-args='config_key'"},
 		ValidArgsFunction: completeConfigKeys,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !slices.Contains(configKeys, args[0]) {

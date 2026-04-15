@@ -3,10 +3,17 @@ package update
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/gechr/clog"
 	"github.com/matcra587/pagerduty-client/internal/version"
+)
+
+const (
+	homebrewTap     = "matcra587/tap"
+	homebrewFormula = homebrewTap + "/pagerduty-client"
 )
 
 // ValidateMethodChannel checks whether the install method
@@ -56,21 +63,51 @@ func runHomebrew(ctx context.Context, ch Channel) error {
 		return errors.New("brew not found on PATH: install manually from https://github.com/matcra587/pagerduty-client/releases")
 	}
 
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		return errors.New("git not found on PATH: Homebrew tap refresh requires git")
+	}
+
 	args := []string{"upgrade"}
 	label := "Updating via Homebrew"
 	if ch == ChannelDev {
 		args = append(args, "--fetch-HEAD")
 		label = "Updating via Homebrew (HEAD)"
 	}
-	args = append(args, "matcra587/tap/pagerduty-client")
+	args = append(args, homebrewFormula)
 
 	return clog.Spinner(label).
 		Elapsed("elapsed").
 		Wait(ctx, func(ctx context.Context) error {
+			tapRepo, err := homebrewTapRepo(ctx, brewPath)
+			if err != nil {
+				return err
+			}
+
+			refreshCmd := exec.CommandContext(ctx, gitPath, "-C", tapRepo, "pull", "--ff-only") //nolint:gosec // gitPath validated by LookPath above
+			if err := refreshCmd.Run(); err != nil {
+				return err
+			}
+
 			cmd := exec.CommandContext(ctx, brewPath, args...) //nolint:gosec // brewPath validated by LookPath above
 			return cmd.Run()
 		}).
 		Msg("Updated")
+}
+
+func homebrewTapRepo(ctx context.Context, brewPath string) (string, error) {
+	cmd := exec.CommandContext(ctx, brewPath, "--repo", homebrewTap) //nolint:gosec // brewPath validated by LookPath above
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("locating Homebrew tap: %w", err)
+	}
+
+	tapRepo := strings.TrimSpace(string(out))
+	if tapRepo == "" {
+		return "", errors.New("locating Homebrew tap: empty repository path")
+	}
+
+	return tapRepo, nil
 }
 
 func runGoInstall(ctx context.Context, ch Channel) error {

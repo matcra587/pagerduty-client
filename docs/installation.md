@@ -34,7 +34,7 @@ It detects how it was installed and delegates accordingly:
 
 | Method | Detection | Action |
 |--------|-----------|--------|
-| Homebrew | Binary path under Homebrew prefix | `brew upgrade matcra587/tap/pagerduty-client` |
+| Homebrew | Binary path under Homebrew prefix | Refreshes `matcra587/tap`, then runs `brew upgrade matcra587/tap/pagerduty-client` |
 | `go install` | Module path in embedded build info | `go install .../cmd/pdc@latest` |
 | Binary | Any other path | Downloads the latest release asset and replaces the binary in place |
 
@@ -64,10 +64,16 @@ Channel support varies by install method:
 
 | Method | `stable` | `dev` |
 |--------|----------|-------|
-| Homebrew (stable install) | `brew upgrade` | Switch required (see below) |
-| Homebrew (HEAD install) | Switch required (see below) | `brew upgrade --fetch-HEAD` |
+| Homebrew (stable install) | Refresh tap, then `brew upgrade` | Switch required (see below) |
+| Homebrew (HEAD install) | Switch required (see below) | Refresh tap, then `brew upgrade --fetch-HEAD` |
 | `go install` | `@latest` | `@main` |
 | Binary | Self-replace from release | Not supported |
+
+For a manual Homebrew upgrade outside `pdc update`, run:
+
+```bash
+brew update && brew upgrade matcra587/tap/pagerduty-client
+```
 
 Switching Homebrew between stable and HEAD requires a reinstall:
 

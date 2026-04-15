@@ -75,7 +75,7 @@ Users install or upgrade with:
 ```bash
 brew install matcra587/tap/pagerduty-client
 # or
-brew upgrade matcra587/tap/pagerduty-client
+brew update && brew upgrade matcra587/tap/pagerduty-client
 ```
 
 ## Self-update
@@ -84,7 +84,7 @@ brew upgrade matcra587/tap/pagerduty-client
 
 | Method | Detection | Action |
 |--------|-----------|--------|
-| Homebrew | Binary path under `/opt/homebrew/`, `/usr/local/Cellar/` or `/home/linuxbrew/` | Runs `brew upgrade matcra587/tap/pagerduty-client` |
+| Homebrew | Binary path under `/opt/homebrew/`, `/usr/local/Cellar/` or `/home/linuxbrew/` | Refreshes `matcra587/tap`, then runs `brew upgrade matcra587/tap/pagerduty-client` |
 | `go install` | Module path in embedded build info matches `github.com/matcra587/pagerduty-client` | Runs `go install .../cmd/pdc@latest` |
 | Binary | Any other path | Downloads the latest release asset and replaces the binary in place |
 

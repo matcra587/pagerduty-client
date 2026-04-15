@@ -124,7 +124,7 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.setSize(msg.Width, msg.Height)
-		m.syncContent()
+		m.syncAllContent()
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -181,7 +181,8 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loading = false
 			m.alerts = msg.alerts
 			m.err = msg.err
-			m.syncContent()
+			m.syncSummary()
+			m.syncAlerts()
 		}
 
 	case notesLoadedMsg:
@@ -189,7 +190,7 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.notesLoading = false
 			m.notes = msg.notes
 			m.notesErr = msg.err
-			m.syncContent()
+			m.syncNotes()
 		}
 
 	case logEntriesLoadedMsg:
@@ -197,16 +198,32 @@ func (m incidentDetail) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.timelineLoading = false
 			m.logEntries = msg.entries
 			m.timelineErr = msg.err
-			m.syncContent()
+			m.syncTimeline()
 		}
 	}
 	return m, nil
 }
 
-func (m *incidentDetail) syncContent() {
+func (m *incidentDetail) syncAllContent() {
+	m.syncSummary()
+	m.syncAlerts()
+	m.syncNotes()
+	m.syncTimeline()
+}
+
+func (m *incidentDetail) syncSummary() {
 	m.viewports[tabSummary].SetContent(m.summaryView())
+}
+
+func (m *incidentDetail) syncAlerts() {
 	m.viewports[tabAlerts].SetContent(m.alertsSection())
+}
+
+func (m *incidentDetail) syncNotes() {
 	m.viewports[tabNotes].SetContent(m.notesSection())
+}
+
+func (m *incidentDetail) syncTimeline() {
 	m.viewports[tabTimeline].SetContent(m.timelineSection())
 }
 

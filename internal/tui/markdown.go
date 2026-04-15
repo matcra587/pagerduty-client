@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"sync"
 
 	"charm.land/glamour/v2"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
@@ -29,6 +30,7 @@ var (
 	glamourCachedStyle    string
 	glamourCachedWidth    int
 	glamourCachedRenderer *glamour.TermRenderer
+	glamourRenderMu       sync.Mutex
 )
 
 func cachedGlamourRenderer(width int) *glamour.TermRenderer {
@@ -56,6 +58,10 @@ func renderMarkdown(text string, width int) string {
 	if width <= 0 {
 		width = 80
 	}
+
+	glamourRenderMu.Lock()
+	defer glamourRenderMu.Unlock()
+
 	r := cachedGlamourRenderer(width)
 	if r == nil {
 		return wordWrap(text, width-4, "    ")

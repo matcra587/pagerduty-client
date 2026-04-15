@@ -14,8 +14,9 @@ import (
 
 // epLoadedMsg carries fetched escalation policies from the API.
 type epLoadedMsg struct {
-	policies []pagerduty.EscalationPolicy
-	err      error
+	policies   []pagerduty.EscalationPolicy
+	err        error
+	generation uint64
 }
 
 // escalationPolicies is the model for the Escalation Policies tab.

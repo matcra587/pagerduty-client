@@ -86,8 +86,9 @@ type uiTickMsg time.Time
 
 // incidentsLoadedMsg carries freshly fetched incidents from the API.
 type incidentsLoadedMsg struct {
-	incidents []pagerduty.Incident
-	err       error
+	incidents  []pagerduty.Incident
+	err        error
+	generation uint64
 }
 
 // clearStatusMsg is sent after a delay to clear the status bar feedback.
@@ -120,9 +121,8 @@ type App struct {
 	dashboard      Dashboard
 	detail         incidentDetail
 	ep             escalationPolicies
-	epCache        map[string]pagerduty.EscalationPolicy
+	tabCache       *tabReadCache
 	svc            services
-	svcCache       map[string]pagerduty.Service
 	tmv            teamsView
 	statusBar      components.StatusBar
 	help           components.Help
@@ -141,6 +141,9 @@ type App struct {
 	paused         bool
 	interval       time.Duration
 	statusID       int
+	incidentGen    uint64
+	epGen          uint64
+	svcGen         uint64
 	tabs           []topTab
 	activeTab      int
 	bodyH          int
@@ -174,9 +177,8 @@ func New(ctx context.Context, client *api.Client, cfg *config.Config, fromEmail 
 		current:        viewDashboard,
 		dashboard:      newDashboard(ctx, client, fromEmail, cfg.Service != ""),
 		ep:             newEscalationPolicies(),
-		epCache:        make(map[string]pagerduty.EscalationPolicy),
+		tabCache:       newTabReadCache(5*time.Second, time.Now),
 		svc:            newServices(),
-		svcCache:       make(map[string]pagerduty.Service),
 		tmv:            newTeamsView(),
 		statusBar:      components.StatusBar{Team: cfg.Team, FilterState: defaultState},
 		teamSwitch:     components.NewTeamSwitcher(),
@@ -261,14 +263,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !a.paused {
 			// Background poll: no spinner overlay, just fetch silently.
 			a.statusBar.LastRefresh = time.Time(msg)
+			a, fetchCmd := a.startIncidentsFetch()
 			return a, tea.Batch(
 				tickCmd(a.interval),
-				a.fetchIncidentsCmd(),
+				fetchCmd,
 			)
 		}
 		return a, nil
 
 	case incidentsLoadedMsg:
+		if msg.generation != a.incidentGen {
+			return a, nil
+		}
 		a.loading = false
 		if msg.err != nil {
 			a, cmd := a.flashResult(fmt.Sprintf("Fetch failed: %v", msg.err), true)
@@ -279,23 +285,25 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case epLoadedMsg:
+		if msg.generation != a.epGen {
+			return a, nil
+		}
+		if a.tabCache != nil && msg.err == nil {
+			a.tabCache.PutEscalationPolicies(msg.policies)
+		}
 		em, cmd := a.ep.Update(msg)
 		a.ep = em.(escalationPolicies)
-		// Populate cache.
-		a.epCache = make(map[string]pagerduty.EscalationPolicy, len(msg.policies))
-		for _, p := range msg.policies {
-			a.epCache[p.ID] = p
-		}
 		return a, cmd
 
 	case servicesLoadedMsg:
+		if msg.generation != a.svcGen {
+			return a, nil
+		}
+		if a.tabCache != nil && msg.err == nil {
+			a.tabCache.PutServices(msg.services)
+		}
 		sm, cmd := a.svc.Update(msg)
 		a.svc = sm.(services)
-		// Populate cache.
-		a.svcCache = make(map[string]pagerduty.Service, len(msg.services))
-		for _, sv := range msg.services {
-			a.svcCache[sv.ID] = sv
-		}
 		return a, cmd
 
 	case teamTabLoadedMsg:
@@ -317,9 +325,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.cfg.Team = msg.TeamID
 		a.statusBar.Team = msg.TeamName
 		a.dashboard.incidents.ClearFilter()
+		a.resetTeamChangeState()
 		a.loading = true
+		a, incidentsCmd := a.startIncidentsFetch()
 		return a, tea.Batch(
-			a.fetchIncidentsCmd(),
+			incidentsCmd,
+			a.refreshActiveTeamScopedTabAfterTeamChange(),
 			a.spinner.Tick,
 		)
 
@@ -333,7 +344,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.dashboard.incidents.filterState = a.filterState
 			a.statusBar.FilterState = a.filterState
 			a.loading = true
-			return a, tea.Batch(a.fetchIncidentsCmd(), a.spinner.Tick)
+			a, fetchCmd := a.startIncidentsFetch()
+			return a, tea.Batch(fetchCmd, a.spinner.Tick)
 		case "services":
 			status := msg.Selections["Status"]
 			if status == "" {
@@ -352,7 +364,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case IncidentSelected:
 		a.detail = newIncidentDetail(a.ctx, a.client, a.cfg, a.ansi, msg.Incident)
 		a.detail.setSize(a.width, a.bodyH)
-		a.detail.syncContent()
+		a.detail.syncAllContent()
 		a.current = viewDetail
 		return a, a.detail.Init()
 
@@ -517,9 +529,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.loading = true
 		a, flashCmd := a.flashResult(text, msg.failures > 0)
+		a, fetchCmd := a.startIncidentsFetch()
 		return a, tea.Batch(
 			flashCmd,
-			a.fetchIncidentsCmd(),
+			fetchCmd,
 			a.spinner.Tick,
 		)
 
@@ -650,6 +663,29 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Tab-scoped refresh keys should win over the global pause toggle.
+	if a.current == viewDashboard {
+		switch a.activeTabID() {
+		case "escalation-policies":
+			if msg.String() == "R" {
+				a.resetEscalationPoliciesTabState()
+				a.ep.loading = true
+				return a, a.fetchFreshEPCmd()
+			}
+		case "services":
+			if msg.String() == "R" {
+				a.resetServicesTabState()
+				a.svc.loading = true
+				return a, a.fetchFreshServicesCmd()
+			}
+		case "teams":
+			if msg.String() == "R" {
+				a.tmv.loading = true
+				return a, a.fetchTeamsTabCmd()
+			}
+		}
+	}
+
 	km := a.keys
 
 	// Global keys.
@@ -750,10 +786,6 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// EP tab keys.
 	if a.current == viewDashboard && a.activeTabID() == "escalation-policies" {
-		if msg.String() == "R" {
-			a.ep.loading = true
-			return a, a.fetchEPCmd()
-		}
 		em, cmd := a.ep.Update(msg)
 		a.ep = em.(escalationPolicies)
 		return a, cmd
@@ -761,10 +793,6 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Services tab keys.
 	if a.current == viewDashboard && a.activeTabID() == "services" {
-		if msg.String() == "R" {
-			a.svc.loading = true
-			return a, a.fetchServicesCmd()
-		}
 		if msg.String() == "f" {
 			a.filterOpts = a.filterOpts.ShowWithRows("services", components.ServiceFilterRows())
 			return a, nil
@@ -776,10 +804,6 @@ func (a App) updateKeyPress(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	// Teams tab keys.
 	if a.current == viewDashboard && a.activeTabID() == "teams" {
-		if msg.String() == "R" {
-			a.tmv.loading = true
-			return a, a.fetchTeamsTabCmd()
-		}
 		tm, cmd := a.tmv.Update(msg)
 		a.tmv = tm.(teamsView)
 		return a, cmd
@@ -1074,6 +1098,7 @@ func tabIndexFromKey(k string) int {
 func (a App) fetchIncidentsCmd() tea.Cmd {
 	client := a.client
 	appCtx := a.ctx
+	generation := a.incidentGen
 	opts := api.ListIncidentsOpts{}
 
 	switch a.filterState.Status {
@@ -1116,8 +1141,13 @@ func (a App) fetchIncidentsCmd() tea.Cmd {
 		ctx, cancel := context.WithTimeout(appCtx, 30*time.Second)
 		defer cancel()
 		incidents, err := client.ListIncidents(ctx, opts)
-		return incidentsLoadedMsg{incidents: incidents, err: err}
+		return incidentsLoadedMsg{incidents: incidents, err: err, generation: generation}
 	}
+}
+
+func (a App) startIncidentsFetch() (App, tea.Cmd) {
+	a.incidentGen++
+	return a, a.fetchIncidentsCmd()
 }
 
 // fetchTeamsCmd returns a tea.Cmd that lists teams from the API, producing
@@ -1160,29 +1190,105 @@ func (a *App) lazyLoadTab(idx int) tea.Cmd {
 
 // fetchEPCmd returns a tea.Cmd that loads escalation policies from the API.
 func (a App) fetchEPCmd() tea.Cmd {
+	generation := a.epGen
+	if a.tabCache != nil {
+		if cached, ok := a.tabCache.EscalationPolicies(); ok {
+			return func() tea.Msg {
+				return epLoadedMsg{policies: cached, generation: generation}
+			}
+		}
+	}
+	return a.fetchFreshEPCmd()
+}
+
+// fetchFreshEPCmd returns a tea.Cmd that always loads escalation policies
+// from the API.
+func (a App) fetchFreshEPCmd() tea.Cmd {
 	client := a.client
 	appCtx := a.ctx
+	generation := a.epGen
 	opts := api.ListEscalationPoliciesOpts{}
 	if a.cfg.Team != "" {
 		opts.TeamIDs = []string{a.cfg.Team}
 	}
 	return func() tea.Msg {
 		policies, err := client.ListEscalationPolicies(appCtx, opts)
-		return epLoadedMsg{policies: policies, err: err}
+		return epLoadedMsg{policies: policies, err: err, generation: generation}
 	}
 }
 
 // fetchServicesCmd returns a tea.Cmd that loads services from the API.
 func (a App) fetchServicesCmd() tea.Cmd {
+	generation := a.svcGen
+	if a.tabCache != nil {
+		if cached, ok := a.tabCache.Services(); ok {
+			return func() tea.Msg {
+				return servicesLoadedMsg{services: cached, generation: generation}
+			}
+		}
+	}
+	return a.fetchFreshServicesCmd()
+}
+
+// fetchFreshServicesCmd returns a tea.Cmd that always loads services from the API.
+func (a App) fetchFreshServicesCmd() tea.Cmd {
 	client := a.client
 	appCtx := a.ctx
+	generation := a.svcGen
 	opts := api.ListServicesOpts{}
 	if a.cfg.Team != "" {
 		opts.TeamIDs = []string{a.cfg.Team}
 	}
 	return func() tea.Msg {
 		svcs, err := client.ListServices(appCtx, opts)
-		return servicesLoadedMsg{services: svcs, err: err}
+		return servicesLoadedMsg{services: svcs, err: err, generation: generation}
+	}
+}
+
+// resetTeamChangeState invalidates team-scoped data and starts new request
+// generations so late responses from the previous team are ignored.
+func (a *App) resetTeamChangeState() {
+	a.resetTeamScopedTabState()
+}
+
+// resetTeamScopedTabState invalidates all team-scoped tab caches and clears
+// their loading state so the next team-scoped read is forced through the
+// correct fetch path.
+func (a *App) resetTeamScopedTabState() {
+	a.resetServicesTabState()
+	a.resetEscalationPoliciesTabState()
+}
+
+func (a *App) resetServicesTabState() {
+	a.svcGen++
+	if a.tabCache != nil {
+		a.tabCache.InvalidateServices()
+	}
+	a.svc.loaded = false
+	a.svc.loading = false
+}
+
+func (a *App) resetEscalationPoliciesTabState() {
+	a.epGen++
+	if a.tabCache != nil {
+		a.tabCache.InvalidateEscalationPolicies()
+	}
+	a.ep.loaded = false
+	a.ep.loading = false
+}
+
+// refreshActiveTeamScopedTabAfterTeamChange schedules a fresh read for the
+// active tab if that tab is team-scoped.
+func (a *App) refreshActiveTeamScopedTabAfterTeamChange() tea.Cmd {
+	switch a.activeTabID() {
+	case "escalation-policies":
+		a.ep.loading = true
+		return a.fetchFreshEPCmd()
+	case "services":
+		a.svc.loading = true
+		return a.fetchFreshServicesCmd()
+	default:
+		return nil
 	}
 }
 
@@ -1304,9 +1410,10 @@ func (a App) setStatusPending(op, id string) App {
 func (a App) reloadAfterAction(text string) (tea.Model, tea.Cmd) {
 	a.loading = true
 	a, flashCmd := a.flashResult(text, false)
+	a, fetchCmd := a.startIncidentsFetch()
 	return a, tea.Batch(
 		flashCmd,
-		a.fetchIncidentsCmd(),
+		fetchCmd,
 		a.spinner.Tick,
 	)
 }

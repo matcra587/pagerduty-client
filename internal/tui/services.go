@@ -13,8 +13,9 @@ import (
 
 // servicesLoadedMsg carries fetched services from the API.
 type servicesLoadedMsg struct {
-	services []pagerduty.Service
-	err      error
+	services   []pagerduty.Service
+	err        error
+	generation uint64
 }
 
 // services is the model for the Services tab.

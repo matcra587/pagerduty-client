@@ -103,13 +103,7 @@ $ pdc oncall`,
 		cmd.SetContext(ctx)
 
 		// Check for updates (cached for 24h, 3s timeout).
-		isTTY := terminal.Is(os.Stdout)
-		if update.ShouldCheck(state.det.Active, isTTY) {
-			ch, _ := update.ParseChannel(state.cfg.UpdateChannel)
-			result := update.CheckForUpdate(cmd.Context(), ch)
-			update.NotifyCLI(result)
-			cmd.SetContext(context.WithValue(cmd.Context(), updateResultKey, result))
-		}
+		runStartupUpdateCheck(cmd, state, terminal.Is(os.Stdout), update.NotifyCLI)
 
 		return nil
 	},
@@ -242,6 +236,22 @@ type preRunState struct {
 	cfg     *config.Config
 	det     agent.DetectionResult
 	apiOpts []api.Option
+}
+
+func runStartupUpdateCheck(
+	cmd *cobra.Command,
+	state preRunState,
+	isTTY bool,
+	notify func(update.CheckResult),
+) {
+	if !update.ShouldCheck(state.det.Active, isTTY) {
+		return
+	}
+
+	ch, _ := update.ParseChannel(state.cfg.UpdateChannel)
+	result := update.CheckForUpdate(cmd.Context(), ch)
+	notify(result)
+	cmd.SetContext(context.WithValue(cmd.Context(), updateResultKey, result))
 }
 
 // loadConfigAndFlags loads configuration from file/env, applies flag

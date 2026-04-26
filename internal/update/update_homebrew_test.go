@@ -28,8 +28,8 @@ func testRunHomebrew(t *testing.T, channel Channel, want []string) {
 	gitPath := filepath.Join(brewDir, "git")
 
 	script := "#!/bin/sh\nprintf 'brew %s\\n' \"$*\" >> \"$PDC_TEST_BREW_LOG\"\nif [ \"$1\" = \"--repo\" ]; then\n  printf '%s\\n' \"$PDC_TEST_TAP_REPO\"\nfi\n"
-	require.NoError(t, os.WriteFile(brewPath, []byte(script), 0o755))
-	require.NoError(t, os.WriteFile(gitPath, []byte("#!/bin/sh\nprintf 'git %s\\n' \"$*\" >> \"$PDC_TEST_BREW_LOG\"\n"), 0o755))
+	require.NoError(t, os.WriteFile(brewPath, []byte(script), 0o755))                                                            //nolint:gosec // stub script must be executable
+	require.NoError(t, os.WriteFile(gitPath, []byte("#!/bin/sh\nprintf 'git %s\\n' \"$*\" >> \"$PDC_TEST_BREW_LOG\"\n"), 0o755)) //nolint:gosec // stub script must be executable
 
 	t.Setenv("PATH", brewDir)
 	t.Setenv("PDC_TEST_BREW_LOG", logPath)
@@ -37,7 +37,7 @@ func testRunHomebrew(t *testing.T, channel Channel, want []string) {
 
 	require.NoError(t, runHomebrew(context.Background(), channel))
 
-	data, err := os.ReadFile(logPath)
+	data, err := os.ReadFile(logPath) //nolint:gosec // logPath is rooted in t.TempDir()
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(string(data)), "\n")

@@ -106,7 +106,7 @@ func TestCompletionHandler(t *testing.T) {
 		{name: "fish alert descriptions", shell: "fish", kind: "alert", args: []string{"P1"}, expected: []string{"A1\tHost unreachable"}},
 		{name: "fish escalation policy descriptions", shell: "fish", kind: "escalation_policy", expected: []string{"EP1\tPlatform", "EP2\tMobile"}},
 		{name: "fish maintenance window descriptions", shell: "fish", kind: "maintenance_window", expected: []string{"MW1\tDeploy window", "MW2\tDB migration"}},
-		{name: "fish priority descriptions", shell: "fish", kind: "priority", expected: []string{"P1\tP1", "P2\tP2", "none\tclear priority"}},
+		{name: "fish priority descriptions", shell: "fish", kind: "priority", expected: []string{"P1\tP1", "P2\tP2", "none\tclear priority"}}, //nolint:dupword // priority labels and descriptions are intentionally identical
 		{name: "fish ability descriptions", shell: "fish", kind: "ability", expected: []string{"sso\tSSO", "teams\tTeams"}},
 		{name: "fish urgency no descriptions", shell: "fish", kind: "urgency", expected: []string{"high", "low"}},
 	}

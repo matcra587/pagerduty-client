@@ -307,7 +307,9 @@ func TestAppUpdate_IgnoresStaleIncidentsLoadedMsgAfterTeamChange(t *testing.T) {
 
 	mux.HandleFunc("/incidents", func(w http.ResponseWriter, r *http.Request) {
 		teamIDs := r.URL.Query()["team_ids[]"]
-		require.Len(t, teamIDs, 1)
+		if !assert.Len(t, teamIDs, 1) {
+			return
+		}
 
 		switch teamIDs[0] {
 		case "T1":
@@ -473,7 +475,9 @@ func TestAppUpdate_IgnoresStaleServicesLoadedMsgAfterTeamChange(t *testing.T) {
 
 	mux.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
 		teamIDs := r.URL.Query()["team_ids[]"]
-		require.Len(t, teamIDs, 1)
+		if !assert.Len(t, teamIDs, 1) {
+			return
+		}
 
 		switch teamIDs[0] {
 		case "T1":
@@ -532,7 +536,9 @@ func TestAppUpdate_IgnoresStaleEscalationPoliciesLoadedMsgAfterTeamChange(t *tes
 
 	mux.HandleFunc("/escalation_policies", func(w http.ResponseWriter, r *http.Request) {
 		teamIDs := r.URL.Query()["team_ids[]"]
-		require.Len(t, teamIDs, 1)
+		if !assert.Len(t, teamIDs, 1) {
+			return
+		}
 
 		switch teamIDs[0] {
 		case "T1":
@@ -614,11 +620,12 @@ func tabIndexByID(tabs []topTab, id string) int {
 func newLocalHTTPTestServer(t *testing.T, handler http.Handler) *httptest.Server {
 	t.Helper()
 
-	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	var lc net.ListenConfig
+	l, err := lc.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	require.NoError(t, err)
 	server := &httptest.Server{
 		Listener: l,
-		Config:   &http.Server{Handler: handler},
+		Config:   &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second},
 	}
 	server.Start()
 	t.Cleanup(server.Close)

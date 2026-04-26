@@ -14,7 +14,7 @@ func TestBodySection_UsesNormaliser_GCP(t *testing.T) {
 	m := incidentDetail{
 		incident: testIncidents()[0],
 		alerts:   []pagerduty.IncidentAlert{{Body: testAlertBody()}},
-		width: 80,
+		width:    80,
 	}
 	body := m.bodySection()
 	assert.Contains(t, body, "Google Cloud Monitoring")

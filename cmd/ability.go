@@ -75,8 +75,8 @@ $ pdc ability list -f json`,
 }
 
 var abilityTestCmd = &cobra.Command{
-	Use:         "test <ability>",
-	Short:       "Test if account has an ability",
+	Use:   "test <ability>",
+	Short: "Test if account has an ability",
 	Example: `# Check if account has SSO
 $ pdc ability test sso
 

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	xansi "github.com/charmbracelet/x/ansi"
-	"github.com/gechr/clib/ansi"
+	"github.com/gechr/x/ansi"
 	"github.com/matcra587/pagerduty-client/internal/integration"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

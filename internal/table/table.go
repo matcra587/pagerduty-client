@@ -12,10 +12,10 @@ import (
 
 	"charm.land/lipgloss/v2"
 	xansi "github.com/charmbracelet/x/ansi"
-	"github.com/gechr/clib/ansi"
-	"github.com/gechr/clib/human"
-	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
+	"github.com/gechr/x/ansi"
+	"github.com/gechr/x/human"
+	"github.com/gechr/x/terminal"
 	"github.com/matcra587/pagerduty-client/internal/output"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/PagerDuty/go-pagerduty"
-	"github.com/gechr/clib/human"
+	"github.com/gechr/x/human"
 	"github.com/matcra587/pagerduty-client/internal/output"
 	"github.com/matcra587/pagerduty-client/internal/tui/theme"
 )

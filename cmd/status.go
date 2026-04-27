@@ -4,9 +4,9 @@ import (
 	"errors"
 	"os"
 
-	"github.com/gechr/clib/terminal"
 	"github.com/gechr/clib/theme"
 	"github.com/gechr/clog"
+	"github.com/gechr/x/terminal"
 	"github.com/matcra587/pagerduty-client/internal/api"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"

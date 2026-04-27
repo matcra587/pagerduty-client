@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gechr/clib/terminal"
+	"github.com/gechr/x/terminal"
 	"github.com/matcra587/pagerduty-client/internal/compact"
 	"github.com/matcra587/pagerduty-client/internal/config"
 	"github.com/matcra587/pagerduty-client/internal/output"

@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/gechr/clib/terminal"
+	"github.com/gechr/x/terminal"
 	"github.com/matcra587/pagerduty-client/internal/resolve"
 )
 

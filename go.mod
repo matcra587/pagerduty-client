@@ -20,9 +20,9 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/cli/go-gh/v2 v2.13.0
-	github.com/gechr/clib v0.4.2
-	github.com/gechr/clog v0.9.0
-	github.com/gechr/x v0.0.3
+	github.com/gechr/clib v0.4.3
+	github.com/gechr/clog v0.9.2
+	github.com/gechr/x v0.0.4
 	github.com/joho/godotenv v1.5.1
 	github.com/knadh/koanf/parsers/toml v0.1.0
 	github.com/knadh/koanf/providers/confmap v1.0.0

@@ -5,51 +5,28 @@ on:
   pull_request:
     paths:
       - '.github/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  actionlint:
-    name: ActionLint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Install mise
-        uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run actionlint
-        run: actionlint -color
-
-  zizmor:
-    name: Zizmor workflow security
-    runs-on: ubuntu-latest
+  workflow-lint:
+    name: Workflow lint
+    uses: matcra587/github-actions/.github/workflows/workflow-lint.yml@8b104684e72bef79fca78b294accb5f789d3f202
     permissions:
       contents: read
-      security-events: write # Required to upload SARIF results to the Security tab.
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Run zizmor
-        uses: zizmorcore/zizmor-action@b1d7e1fb5de872772f31590499237e7cce841e8e # v0.5.3
-        with:
-          inputs: ./.github/
-          persona: pedantic
-          advanced-security: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      security-events: write # Required for zizmor SARIF upload.
+    with:
+      actionlint-args: |-
+        -color
+      zizmor-inputs: ./.github/
+      zizmor-persona: pedantic
+      zizmor-advanced-security: true
+      zizmor-annotations: false

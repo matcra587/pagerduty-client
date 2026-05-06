@@ -45,6 +45,11 @@ run = '"${DIST_DIR}/${BINARY_NAME}-${GOOS}-${GOARCH}"'
 description = "Run GoReleaser config and environment checks"
 run = ["goreleaser check", "goreleaser healthcheck"]
 
+[release]
+description = "Validate, tag and push a release"
+raw_args = true
+file = ".mise/tasks/release"
+
 ["release:build"]
 description = "Build binaries with GoReleaser without publishing"
 run = "goreleaser build --snapshot --clean"

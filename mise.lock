@@ -56,9 +56,9 @@ version = "0.1.86"
 backend = "aqua:rvben/rumdl"
 
 [tools.rumdl."platforms.linux-x64"]
-checksum = "sha256:2f411532ab0aac40b2c4c9b5b70cb96061f274771e846dcf6f6d6fe4469b74af"
-url = "https://github.com/rvben/rumdl/releases/download/v0.1.86/rumdl-v0.1.86-x86_64-unknown-linux-gnu.tar.gz"
-url_api = "https://api.github.com/repos/rvben/rumdl/releases/assets/409766106"
+checksum = "sha256:656ea75efa8a40ca9bfbd824c1518d70735e45c62811b6da7420c79b92ee7031"
+url = "https://github.com/rvben/rumdl/releases/download/v0.1.86/rumdl-v0.1.86-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/rvben/rumdl/releases/assets/409766100"
 provenance = "github-attestations"
 
 [[tools.shellcheck]]

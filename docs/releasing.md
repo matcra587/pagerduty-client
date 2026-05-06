@@ -10,12 +10,17 @@ Bug fixes increment PATCH.
 
 ## How to release
 
-Tag the commit you want to ship and push the tag:
+Run the release task with the version you want to ship:
 
 ```bash
-git tag v0.8.1
-git push origin v0.8.1
+mise run release -- v0.8.1
 ```
+
+The task validates the version, checks that `main` is clean and up to date,
+runs the local CI and GoReleaser checks, then creates and pushes an annotated
+tag.
+Use `mise run release -- --dry-run v0.8.1` to run the checks without creating
+or pushing the tag.
 
 The `release` workflow triggers on any tag matching `v[0-9]*.[0-9]*.[0-9]*`.
 It runs GoReleaser, which builds binaries, creates the GitHub release,

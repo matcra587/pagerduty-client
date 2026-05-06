@@ -59,6 +59,7 @@ mise run fmt              # Format with gofumpt
 mise run vet              # Run go vet
 mise run security         # Run govulncheck
 mise run deps:update      # Update direct Go dependencies to latest patch releases
+mise run release -- v0.8.1 # Validate, tag and push a release
 ```
 
 ## Code Style

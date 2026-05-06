@@ -24,6 +24,7 @@ jobs:
       contents: read
       security-events: write # Required for zizmor SARIF upload.
     with:
+      mise-version: "2026.5.0"
       actionlint-args: |-
         -color
       zizmor-inputs: ./.github/

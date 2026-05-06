@@ -66,10 +66,10 @@ directly; alias the Cobra integration as `clib`.
 clib     "github.com/gechr/clib/cli/cobra"   // Cobra flag extensions, help, completion
          "github.com/gechr/clib/complete"     // Shell completion generator
          "github.com/gechr/clib/help"         // Help rendering
-         "github.com/gechr/clib/terminal"     // TTY detection
          "github.com/gechr/clib/theme"        // Help theme
-         "github.com/gechr/clib/human"        // Human-readable formatting
-         "github.com/gechr/clib/ansi"         // ANSI escape utilities
+         "github.com/gechr/x/terminal"        // TTY detection
+         "github.com/gechr/x/human"           // Human-readable formatting
+         "github.com/gechr/x/ansi"            // ANSI escape utilities
 clibtheme "github.com/gechr/clib/theme"       // When aliased in TUI theme code
 ```
 

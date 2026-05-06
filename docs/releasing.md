@@ -29,8 +29,8 @@ in-flight run. Wait for the job to finish before retagging to avoid
 race conditions with the Homebrew tap update.
 
 The release workflow uses a GitHub App installation token to update the tap.
-It needs `HOMEBREW_APP_CLIENT_ID` as a `deploy` environment variable and
-`HOMEBREW_APP_PRIVATE_KEY` as a `deploy` environment secret. The app installation must
+It needs `APP_CLIENT_ID` as a `deploy` environment variable and
+`APP_PRIVATE_KEY` as a `deploy` environment secret. The app installation must
 have write access to `matcra587/homebrew-tap`.
 
 ## What GoReleaser produces

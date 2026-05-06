@@ -37,7 +37,23 @@ jobs:
           install_args: --locked
           cache: false
 
+      - name: Check release state
+        id: release-state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${TAG_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "exists=true" >>"${GITHUB_OUTPUT}"
+            echo "release ${TAG_NAME} already exists; skipping GoReleaser publish"
+          else
+            echo "exists=false" >>"${GITHUB_OUTPUT}"
+          fi
+
       - name: Run GoReleaser
+        if: steps.release-state.outputs.exists != 'true'
         uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
         with:
           distribution: goreleaser
@@ -46,7 +62,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Download release checksums
+        if: steps.release-state.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          gh release download "${TAG_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern checksums.txt \
+            --dir dist \
+            --clobber
+
       - name: Attest release artifact provenance
+        if: steps.release-state.outputs.exists != 'true'
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-checksums: dist/checksums.txt

@@ -41,7 +41,7 @@ branch="$(git branch --show-current)"
 
 [[ -z "$(git status --porcelain)" ]] || fail "working tree must be clean"
 
-git fetch --tags origin +refs/heads/main:refs/remotes/origin/main
+timeout 60s git fetch --tags origin +refs/heads/main:refs/remotes/origin/main || fail "timed out fetching origin/main and tags"
 
 head_sha="$(git rev-parse HEAD)"
 origin_sha="$(git rev-parse origin/main)"
@@ -51,9 +51,21 @@ if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
 	fail "local tag already exists: ${tag}"
 fi
 
-if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+remote_tag_status=0
+timeout 30s git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1 || remote_tag_status=$?
+case "$remote_tag_status" in
+0)
 	fail "remote tag already exists: ${tag}"
-fi
+	;;
+2)
+	;;
+124)
+	fail "timed out checking remote tag: ${tag}"
+	;;
+*)
+	fail "could not check remote tag ${tag} (git ls-remote exited ${remote_tag_status})"
+	;;
+esac
 
 mise run ci
 mise run release:check

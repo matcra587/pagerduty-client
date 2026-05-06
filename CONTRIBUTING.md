@@ -2,38 +2,69 @@
 
 ## Prerequisites
 
-*   [mise](https://mise.jdx.dev/) - manages Go, task, actionlint, rumdl and zizmor
-*   Go 1.26+ (mise installs this for you)
+*   [mise](https://mise.jdx.dev/) - manages Go, platform tools, and project tasks
+*   Go 1.26.2 (mise installs this for you)
 
 ## Setup
 
 ```bash
-mise install          # Install platform tools and Go
-task deps             # Download Go dependencies
-task build            # Build binary to ./dist/pdc-<os>-<arch>
+mise install          # Install Go and platform tools from .mise.toml
+mise run deps         # Download Go dependencies
+mise run build        # Build binary to ./dist/pdc-<os>-<arch>
 ```
 
 That's it. The binary is ready to use.
+
+## Git Hooks
+
+The repo uses [hk](https://hk.jdx.dev/) for Git hooks. mise installs `hk`
+and the hook tools, including `actionlint`, `rumdl`, `shellcheck`, and
+`zizmor`.
+
+Install hooks once per clone:
+
+```bash
+mise exec -- hk install --mise
+```
+
+On Git 2.54+, you can install hk once for every repo instead:
+
+```bash
+mise exec -- hk install --global --mise
+```
+
+Do not run both local and global hk installs for the same repo; Git will
+run both hook entries.
+
+Useful hook commands:
+
+```bash
+mise run pre-commit    # Run the pre-commit hook against staged files
+hk check --all --check # Check all tracked files without applying fixes
+hk fix --all           # Apply hook fixes across all tracked files
+```
 
 ## Development Workflow
 
 1.  Write a failing test.
 1.  Implement until the test passes.
-1.  Run `task lint && task test` before pushing.
+1.  Run `mise run check` before pushing.
 
 ```bash
-task test             # Run unit tests
-task test:integration # Run integration tests (Stoplight mock, needs network)
-task lint             # Lint with golangci-lint
-task fmt              # Format with gofumpt
-task vet              # Run go vet
-task security         # Run govulncheck
+mise run test             # Run unit tests
+mise run test:integration # Run integration tests (Stoplight mock, needs network)
+mise run lint             # Lint with golangci-lint
+mise run lint:fix         # Run golangci-lint with auto-fix
+mise run fmt              # Format with gofumpt
+mise run vet              # Run go vet
+mise run security         # Run govulncheck
+mise run deps:update      # Update direct Go dependencies to latest patch releases
 ```
 
 ## Code Style
 
-*   Format with `gofumpt` (`task fmt`).
-*   Lint with `golangci-lint` (`task lint`). Fix all warnings before pushing.
+*   Format with `gofumpt` (`mise run fmt`).
+*   Lint with `golangci-lint` (`mise run lint`). Fix all warnings before pushing.
 *   Spelling follows the existing codebase: colour, behaviour, organisation.
 *   Use `gechr/clog` for structured logging. `log` and `log/slog` are banned by `depguard`.
 *   Keep business logic out of `cmd/`. Wire commands there; implement in `internal/`.

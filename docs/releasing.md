@@ -19,13 +19,19 @@ git push origin v0.8.1
 
 The `release` workflow triggers on any tag matching `v[0-9]*.[0-9]*.[0-9]*`.
 It runs GoReleaser, which builds binaries, creates the GitHub release,
-uploads assets and updates the Homebrew tap.
+uploads assets, signs the checksum file and creates a GitHub artifact attestation.
+It also publishes the Homebrew formula to `matcra587/homebrew-tap`.
 Nothing else to do after pushing the tag.
 
 The workflow uses a `concurrency` group scoped to the ref.
 Each tag runs independently, but re-pushing the same tag cancels the
 in-flight run. Wait for the job to finish before retagging to avoid
 race conditions with the Homebrew tap update.
+
+The release workflow uses a GitHub App installation token to update the tap.
+It needs `HOMEBREW_APP_CLIENT_ID` as a `deploy` environment variable and
+`HOMEBREW_APP_PRIVATE_KEY` as a `deploy` environment secret. The app installation must
+have write access to `matcra587/homebrew-tap`.
 
 ## What GoReleaser produces
 
@@ -41,8 +47,30 @@ macOS amd64 is excluded (see `ignore` in `.goreleaser.yml`).
 
 Each binary is archived as `pagerduty-client_<version>_<os>_<arch>.tar.gz`.
 A `checksums.txt` covering all archives is published alongside them.
+GoReleaser signs that checksum file with cosign as `checksums.txt.sigstore.json`.
+The workflow also creates a GitHub-native provenance attestation from
+`checksums.txt` for the released archives.
 
 The changelog excludes commits with types `docs`, `style`, `chore`, `ci` and `test`.
+
+## Verifying artifacts
+
+Download the archive you want to verify, then ask GitHub for its provenance
+attestation:
+
+```bash
+gh attestation verify pagerduty-client_0.8.1_linux_amd64.tar.gz \
+  --repo matcra587/pagerduty-client \
+  --signer-workflow matcra587/pagerduty-client/.github/workflows/release.yml
+```
+
+You can also verify the cosign signature over `checksums.txt`:
+
+```bash
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  checksums.txt
+```
 
 ## Version embedding
 
@@ -58,7 +86,7 @@ The variables live in `internal/version/version.go` and default to
 | `version.BuildTime` | Commit timestamp (RFC3339) |
 | `version.BuildBy` | `goreleaser` |
 
-`task build` injects the same fields using `git describe` and
+`mise run build` injects the same fields using `git describe` and
 `git rev-parse`, so local binaries also report meaningful version info.
 
 Run `pdc version` to inspect the embedded values.
@@ -67,8 +95,8 @@ Run `pdc version` to inspect the embedded values.
 
 The Homebrew formula lives in
 [matcra587/homebrew-tap](https://github.com/matcra587/homebrew-tap).
-It is not yet automated - after each release, update the formula
-manually to point to the new tag and asset checksums.
+The release workflow updates it from GoReleaser's `checksums.txt` using
+`matcra587/github-actions/packages/homebrew-publish-formula`.
 
 Users install or upgrade with:
 

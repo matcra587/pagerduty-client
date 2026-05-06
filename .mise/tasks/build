@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# shellcheck source=.mise/tasks/lib/build-env.sh
+source .mise/tasks/lib/build-env.sh
+
+mkdir -p "${DIST_DIR:?DIST_DIR is required}"
+go build -ldflags "$(pdc_ldflags)" -o "$(pdc_binary_path)" ./cmd/pdc

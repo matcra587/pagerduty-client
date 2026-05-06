@@ -135,7 +135,7 @@ Verify envelope keys, pagination structure and field names against
 
 ## Integration Tests
 
-Gate behind `//go:build integration`. Run with `task test:integration`.
+Gate behind `//go:build integration`. Run with `mise run test:integration`.
 
 - Hit the PagerDuty Stoplight mock (needs network)
 - Use `WithBaseURL` + `WithExtraHeaders` for mock headers

@@ -1,7 +1,27 @@
+#:schema https://mise.en.dev/schema/mise.json
+min_version = "2026.5.0"
+
+[settings]
+lockfile = true
+
 [tools]
-go = "1.26"
+go = "1.26.2"
 actionlint = "latest"
 goreleaser = "latest"
-task = "latest"
+cosign = "latest"
 zizmor = "latest"
-"github:rvben/rumdl" = "latest"
+rumdl = "latest"
+hk = "latest"
+pkl = "latest"
+shellcheck = "latest"
+
+[env]
+HK_MISE = 1
+MODULE = "github.com/matcra587/pagerduty-client"
+BINARY_NAME = "pdc"
+DIST_DIR = "./dist"
+GOOS = "{{ exec(command='go env GOOS') }}"
+GOARCH = "{{ exec(command='go env GOARCH') }}"
+
+[task_config]
+includes = ["tasks.toml"]

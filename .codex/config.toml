@@ -1,0 +1,10 @@
+# Project-scoped Codex defaults. Personal model/provider settings belong in
+# ~/.codex/config.toml.
+
+approval_policy = "on-request"
+default_permissions = "workspace"
+web_search = "cached"
+
+[permissions.workspace.filesystem]
+":project_roots" = { "." = "write", ".env" = "none", ".env.*" = "none", "**/*.env" = "none", "secrets/**" = "none", ".claude/settings.local.json" = "none" }
+glob_scan_max_depth = 3

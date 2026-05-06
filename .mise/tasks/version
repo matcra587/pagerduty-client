@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# shellcheck source=.mise/tasks/lib/build-env.sh
+source .mise/tasks/lib/build-env.sh
+
+cat <<EOF
+Version:    $(pdc_version)
+Commit:     $(pdc_commit)
+Branch:     $(pdc_branch)
+Built:      $(pdc_build_time)
+Built by:   $(pdc_build_by)
+Go version: $(go version)
+EOF

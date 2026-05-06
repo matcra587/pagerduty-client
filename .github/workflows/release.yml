@@ -17,8 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: deploy
     permissions:
-      contents: write  # Required to create GitHub releases and upload assets.
-      id-token: write  # Required for cosign keyless signing via OIDC.
+      attestations: write       # Required to create GitHub artifact attestations.
+      contents: write           # Required to create GitHub releases and upload assets.
+      id-token: write           # Required for cosign and GitHub attestations via OIDC.
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,3 +44,30 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest release artifact provenance
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-checksums: dist/checksums.txt
+
+      - name: Create Homebrew tap token
+        id: app-token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        with:
+          client-id: ${{ vars.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          repositories: homebrew-tap
+
+      - name: Publish Homebrew formula
+        uses: matcra587/github-actions/packages/homebrew-publish-formula@22fb9659d28a51b321f2eb580483d8fd27d20f89
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          tap: matcra587/homebrew-tap
+          name: pagerduty-client
+          desc: PagerDuty API client and CLI
+          homepage: https://github.com/matcra587/pagerduty-client
+          version: ${{ github.ref_name }}
+          binary-name: pdc
+          module-path: github.com/matcra587/pagerduty-client
+          build-package: ./cmd/pdc
+          commit-message: "pagerduty-client: v{version}"

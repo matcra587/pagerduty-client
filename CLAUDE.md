@@ -7,12 +7,13 @@ for humans (opt-in via `--interactive`).
 ## Quick Start
 
 ```bash
-mise install                     # Install Go, task, actionlint, rumdl, zizmor
-task deps                        # Download dependencies
-task build                       # Build binary to ./dist/pdc-<os>-<arch>
-task test                        # Run unit tests
-task test:integration            # Run integration tests (Stoplight mock, needs network)
-task lint                        # Run golangci-lint
+mise install                     # Install Go, actionlint, rumdl, shellcheck, zizmor, hk, pkl
+mise run deps                    # Download dependencies
+mise run build                   # Build binary to ./dist/pdc-<os>-<arch>
+mise run test                    # Run unit tests
+mise run test:integration        # Run integration tests (Stoplight mock, needs network)
+mise run lint                    # Run golangci-lint
+mise tasks                       # List all available tasks
 ```
 
 ## Module
@@ -21,23 +22,31 @@ task lint                        # Run golangci-lint
 
 ## Go Version
 
-Managed via `go.mod` toolchain directive: `go 1.26` with
-`toolchain go1.26.1`. mise bootstraps Go; the toolchain directive
-pins the exact version.
+`go.mod` declares `go 1.26.2`. `.mise.toml` installs Go 1.26.2
+for local development and task execution.
 
 ## Dev Tools
 
 Tools split across two managers:
 
-**mise** (`.mise.toml`) - platform tools:
+**mise** (`.mise.toml`) - platform tools and task entrypoint:
 
 | Tool | Purpose |
 |------|---------|
-| go | Go runtime (version pinned by go.mod toolchain) |
-| task | Task runner |
+| go | Go runtime |
 | actionlint | GitHub Actions linter |
 | rumdl | Markdown linter |
+| shellcheck | Shell script linter |
 | zizmor | Workflow security scanner |
+| goreleaser | Release packaging |
+| hk | Git hook runner |
+| pkl | Apple's config language (used by `hk.pkl`) |
+
+Project task definitions live in `tasks.toml`; longer shell task
+bodies live under `.mise/tasks/` and are called from `tasks.toml`.
+Run with `mise run <task>` or list with `mise tasks`.
+
+`mise.lock` records resolved dev-tool artifacts when supported.
 
 **go.mod** `tool` directives - Go project tools:
 

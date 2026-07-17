@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"image/color"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -15,18 +16,14 @@ import (
 
 var applyOnce sync.Once
 
-// presetNames lists the clib theme presets available for selection.
+// presetNames lists the clib theme presets available for selection,
+// sourced from clibtheme.Names so the list always matches the dependency.
 // Sorted alphabetically for completion output.
-var presetNames = []string{
-	"catppuccin-frappe",
-	"catppuccin-latte",
-	"catppuccin-macchiato",
-	"catppuccin-mocha",
-	"default",
-	"dracula",
-	"monochrome",
-	"monokai",
-}
+var presetNames = func() []string {
+	names := clibtheme.Names()
+	slices.Sort(names)
+	return names
+}()
 
 // PresetNames returns the sorted list of available theme preset names.
 func PresetNames() []string {

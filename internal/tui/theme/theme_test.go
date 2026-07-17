@@ -32,7 +32,7 @@ func TestResolve_UnknownFallsBack(t *testing.T) {
 func TestPresetNames_ContainsDracula(t *testing.T) {
 	names := theme.PresetNames()
 	assert.Contains(t, names, "dracula")
-	assert.Contains(t, names, "monochrome")
+	assert.Contains(t, names, "monochrome-dark")
 }
 
 func TestResolve_EnvVarOverridesEmptyName(t *testing.T) {
@@ -51,7 +51,7 @@ func TestApply_UpdatesDerivedStyles(t *testing.T) {
 	theme.Apply(light)
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	assert.Equal(t, light, theme.Theme, "Theme should be set to light preset")
@@ -70,7 +70,7 @@ func TestApply_ChromeDerivedFromTheme(t *testing.T) {
 	theme.Apply(th)
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	assert.Equal(t, th.Blue.GetForeground(), theme.ColorHeaderFg,
@@ -84,21 +84,21 @@ func TestApply_SecondCallIsNoop(t *testing.T) {
 	theme.Apply(theme.Resolve("catppuccin-latte"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	lightRed := theme.UrgencyHigh.GetForeground()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	assert.Equal(t, lightRed, theme.UrgencyHigh.GetForeground(),
 		"second Apply should be a no-op")
 }
 
 func TestEntityColor_Deterministic(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	s1 := theme.EntityColor("web-api")
@@ -116,10 +116,10 @@ func TestEntityColor_EmptyReturnsPlain(t *testing.T) {
 
 func TestEntityColor_DifferentNamesVary(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	// With 20 palette colours, two short distinct strings are very likely
@@ -137,10 +137,10 @@ func TestPriorityStyle_UnknownReturnsFalse(t *testing.T) {
 
 func TestRenderEntityNames_Nil(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	assert.Empty(t, theme.RenderEntityNames(nil))
@@ -148,10 +148,10 @@ func TestRenderEntityNames_Nil(t *testing.T) {
 
 func TestRenderEntityNames_Empty(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	assert.Empty(t, theme.RenderEntityNames([]string{}))
@@ -159,10 +159,10 @@ func TestRenderEntityNames_Empty(t *testing.T) {
 
 func TestRenderEntityNames_Single(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	result := theme.RenderEntityNames([]string{"Alice"})
@@ -173,10 +173,10 @@ func TestRenderEntityNames_Single(t *testing.T) {
 
 func TestRenderEntityNames_Multiple(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	result := theme.RenderEntityNames([]string{"Alice", "Bob"})
@@ -187,10 +187,10 @@ func TestRenderEntityNames_Multiple(t *testing.T) {
 
 func TestRenderEntityNames_PositionIndependence(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	ab := theme.RenderEntityNames([]string{"Alice", "Bob"})
@@ -211,10 +211,10 @@ func TestRenderEntityNames_PositionIndependence(t *testing.T) {
 
 func TestRenderEntityNames_Duplicates(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	result := theme.RenderEntityNames([]string{"Alice", "Alice"})
@@ -226,10 +226,10 @@ func TestRenderEntityNames_Duplicates(t *testing.T) {
 
 func TestRenderEntityNames_SkipsEmpty(t *testing.T) {
 	theme.ResetForTest()
-	theme.Apply(theme.Resolve("default"))
+	theme.Apply(theme.Resolve("dark"))
 	t.Cleanup(func() {
 		theme.ResetForTest()
-		theme.Apply(theme.Resolve("default"))
+		theme.Apply(theme.Resolve("dark"))
 	})
 
 	result := theme.RenderEntityNames([]string{"Alice", "", "  ", "Bob"})

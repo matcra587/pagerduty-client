@@ -125,7 +125,7 @@ func migrateThemeName(name string) string {
 	case "light":
 		return "catppuccin-latte"
 	case "high-contrast":
-		return "monochrome"
+		return "monochrome-dark"
 	default:
 		return name
 	}

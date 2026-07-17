@@ -1,5 +1,6 @@
 module github.com/matcra587/pagerduty-client
 
+// clover: provider=auto constraint=minor
 go 1.26.2
 
 tool (

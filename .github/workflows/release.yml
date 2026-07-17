@@ -90,6 +90,7 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           repositories: homebrew-tap
+          permission-contents: write # Required to commit the updated formula to the tap.
 
       - name: Publish Homebrew formula
         uses: matcra587/github-actions/packages/homebrew-publish-formula@6e3053f35d4ec31adc4f82c04a2c43209f3b36e6 # homebrew/v0.1.0

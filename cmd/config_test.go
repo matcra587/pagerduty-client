@@ -331,7 +331,7 @@ func TestCompleteConfigSetValues_ThemePresets(t *testing.T) {
 	completions, directive := completeConfigSetValues(nil, []string{"ui.theme"}, "")
 	assert.Equal(t, cobra.ShellCompDirectiveNoFileComp, directive)
 	assert.Contains(t, completions, "dracula")
-	assert.Contains(t, completions, "monochrome")
+	assert.Contains(t, completions, "monochrome-dark")
 	assert.Contains(t, completions, "catppuccin-mocha")
 }
 

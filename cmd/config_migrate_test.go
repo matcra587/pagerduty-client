@@ -91,7 +91,7 @@ theme = "high-contrast"
 	require.NoError(t, err)
 	ui, ok := raw["ui"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "monochrome", ui["theme"])
+	assert.Equal(t, "monochrome-dark", ui["theme"])
 }
 
 func TestMigrateConfig_UnknownThemePassesThrough(t *testing.T) {

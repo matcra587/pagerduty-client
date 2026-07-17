@@ -406,7 +406,8 @@ The `--agent` flag also activates it.
 
 - Urgency colouring: high = red, low = yellow, resolved = dim
 - Define styles in internal/tui/theme/
-- Theme wraps `gechr/clib/theme` with presets: dark, light, high-contrast
+- Theme wraps `gechr/clib/theme`; presets come from `clibtheme.Names()`
+  (dark, light, monochrome-dark, catppuccin-*, ...) - never hand-roll the list
 - Configure with: `WithRed`, `WithGreen`, `WithYellow`, `WithBlue`,
   `WithMagenta`, `WithOrange`, `WithDim`, `WithBoldGreen`
 - `.EntityColors` provides a 20-colour palette for consistent hashing

@@ -141,7 +141,7 @@ func TestCompletionHandler_ConfigCompletionsWithoutToken(t *testing.T) {
 	t.Run("config values", func(t *testing.T) {
 		got := captureCompletion(t, handler, "zsh", "config_value", []string{"ui.theme"})
 		assert.Contains(t, got, "dracula")
-		assert.Contains(t, got, "monochrome")
+		assert.Contains(t, got, "monochrome-dark")
 	})
 
 	t.Run("guide names", func(t *testing.T) {

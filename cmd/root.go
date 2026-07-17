@@ -24,6 +24,7 @@ import (
 	"github.com/matcra587/pagerduty-client/internal/resolve"
 	"github.com/matcra587/pagerduty-client/internal/table"
 	"github.com/matcra587/pagerduty-client/internal/tui"
+	pdctheme "github.com/matcra587/pagerduty-client/internal/tui/theme"
 	"github.com/matcra587/pagerduty-client/internal/update"
 	"github.com/matcra587/pagerduty-client/internal/version"
 	"github.com/spf13/cobra"
@@ -436,8 +437,9 @@ func init() {
 	// Enable PDC_THEME env var for theme selection.
 	theme.SetEnvPrefix("PDC")
 
-	// Themed help rendering.
-	th := theme.Dark().With(
+	// Themed help rendering. Resolve("") honors the PDC_THEME override
+	// before falling back to the dark built-in, matching data output.
+	th := pdctheme.Resolve("").With(
 		theme.WithEnumStyle(theme.EnumStyleHighlightBoth),
 		theme.WithHelpRepeatEllipsisEnabled(true),
 	)

@@ -1,6 +1,6 @@
 module github.com/matcra587/pagerduty-client
 
-// clover: provider=auto constraint=minor
+// clover: provider=auto constraint=minor tags=go
 go 1.26.5
 
 tool (

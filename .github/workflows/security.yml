@@ -20,10 +20,12 @@ jobs:
   security:
     name: Security
     # clover: provider=auto constraint=minor tag-prefix=security/ tags=actions
-    uses: matcra587/github-actions/.github/workflows/security.yml@8ac690a9ce57ff20ff105dbdb99989a1bf7fd9f4 # security/v0.3.2
+    uses: matcra587/github-actions/.github/workflows/security.yml@3e61d37c312b21e008fa58eda8844a70b6a24f9d # security/v0.4.0
     permissions:
       contents: read
+      security-events: write # SARIF + CodeQL uploads to code scanning.
     with:
+      sarif: true
       # Default 1.24.1 misparses monorepo-prefixed tag comments
       # (homebrew/v0.1.0) as a missing version; fixed by 1.27.0.
       zizmor-version: "1.27.0"

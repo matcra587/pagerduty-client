@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"image/color"
+	"os"
 	"strings"
 	"sync"
 
@@ -32,23 +33,30 @@ func PresetNames() []string {
 	return presetNames
 }
 
-// Resolve returns a clib theme for the given preset name. An empty or
-// unrecognised name returns theme.Default() (which itself checks the
-// PDC_THEME / CLIB_THEME env vars before falling back to the built-in
-// default).
+// Resolve returns a clib theme for the given preset name. An empty name
+// falls back to the PDC_THEME env var (clib's own Default() used to check
+// this internally; that behaviour was removed along with Default() and is
+// reproduced here), then to clibtheme.Dark(), clib's built-in default. An
+// unrecognised name also falls back to clibtheme.Dark().
 func Resolve(name string) *clibtheme.Theme {
 	if name == "" {
-		return clibtheme.Default()
+		if v := strings.TrimSpace(os.Getenv("PDC_THEME")); v != "" {
+			var th clibtheme.Theme
+			if err := th.UnmarshalText([]byte(v)); err == nil {
+				return &th
+			}
+		}
+		return clibtheme.Dark()
 	}
 	var th clibtheme.Theme
 	if err := th.UnmarshalText([]byte(name)); err != nil {
-		return clibtheme.Default()
+		return clibtheme.Dark()
 	}
 	return &th
 }
 
 // Theme is the shared clib theme instance used as the colour foundation.
-var Theme = clibtheme.Default()
+var Theme = clibtheme.Dark()
 
 // Urgency styles - derived from clib semantic colours.
 var (

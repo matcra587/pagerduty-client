@@ -437,7 +437,7 @@ func init() {
 	theme.SetEnvPrefix("PDC")
 
 	// Themed help rendering.
-	th := theme.Default().With(
+	th := theme.Dark().With(
 		theme.WithEnumStyle(theme.EnumStyleHighlightBoth),
 		theme.WithHelpRepeatEllipsisEnabled(true),
 	)

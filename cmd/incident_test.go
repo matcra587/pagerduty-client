@@ -206,7 +206,7 @@ func TestRenderShowDetail(t *testing.T) {
 	t.Run("themed output bolds labels", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		th := theme.Default()
+		th := theme.Dark()
 		rows := []showRow{
 			{"ID", "P000001"},
 		}
@@ -220,7 +220,7 @@ func TestRenderShowDetail(t *testing.T) {
 	t.Run("pre-styled value passes through", func(t *testing.T) {
 		t.Parallel()
 		var buf bytes.Buffer
-		th := theme.Default()
+		th := theme.Dark()
 		styled := "\x1b[31mtriggered\x1b[0m"
 		rows := []showRow{
 			{"Status", styled},

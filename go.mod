@@ -1,6 +1,7 @@
 module github.com/matcra587/pagerduty-client
 
-go 1.26.2
+// clover: provider=auto constraint=minor tags=go
+go 1.26.5
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint

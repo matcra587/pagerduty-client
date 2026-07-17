@@ -25,7 +25,7 @@ func TestRenderJSON_Highlighted(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
 	data := map[string]string{"id": "P123", "status": "triggered"}
-	th := theme.Default()
+	th := theme.Dark()
 	err := RenderJSON(&buf, data, th)
 	require.NoError(t, err)
 	out := buf.String()

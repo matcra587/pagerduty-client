@@ -144,7 +144,7 @@ func TestRender_FewerRowValues(t *testing.T) {
 func TestRender_Themed_DimDefault(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Val")).
 		Row("hello").
 		Render()
@@ -155,7 +155,7 @@ func TestRender_Themed_DimDefault(t *testing.T) {
 func TestRender_Themed_BoldHeader(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Header")).
 		Row("val").
 		Render()
@@ -169,7 +169,7 @@ func TestRender_Themed_StyleMap(t *testing.T) {
 		"hot": lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")),
 	}
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Temp").StyleMap(m)).
 		Row("hot").
 		Render()
@@ -184,7 +184,7 @@ func TestRender_Themed_StyleMap_Fallback(t *testing.T) {
 		"hot": lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")),
 	}
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Temp").StyleMap(m)).
 		Row("cold").
 		Render()
@@ -199,7 +199,7 @@ func TestRender_Themed_StyleMap_Fallback(t *testing.T) {
 func TestRender_Themed_Normal(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Plain").Normal()).
 		AddCol(Col("Dim")).
 		Row("alpha", "beta").
@@ -226,7 +226,7 @@ func TestRender_Themed_Normal(t *testing.T) {
 func TestRender_Themed_Bold(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Field").Bold()).
 		Row("value").
 		Render()
@@ -240,7 +240,7 @@ func TestRender_Themed_Bold(t *testing.T) {
 func TestRender_Themed_Link(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Name").Link(func(v string) string {
 			return "https://example.com/" + v
 		})).
@@ -257,7 +257,7 @@ func TestRender_Themed_Link(t *testing.T) {
 func TestRender_Themed_StyleFn(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	err := New(&buf, theme.Default()).
+	err := New(&buf, theme.Dark()).
 		AddCol(Col("Colour").Style(func(string) lipgloss.Style {
 			return lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00"))
 		})).
@@ -293,7 +293,7 @@ func TestCol_BuilderMethods(t *testing.T) {
 
 func TestRender_Flex_TruncatesOnTTY(t *testing.T) {
 	withTermWidth(t, 80)
-	th := theme.Default()
+	th := theme.Dark()
 	var buf bytes.Buffer
 	tbl := New(&buf, th)
 	tbl.AddCol(Col("ID"))
@@ -321,7 +321,7 @@ func TestRender_Flex_PipedNoTruncation(t *testing.T) {
 
 func TestRender_Flex_UnboundedIgnoresTerminal(t *testing.T) {
 	withTermWidth(t, 80)
-	th := theme.Default()
+	th := theme.Dark()
 	var buf bytes.Buffer
 	tbl := New(&buf, th).Unbounded()
 	tbl.AddCol(Col("ID"))
@@ -336,7 +336,7 @@ func TestRender_Flex_UnboundedIgnoresTerminal(t *testing.T) {
 
 func TestRender_Flex_MultiFlexDistributes(t *testing.T) {
 	withTermWidth(t, 100)
-	th := theme.Default()
+	th := theme.Dark()
 	var buf bytes.Buffer
 	tbl := New(&buf, th)
 	tbl.AddCol(Col("ID"))
@@ -356,7 +356,7 @@ func TestRender_Flex_MultiFlexDistributes(t *testing.T) {
 
 func TestRender_Flex_NarrowTerminalClampsToMin(t *testing.T) {
 	withTermWidth(t, 20) // smaller than fixed columns
-	th := theme.Default()
+	th := theme.Dark()
 	var buf bytes.Buffer
 	tbl := New(&buf, th)
 	tbl.AddCol(Col("ID"))
@@ -371,7 +371,7 @@ func TestRender_Flex_NarrowTerminalClampsToMin(t *testing.T) {
 
 func TestRender_Flex_WithTimeAgo(t *testing.T) {
 	withTermWidth(t, 80)
-	th := theme.Default()
+	th := theme.Dark()
 	var buf bytes.Buffer
 	tbl := New(&buf, th)
 	tbl.AddCol(Col("ID"))

@@ -56,7 +56,7 @@ func TestRenderColumns_ZeroWidth(t *testing.T) {
 func TestRenderColumns_WithTheme(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer
-	th := theme.Default()
+	th := theme.Dark()
 	err := RenderColumns(&buf, []string{"Test"}, 80, th)
 	require.NoError(t, err)
 	// Themed output contains ANSI escape sequences.

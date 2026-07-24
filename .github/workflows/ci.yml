@@ -14,7 +14,7 @@ jobs:
   go-test:
     name: Go test
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-test.yml@8b104684e72bef79fca78b294accb5f789d3f202
+    uses: matcra587/github-actions/.github/workflows/go-test.yml@1f771927fa94bbb42fee46581c0cf6676080519e
     permissions:
       contents: read
 

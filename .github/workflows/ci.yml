@@ -10,11 +10,12 @@ concurrency:
 
 permissions: {}
 
+# Shared workflows use the repository snapshot tagged homebrew/v0.1.1.
 jobs:
   go-test:
     name: Go test
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-ci.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476
+    uses: matcra587/github-actions/.github/workflows/go-ci.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476 # homebrew/v0.1.1
     permissions:
       contents: read
     with:
@@ -24,7 +25,7 @@ jobs:
   go-lint:
     name: Go lint
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-ci.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476
+    uses: matcra587/github-actions/.github/workflows/go-ci.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476 # homebrew/v0.1.1
     permissions:
       contents: read
     with:
@@ -34,6 +35,6 @@ jobs:
   md-lint:
     name: Markdown lint
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/md-lint.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476
+    uses: matcra587/github-actions/.github/workflows/md-lint.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476 # homebrew/v0.1.1
     permissions:
       contents: read

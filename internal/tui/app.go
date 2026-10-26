@@ -372,6 +372,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a.reloadAfterAction("Acknowledged " + msg.ID)
 
 	case IncidentResolved:
+		delete(a.dashboard.incidents.selections, msg.ID)
 		return a.reloadAfterAction("Resolved " + msg.ID)
 
 	case IncidentSnoozed:
@@ -839,8 +840,14 @@ func (a App) updateDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return a, cmd
 
 	case key.Matches(msg, km.Resolve):
-		if len(a.dashboard.incidents.selections) > 0 {
-			n := len(a.dashboard.incidents.selections)
+		incidents := a.dashboard.incidents.selectedIncidents()
+		if len(a.dashboard.incidents.selections) == 0 {
+			vis := a.dashboard.incidents.visibleIncidents()
+			if len(vis) > 0 {
+				incidents = []pagerduty.Incident{vis[a.dashboard.incidents.cursor]}
+			}
+		}
+		if n := len(incidents); n > 1 {
 			a.confirm = a.confirm.Show(
 				"Resolve incidents",
 				fmt.Sprintf("Resolve %d selected incidents?", n),
@@ -848,9 +855,8 @@ func (a App) updateDashboardKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			)
 			return a, nil
 		}
-		vis := a.dashboard.incidents.visibleIncidents()
-		if len(vis) > 0 {
-			inc := vis[a.dashboard.incidents.cursor]
+		if len(incidents) == 1 {
+			inc := incidents[0]
 			return a, func() tea.Msg {
 				return showInputMsg{
 					action:      "resolve",

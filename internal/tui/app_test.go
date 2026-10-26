@@ -52,6 +52,118 @@ func TestIncidentsLoadedMsg_ErrorShowsFlash(t *testing.T) {
 	assert.NotNil(t, cmd)
 }
 
+func TestAppResolvePrompt(t *testing.T) {
+	tests := []struct {
+		name        string
+		selected    []string
+		cursor      int
+		wantID      string
+		wantConfirm bool
+	}{
+		{name: "cursor incident", cursor: 1, wantID: "P2"},
+		{name: "single selected incident", selected: []string{"P1"}, wantID: "P1"},
+		{name: "selection away from cursor", selected: []string{"P1"}, cursor: 1, wantID: "P1"},
+		{name: "multiple selected incidents", selected: []string{"P1", "P2"}, wantConfirm: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := New(t.Context(), api.NewClient("test-token"), config.Default(), "test@example.com")
+			app.dashboard.SetIncidents([]pagerduty.Incident{{ID: "P1"}, {ID: "P2"}})
+			app.dashboard.incidents.cursor = tt.cursor
+			for _, id := range tt.selected {
+				app.dashboard.incidents.selections[id] = true
+			}
+
+			result, cmd := app.Update(tea.KeyPressMsg{Code: -2, Text: "r"})
+			updated := result.(App)
+			if tt.wantConfirm {
+				assert.True(t, updated.confirm.Visible)
+				assert.Contains(t, updated.confirm.View().Content, "Resolve 2 selected incidents?")
+				assert.False(t, updated.textInput.Visible)
+				assert.Nil(t, cmd)
+				return
+			}
+
+			require.False(t, updated.confirm.Visible, "one incident should go straight to the note prompt")
+			require.NotNil(t, cmd)
+			prompt, ok := cmd().(showInputMsg)
+			require.True(t, ok)
+			assert.Equal(t, "resolve", prompt.action)
+			assert.Equal(t, tt.wantID, prompt.incidentID)
+			result, _ = updated.Update(prompt)
+			updated = result.(App)
+			assert.True(t, updated.textInput.Visible)
+			assert.Contains(t, updated.textInput.View().Content, "add a note (enter to skip)")
+		})
+	}
+}
+
+func TestAppResolveNotePrompt(t *testing.T) {
+	tests := []struct {
+		name   string
+		note   string
+		cancel bool
+	}{
+		{name: "add note", note: "Restarted the service"},
+		{name: "skip note"},
+		{name: "cancel", cancel: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := New(t.Context(), api.NewClient("test-token"), config.Default(), "test@example.com")
+			app.dashboard.SetIncidents([]pagerduty.Incident{{ID: "P1"}, {ID: "P2"}})
+			app.dashboard.incidents.selections["P1"] = true
+			app.dashboard.incidents.cursor = 1
+
+			result, cmd := app.Update(tea.KeyPressMsg{Code: -2, Text: "r"})
+			app = result.(App)
+			require.False(t, app.confirm.Visible)
+			require.NotNil(t, cmd)
+			result, _ = app.Update(cmd())
+			app = result.(App)
+			require.True(t, app.textInput.Visible)
+			if tt.note != "" {
+				result, _ = app.Update(tea.KeyPressMsg{Code: -2, Text: tt.note})
+				app = result.(App)
+			}
+
+			key := tea.KeyEnter
+			if tt.cancel {
+				key = tea.KeyEscape
+			}
+			result, cmd = app.Update(tea.KeyPressMsg{Code: key})
+			app = result.(App)
+			assert.False(t, app.textInput.Visible)
+			require.NotNil(t, cmd)
+			msg := cmd()
+			if tt.cancel {
+				result, cmd = app.Update(msg)
+				assert.IsType(t, components.InputCancelled{}, msg)
+				assert.Nil(t, cmd)
+				assert.True(t, result.(App).dashboard.incidents.selections["P1"])
+				return
+			}
+			submitted, ok := msg.(components.InputSubmitted)
+			require.True(t, ok)
+			assert.Equal(t, "resolve", submitted.Action)
+			assert.Equal(t, "P1", submitted.ID)
+			assert.Equal(t, tt.note, submitted.Value)
+		})
+	}
+}
+
+func TestAppResolvedIncidentClearsItsSelection(t *testing.T) {
+	app := New(t.Context(), api.NewClient("test-token"), config.Default(), "test@example.com")
+	app.dashboard.incidents.selections = map[string]bool{"P1": true, "P2": true}
+
+	result, _ := app.Update(IncidentResolved{ID: "P1"})
+	updated := result.(App)
+	assert.NotContains(t, updated.dashboard.incidents.selections, "P1")
+	assert.True(t, updated.dashboard.incidents.selections["P2"])
+}
+
 func TestAgeRangeMapping(t *testing.T) {
 	tests := []struct {
 		age       string

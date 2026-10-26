@@ -30,10 +30,10 @@ func TestIncidentDetailUpdate_AlertsLoadedSyncsSummaryAndAlertsOnly(t *testing.T
 	result, _ := m.Update(alertsLoadedMsg{
 		incidentID: m.incident.ID,
 		alerts: []pagerduty.IncidentAlert{{
-			APIObject: pagerduty.APIObject{Summary: "CPU high"},
-			AlertKey:  "alert-1",
-			Status:    "triggered",
-			Body:      testAlertBody(),
+			Summary:  "CPU high",
+			AlertKey: "alert-1",
+			Status:   "triggered",
+			Body:     testAlertBody(),
 		}},
 	})
 	updated := result.(incidentDetail)
@@ -73,11 +73,9 @@ func TestIncidentDetailUpdate_LogEntriesLoadedSyncsTimelineOnly(t *testing.T) {
 	result, _ := m.Update(logEntriesLoadedMsg{
 		incidentID: m.incident.ID,
 		entries: []pagerduty.LogEntry{{
-			CommonLogEntryField: pagerduty.CommonLogEntryField{
-				APIObject: pagerduty.APIObject{Type: "annotate_log_entry"},
-				CreatedAt: time.Date(2026, 4, 14, 20, 5, 0, 0, time.UTC).Format(time.RFC3339),
-				Agent:     pagerduty.Agent{Summary: "system"},
-			},
+			Type:      "annotate_log_entry",
+			CreatedAt: time.Date(2026, 4, 14, 20, 5, 0, 0, time.UTC).Format(time.RFC3339),
+			Agent:     pagerduty.Agent{Summary: "system"},
 		}},
 	})
 	updated := result.(incidentDetail)

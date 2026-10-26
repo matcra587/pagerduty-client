@@ -7,7 +7,7 @@ for humans (opt-in via `--interactive`).
 ## Quick Start
 
 ```bash
-mise install                     # Install Go, actionlint, rumdl, shellcheck, zizmor, hk, pkl
+mise install                     # Install Go, actionlint, rumdl, shellcheck, zizmor, hk
 mise run deps                    # Download dependencies
 mise run build                   # Build binary to ./dist/pdc-<os>-<arch>
 mise run test                    # Run unit tests
@@ -22,7 +22,7 @@ mise tasks                       # List all available tasks
 
 ## Go Version
 
-`go.mod` declares `go 1.26.2`. `.mise.toml` installs Go 1.26.2
+`go.mod` declares `go 1.27.3`. `.mise.toml` installs Go 1.27.3
 for local development and task execution.
 
 ## Dev Tools
@@ -40,7 +40,6 @@ Tools split across two managers:
 | zizmor | Workflow security scanner |
 | goreleaser | Release packaging |
 | hk | Git hook runner |
-| pkl | Apple's config language (used by `hk.pkl`) |
 
 Project task definitions live in `tasks.toml`; longer shell task
 bodies live under `.mise/tasks/` and are called from `tasks.toml`.

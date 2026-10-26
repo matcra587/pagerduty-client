@@ -1,15 +1,17 @@
-amends "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Config.pkl"
-import "package://github.com/jdx/hk/releases/download/v1.45.0/hk@1.45.0#/Builtins.pkl"
+amends "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.8.1/hk@2.8.1#/Builtins.pkl"
 
-min_hk_version = "1.45.0"
+min_hk_version = "2.8.1"
 
 // Project linters and formatters managed by go.mod tool directives are
 // invoked via `go tool`, not as PATH binaries. Override the relevant
-// Go builtins to match. gofumpt's upstream check is broken (always
-// exits 0), so replace it with a working `gofumpt -l` test.
+// Go builtins to match, including inherited list and diff commands.
 
 local gofumpt = (Builtins.go_fumpt) {
-    check = "test -z \"$(go tool gofumpt -l {{ files }})\""
+    check = "files=$(go tool gofumpt -l {{ files }}) || exit $?; test -z \"$files\""
+    check_list_files = null
+    check_diff = null
+    check_first = true
     fix = "go tool gofumpt -w {{ files }}"
 }
 
@@ -17,6 +19,7 @@ local golangciLint = (Builtins.golangci_lint) {
     check = "cd {{workspace}} && go tool golangci-lint run --fix=false ./..."
     fix = "cd {{workspace}} && go tool golangci-lint run --fix ./..."
     depends = List("gofumpt")
+    check_first = true
 }
 
 local govulncheck = (Builtins.go_vuln_check) {
@@ -24,6 +27,9 @@ local govulncheck = (Builtins.go_vuln_check) {
 }
 
 local shellcheck = (Builtins.shellcheck) {
+    match_any = null
+    check_diff = null
+    check_after_diff = false
     glob = List("**/*.sh", ".mise/tasks/build", ".mise/tasks/install", ".mise/tasks/version", ".mise/tasks/deps-update", ".mise/tasks/release")
     check = "shellcheck -x {{ files }}"
 }
@@ -58,6 +64,7 @@ hooks {
     }
     ["fix"] {
         fix = true
+        stage = true
         steps = linters
     }
     ["commit-msg"] {

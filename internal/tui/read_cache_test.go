@@ -15,8 +15,8 @@ func TestTabReadCache_ServicesHitBeforeTTL(t *testing.T) {
 	cache := newTabReadCache(5*time.Minute, func() time.Time { return now })
 
 	want := []pagerduty.Service{
-		{APIObject: pagerduty.APIObject{ID: "SVC1", Summary: "Auth"}},
-		{APIObject: pagerduty.APIObject{ID: "SVC2", Summary: "Billing"}},
+		{ID: "SVC1", Summary: "Auth"},
+		{ID: "SVC2", Summary: "Billing"},
 	}
 
 	cache.PutServices(want)
@@ -34,7 +34,7 @@ func TestTabReadCache_ExpiresAfterTTL(t *testing.T) {
 	cache := newTabReadCache(5*time.Minute, func() time.Time { return now })
 
 	cache.PutEscalationPolicies([]pagerduty.EscalationPolicy{
-		{APIObject: pagerduty.APIObject{ID: "EP1", Summary: "Default"}},
+		{ID: "EP1", Summary: "Default"},
 	})
 
 	now = start.Add(6 * time.Minute)
@@ -49,10 +49,10 @@ func TestTabReadCache_InvalidateTeamScopedData(t *testing.T) {
 	cache := newTabReadCache(30*time.Minute, func() time.Time { return now })
 
 	cache.PutServices([]pagerduty.Service{
-		{APIObject: pagerduty.APIObject{ID: "SVC1", Summary: "Auth"}},
+		{ID: "SVC1", Summary: "Auth"},
 	})
 	cache.PutEscalationPolicies([]pagerduty.EscalationPolicy{
-		{APIObject: pagerduty.APIObject{ID: "EP1", Summary: "Default"}},
+		{ID: "EP1", Summary: "Default"},
 	})
 
 	cache.InvalidateTeamScopedData()

@@ -1,23 +1,23 @@
 #:schema https://mise.en.dev/schema/mise.json
-min_version = "2026.5.0"
+min_version = "2026.9.11"
 
 [settings]
 lockfile = true
 
 [tools]
 # clover: provider=auto constraint=minor tags=go
-go = "1.26.5"
+go = "1.27.3"
 actionlint = "latest"
 goreleaser = "latest"
 cosign = "latest"
 zizmor = "latest"
 rumdl = "latest"
-hk = "latest"
-pkl = "latest"
+"packslip:github.com/jdx/hk" = "2.8.1"
 shellcheck = "latest"
 
 [env]
 HK_MISE = 1
+HK_PKL_BACKEND = "pklr"
 MODULE = "github.com/matcra587/pagerduty-client"
 BINARY_NAME = "pdc"
 DIST_DIR = "./dist"

@@ -23,7 +23,7 @@ func TestEnrichIncident_NoAlerts(t *testing.T) {
 	})
 
 	client := api.NewClient("test-token", api.WithBaseURL(server.URL))
-	incident := &pagerduty.Incident{APIObject: pagerduty.APIObject{ID: "P1"}}
+	incident := &pagerduty.Incident{ID: "P1"}
 	result := enrichIncident(context.Background(), client, incident)
 	assert.Equal(t, "P1", result.ID)
 	assert.Nil(t, result.Integration)
@@ -58,7 +58,7 @@ func TestEnrichIncident_DatadogAlert(t *testing.T) {
 	})
 
 	client := api.NewClient("test-token", api.WithBaseURL(server.URL))
-	incident := &pagerduty.Incident{APIObject: pagerduty.APIObject{ID: "P1"}}
+	incident := &pagerduty.Incident{ID: "P1"}
 	result := enrichIncident(context.Background(), client, incident)
 	require.NotNil(t, result.Integration)
 	assert.Equal(t, "Datadog", result.Integration.Source)
@@ -111,7 +111,7 @@ func TestEnrichIncident_GCPAlert(t *testing.T) {
 	})
 
 	client := api.NewClient("test-token", api.WithBaseURL(server.URL))
-	incident := &pagerduty.Incident{APIObject: pagerduty.APIObject{ID: "P1"}}
+	incident := &pagerduty.Incident{ID: "P1"}
 	result := enrichIncident(context.Background(), client, incident)
 	require.NotNil(t, result.Integration)
 	assert.Equal(t, "Google Cloud Monitoring", result.Integration.Source)
@@ -137,7 +137,7 @@ func TestEnrichIncident_AlertFetchError(t *testing.T) {
 	})
 
 	client := api.NewClient("test-token", api.WithBaseURL(server.URL))
-	incident := &pagerduty.Incident{APIObject: pagerduty.APIObject{ID: "P1"}}
+	incident := &pagerduty.Incident{ID: "P1"}
 	result := enrichIncident(context.Background(), client, incident)
 	assert.Equal(t, "P1", result.ID)
 	assert.Nil(t, result.Integration)

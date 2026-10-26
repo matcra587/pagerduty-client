@@ -78,7 +78,7 @@ run = ["go fmt ./...", "go tool gofumpt -w ."]
 
 ["fmt:check"]
 description = "Check Go formatting"
-run = 'test -z "$(go tool gofumpt -l .)"'
+run = 'files=$(go tool gofumpt -l .) && test -z "$files"'
 
 ["fmt:file"]
 description = "Format Go file(s) with gofumpt"

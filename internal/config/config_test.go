@@ -26,6 +26,28 @@ func TestLoad_Defaults(t *testing.T) {
 	assert.Equal(t, 30, cfg.RefreshInterval)
 }
 
+func TestLoad_EmptyTOMLKeepsDefaults(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("PDC_FORMAT", "")
+
+	for _, content := range []string{"", "# No settings yet\n"} {
+		require.NoError(t, os.WriteFile("config.toml", []byte(content), 0o600))
+		cfg, err := config.Load(config.WithPath("config.toml"))
+		require.NoError(t, err)
+		assert.Equal(t, "table", cfg.Format)
+		assert.Equal(t, 30, cfg.RefreshInterval)
+	}
+}
+
+func TestLoad_InvalidTOML(t *testing.T) {
+	t.Chdir(t.TempDir())
+	require.NoError(t, os.WriteFile("config.toml", []byte("[defaults\n"), 0o600))
+
+	cfg, err := config.Load(config.WithPath("config.toml"))
+	require.ErrorContains(t, err, "loading config file")
+	assert.Nil(t, cfg)
+}
+
 func TestLoad_TOMLFile(t *testing.T) {
 	dir := t.TempDir()
 	cfgPath := filepath.Join(dir, "config.toml")

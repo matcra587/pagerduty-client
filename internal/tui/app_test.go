@@ -132,7 +132,7 @@ func TestAppFetchServicesCmd_UsesCacheHit(t *testing.T) {
 		"test@example.com",
 	)
 	app.tabCache.PutServices([]pagerduty.Service{
-		{APIObject: pagerduty.APIObject{ID: "PSVC-CACHED"}, Name: "Cached Service", Status: "disabled"},
+		{ID: "PSVC-CACHED", Name: "Cached Service", Status: "disabled"},
 	})
 
 	msg := app.fetchServicesCmd()()
@@ -167,7 +167,7 @@ func TestAppFetchEPCmd_UsesCacheHit(t *testing.T) {
 		"test@example.com",
 	)
 	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{
-		{APIObject: pagerduty.APIObject{ID: "PEP-CACHED"}, Name: "Cached EP"},
+		{ID: "PEP-CACHED", Name: "Cached EP"},
 	})
 
 	msg := app.fetchEPCmd()()
@@ -189,8 +189,8 @@ func TestAppResetTeamScopedTabState_ClearsCacheAndLoadedFlags(t *testing.T) {
 		config.Default(),
 		"test@example.com",
 	)
-	app.tabCache.PutServices([]pagerduty.Service{{APIObject: pagerduty.APIObject{ID: "PSVC1"}, Name: "Cached Service"}})
-	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{{APIObject: pagerduty.APIObject{ID: "PEP1"}, Name: "Cached EP"}})
+	app.tabCache.PutServices([]pagerduty.Service{{ID: "PSVC1", Name: "Cached Service"}})
+	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{{ID: "PEP1", Name: "Cached EP"}})
 	app.svc.loaded = true
 	app.svc.loading = true
 	app.ep.loaded = true
@@ -237,7 +237,7 @@ func TestAppFetchFreshServicesCmd_HitsAPI(t *testing.T) {
 		cfg,
 		"test@example.com",
 	)
-	app.tabCache.PutServices([]pagerduty.Service{{APIObject: pagerduty.APIObject{ID: "PSVC-CACHED"}, Name: "Cached Service", Status: "disabled"}})
+	app.tabCache.PutServices([]pagerduty.Service{{ID: "PSVC-CACHED", Name: "Cached Service", Status: "disabled"}})
 
 	msg := app.fetchFreshServicesCmd()()
 	require.Equal(t, int32(1), hits.Load())
@@ -283,7 +283,7 @@ func TestAppRefreshActiveTeamScopedTabAfterTeamChange_FetchesFreshServices(t *te
 	)
 	app.activeTab = tabIndexByID(app.tabs, "services")
 	require.GreaterOrEqual(t, app.activeTab, 0)
-	app.tabCache.PutServices([]pagerduty.Service{{APIObject: pagerduty.APIObject{ID: "PSVC-OLD"}, Name: "Old Service", Status: "disabled"}})
+	app.tabCache.PutServices([]pagerduty.Service{{ID: "PSVC-OLD", Name: "Old Service", Status: "disabled"}})
 	app.svc.loaded = true
 	app.cfg.Team = "T2"
 
@@ -409,8 +409,8 @@ func TestAppRefreshServicesKey_DoesNotClearEscalationPoliciesState(t *testing.T)
 	app.current = viewDashboard
 	app.activeTab = tabIndexByID(app.tabs, "services")
 	require.GreaterOrEqual(t, app.activeTab, 0)
-	app.tabCache.PutServices([]pagerduty.Service{{APIObject: pagerduty.APIObject{ID: "PSVC1"}, Name: "Cached Service"}})
-	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{{APIObject: pagerduty.APIObject{ID: "PEP1"}, Name: "Cached EP"}})
+	app.tabCache.PutServices([]pagerduty.Service{{ID: "PSVC1", Name: "Cached Service"}})
+	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{{ID: "PEP1", Name: "Cached EP"}})
 	app.svc.loaded = true
 	app.ep.loaded = true
 
@@ -444,8 +444,8 @@ func TestAppRefreshEscalationPoliciesKey_DoesNotClearServicesState(t *testing.T)
 	app.current = viewDashboard
 	app.activeTab = tabIndexByID(app.tabs, "escalation-policies")
 	require.GreaterOrEqual(t, app.activeTab, 0)
-	app.tabCache.PutServices([]pagerduty.Service{{APIObject: pagerduty.APIObject{ID: "PSVC1"}, Name: "Cached Service"}})
-	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{{APIObject: pagerduty.APIObject{ID: "PEP1"}, Name: "Cached EP"}})
+	app.tabCache.PutServices([]pagerduty.Service{{ID: "PSVC1", Name: "Cached Service"}})
+	app.tabCache.PutEscalationPolicies([]pagerduty.EscalationPolicy{{ID: "PEP1", Name: "Cached EP"}})
 	app.svc.loaded = true
 	app.ep.loaded = true
 

@@ -1,5 +1,7 @@
 # Installation
 
+macOS binaries require macOS 13 (Ventura) or later.
+
 ## Homebrew (recommended)
 
 ```bash
@@ -16,7 +18,7 @@ and place it on your `PATH`.
 
 ## Go
 
-Requires Go `1.26+`.
+Requires Go `1.27.3` or later.
 
 ```bash
 go install github.com/matcra587/pagerduty-client/cmd/pdc@latest

@@ -13,7 +13,7 @@ import (
 
 func TestAckCmdNilClient(t *testing.T) {
 	m := newIncidentList(context.Background(), nil, "test@example.com", false)
-	m.incidents = []pagerduty.Incident{{APIObject: pagerduty.APIObject{ID: "P1"}}}
+	m.incidents = []pagerduty.Incident{{ID: "P1"}}
 	cmd := m.ackCmd()
 	require.NotNil(t, cmd)
 	msg := cmd()
@@ -23,7 +23,7 @@ func TestAckCmdNilClient(t *testing.T) {
 
 func TestResolveCmdNilClient(t *testing.T) {
 	m := newIncidentList(context.Background(), nil, "test@example.com", false)
-	m.incidents = []pagerduty.Incident{{APIObject: pagerduty.APIObject{ID: "P1"}}}
+	m.incidents = []pagerduty.Incident{{ID: "P1"}}
 	cmd := m.resolveCmd()
 	require.NotNil(t, cmd)
 	msg := cmd()
@@ -33,7 +33,7 @@ func TestResolveCmdNilClient(t *testing.T) {
 
 func TestBatchAckCmdNilClient(t *testing.T) {
 	m := newIncidentList(context.Background(), nil, "test@example.com", false)
-	m.incidents = []pagerduty.Incident{{APIObject: pagerduty.APIObject{ID: "P1"}}}
+	m.incidents = []pagerduty.Incident{{ID: "P1"}}
 	m.selections = map[string]bool{"P1": true}
 	cmd := m.batchAckCmd()
 	require.NotNil(t, cmd)
@@ -44,7 +44,7 @@ func TestBatchAckCmdNilClient(t *testing.T) {
 
 func TestBatchResolveCmdNilClient(t *testing.T) {
 	m := newIncidentList(context.Background(), nil, "test@example.com", false)
-	m.incidents = []pagerduty.Incident{{APIObject: pagerduty.APIObject{ID: "P1"}}}
+	m.incidents = []pagerduty.Incident{{ID: "P1"}}
 	m.selections = map[string]bool{"P1": true}
 	cmd := m.batchResolveCmd()
 	require.NotNil(t, cmd)
@@ -71,9 +71,9 @@ func TestSearchIndex_BuiltOnSetIncidents(t *testing.T) {
 	m := newIncidentList(context.Background(), nil, "test@example.com", false)
 	m.SetIncidents([]pagerduty.Incident{
 		{
-			APIObject: pagerduty.APIObject{ID: "PABC123"},
-			Title:     "Database CPU High",
-			Service:   pagerduty.APIObject{Summary: "Web API"},
+			ID:      "PABC123",
+			Title:   "Database CPU High",
+			Service: pagerduty.APIObject{Summary: "Web API"},
 			Assignments: []pagerduty.Assignment{
 				{Assignee: pagerduty.APIObject{Summary: "Alice Smith"}},
 			},
@@ -91,8 +91,8 @@ func TestSearchIndex_SeparatorPreventsCrossFieldMatch(t *testing.T) {
 	m := newIncidentList(context.Background(), nil, "test@example.com", false)
 	m.SetIncidents([]pagerduty.Incident{
 		{
-			APIObject: pagerduty.APIObject{ID: "abc"},
-			Title:     "def",
+			ID:    "abc",
+			Title: "def",
 		},
 	})
 

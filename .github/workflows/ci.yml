@@ -14,20 +14,26 @@ jobs:
   go-test:
     name: Go test
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-test.yml@8b104684e72bef79fca78b294accb5f789d3f202
+    uses: matcra587/github-actions/.github/workflows/go-ci.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476
     permissions:
       contents: read
+    with:
+      test-args: "-v -race -cover ./..."
+      skip: "lint tidy modernize race cross-compile"
 
   go-lint:
     name: Go lint
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/go-lint.yml@8b104684e72bef79fca78b294accb5f789d3f202
+    uses: matcra587/github-actions/.github/workflows/go-ci.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476
     permissions:
       contents: read
+    with:
+      golangci-version: "v2.15.0"
+      skip: "test race cross-compile tidy modernize"
 
   md-lint:
     name: Markdown lint
     # clover: provider=auto tags=actions
-    uses: matcra587/github-actions/.github/workflows/md-lint.yml@8b104684e72bef79fca78b294accb5f789d3f202
+    uses: matcra587/github-actions/.github/workflows/md-lint.yml@3b7e5c01d5ae0ccb2aeedf023c69d34b86cf2476
     permissions:
       contents: read

@@ -14,8 +14,8 @@ func TestMatchPriority(t *testing.T) {
 	t.Parallel()
 
 	priorities := []pagerduty.Priority{
-		{APIObject: pagerduty.APIObject{ID: "PRI1"}, Name: "P1"},
-		{APIObject: pagerduty.APIObject{ID: "PRI2"}, Name: "P2"},
+		{ID: "PRI1", Name: "P1"},
+		{ID: "PRI2", Name: "P2"},
 	}
 
 	tests := []struct {

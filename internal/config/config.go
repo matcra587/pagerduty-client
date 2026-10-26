@@ -9,7 +9,7 @@ import (
 
 	"github.com/gechr/clog"
 	"github.com/joho/godotenv"
-	koToml "github.com/knadh/koanf/parsers/toml"
+	koToml "github.com/knadh/koanf/parsers/toml/v2"
 	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"

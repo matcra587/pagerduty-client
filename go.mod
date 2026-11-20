@@ -1,7 +1,7 @@
 module github.com/matcra587/pagerduty-client
 
 // clover: provider=auto constraint=minor tags=go
-go 1.27.3
+go 1.27.4
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
@@ -11,19 +11,19 @@ tool (
 
 require (
 	charm.land/bubbles/v2 v2.2.1
-	charm.land/bubbletea/v2 v2.1.0
+	charm.land/bubbletea/v2 v2.1.1
 	charm.land/glamour/v2 v2.0.2-0.20261015065741-010543cac1a0
 	charm.land/huh/v2 v2.0.3
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/cli/go-gh/v2 v2.17.0
-	github.com/gechr/clib v0.8.2
-	github.com/gechr/clog v0.17.4
-	github.com/gechr/x v0.6.4
+	github.com/gechr/clib v0.8.6
+	github.com/gechr/clog v0.17.7
+	github.com/gechr/x v0.6.6
 	github.com/joho/godotenv v1.5.1
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.2
 	github.com/knadh/koanf/providers/confmap v1.0.1
@@ -31,13 +31,13 @@ require (
 	github.com/knadh/koanf/v2 v2.4.1
 	github.com/sahilm/fuzzy v0.1.3
 	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/stretchr/testify v1.12.1
 	github.com/zalando/go-keyring v0.2.8
 	go.uber.org/goleak v1.3.0
-	golang.org/x/mod v0.42.0
-	golang.org/x/sync v0.24.0
-	golang.org/x/text v0.43.0
+	golang.org/x/mod v0.43.0
+	golang.org/x/sync v0.25.0
+	golang.org/x/text v0.44.0
 	golang.org/x/time v0.16.0
 )
 
@@ -258,9 +258,9 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20261014143641-f0251eb4aa3e // indirect
 	golang.org/x/net v0.61.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/telemetry v0.0.0-20261021172232-6cd571d43fbb // indirect
-	golang.org/x/term v0.47.0 // indirect
+	golang.org/x/term v0.48.0 // indirect
 	golang.org/x/tools v0.52.0 // indirect
 	golang.org/x/vuln v1.9.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
